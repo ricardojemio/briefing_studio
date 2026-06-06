@@ -1,4 +1,5 @@
 // src/components/Studio.tsx
+<<<<<<< HEAD
 // INTEGRATION: drag callback, multi-select, zoom, rotation all wired up
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -7,6 +8,16 @@ import ActionPanel   from './toolbar/ActionPanel'
 import Sidebar       from './sidebar/Sidebar'
 import { useStore }  from '../store'
 import { api }       from '../services/api'
+=======
+// Main studio view — integrates canvas, toolbar, action panel and sidebar.
+
+import { useState, useCallback, useEffect, useRef } from 'react'
+import StudioCanvas from './canvas/StudioCanvas'
+import ActionPanel  from './toolbar/ActionPanel'
+import Sidebar      from './sidebar/Sidebar'
+import { useStore } from '../store'
+import { api }      from '../services/api'
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 import type { Artwork, ArtElement, Selection } from '../types'
 
 interface StudioProps {
@@ -16,6 +27,7 @@ interface StudioProps {
 
 export default function Studio({ artwork, onBack }: StudioProps) {
   const {
+<<<<<<< HEAD
     page, setPage, pagePreview, setPagePreview,
     elements, setElements, actions, setActions,
     activeTool, setActiveTool, error, setError, loading, setLoading,
@@ -29,6 +41,24 @@ export default function Studio({ artwork, onBack }: StudioProps) {
   const [dragDelta,     setDragDelta]     = useState<{ dx_mm: number; dy_mm: number } | null>(null)
 
   // Load page on mount / page change
+=======
+    page, setPage,
+    pagePreview, setPagePreview,
+    elements, setElements,
+    actions, setActions,
+    activeTool, setActiveTool,
+    error, setError,
+    loading, setLoading,
+  } = useStore()
+
+  const [selection,    setSelection]    = useState<Selection | null>(null)
+  const [nearestElem,  setNearestElem]  = useState<ArtElement | null>(null)
+  const [showPanel,    setShowPanel]    = useState(false)
+  const [uploading,    setUploading]    = useState(false)
+  const canvasContainerRef = useRef<HTMLDivElement>(null)
+
+  // Load page preview + elements + existing actions
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -45,10 +75,16 @@ export default function Studio({ artwork, onBack }: StudioProps) {
           setActions(acts)
           setSelection(null)
           setShowPanel(false)
+<<<<<<< HEAD
           setDragDelta(null)
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Erro ao carregar')
+=======
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Erro ao carregar página')
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -57,6 +93,7 @@ export default function Studio({ artwork, onBack }: StudioProps) {
     return () => { cancelled = true }
   }, [artwork.id, page])
 
+<<<<<<< HEAD
   // Called when user clicks or draws a region on the canvas
   const handleSelection = useCallback((sel: Selection, elem: ArtElement | null) => {
     setSelection(sel)
@@ -109,13 +146,31 @@ export default function Studio({ artwork, onBack }: StudioProps) {
     setSelection(null)
     setDragDelta(null)
     setMultiElems([])
+=======
+  const handleSelection = useCallback((sel: Selection, elem: ArtElement | null) => {
+    setSelection(sel)
+    setNearestElem(elem)
+    setShowPanel(true)
+  }, [])
+
+  const handleActionSaved = useCallback(async () => {
+    setShowPanel(false)
+    setSelection(null)
+    // Reload actions
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
     const acts = await api.listActions(artwork.id, page)
     setActions(acts)
   }, [artwork.id, page])
 
   const topBtn: React.CSSProperties = {
+<<<<<<< HEAD
     background: 'transparent', border: 'none', color: '#aaa',
     cursor: 'pointer', padding: '6px 8px', borderRadius: 6, fontSize: 14,
+=======
+    background: 'transparent', border: 'none',
+    color: '#aaa', cursor: 'pointer',
+    padding: '6px 8px', borderRadius: 6, fontSize: 14,
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
   }
 
   return (
@@ -123,6 +178,7 @@ export default function Studio({ artwork, onBack }: StudioProps) {
 
       {/* ── Top bar ── */}
       <div style={{
+<<<<<<< HEAD
         height: 50, background: '#12121f', borderBottom: '1px solid #222',
         display: 'flex', alignItems: 'center', padding: '0 12px', gap: 10, flexShrink: 0,
       }}>
@@ -130,10 +186,29 @@ export default function Studio({ artwork, onBack }: StudioProps) {
         <div style={{ width: 1, height: 24, background: '#333' }} />
         <div>
           <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>{artwork.filename}</div>
+=======
+        height: 50, background: '#12121f',
+        borderBottom: '1px solid #222',
+        display: 'flex', alignItems: 'center',
+        padding: '0 12px', gap: 10, flexShrink: 0,
+      }}>
+        <button onClick={onBack} style={{ ...topBtn, fontSize: 18 }}>←</button>
+        <div style={{ width: 1, height: 24, background: '#333' }} />
+
+        {/* Artwork info */}
+        <div>
+          <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>
+            {artwork.filename}
+          </div>
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
           <div style={{ color: '#555', fontSize: 10, marginTop: 1 }}>
             {artwork.total_pages} pág. · {artwork.page_width_pts?.toFixed(0)} × {artwork.page_height_pts?.toFixed(0)} pts
           </div>
         </div>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
         <div style={{ flex: 1 }} />
 
         {/* Tool selector */}
@@ -142,15 +217,26 @@ export default function Studio({ artwork, onBack }: StudioProps) {
             { id: 'select', icon: '↖️', label: 'Selecionar' },
             { id: 'region', icon: '⬜', label: 'Região livre' },
           ].map(t => (
+<<<<<<< HEAD
             <button key={t.id} onClick={() => setActiveTool(t.id as any)} title={t.label}
               style={{ padding: '5px 10px', border: 'none', borderRadius: 6,
                 background: activeTool === t.id ? '#185FA5' : 'transparent',
                 color: '#fff', cursor: 'pointer', fontSize: 12 }}>
+=======
+            <button key={t.id} onClick={() => setActiveTool(t.id as any)}
+              title={t.label}
+              style={{
+                padding: '5px 10px', border: 'none', borderRadius: 6,
+                background: activeTool === t.id ? '#185FA5' : 'transparent',
+                color: '#fff', cursor: 'pointer', fontSize: 12,
+              }}>
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
               {t.icon} {t.label}
             </button>
           ))}
         </div>
 
+<<<<<<< HEAD
         {/* Multi-select hint */}
         {multiElems.length > 1 && (
           <div style={{ padding: '4px 10px', background: '#1a0d2e', border: '1px solid #9C27B0', borderRadius: 6, fontSize: 11, color: '#CE93D8' }}>
@@ -158,19 +244,30 @@ export default function Studio({ artwork, onBack }: StudioProps) {
           </div>
         )}
 
+=======
+        {/* Error indicator */}
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
         {error && (
           <div style={{ padding: '4px 10px', background: '#2a1010', border: '1px solid #5a1010', borderRadius: 6, fontSize: 11, color: '#f88', maxWidth: 200 }}>
             ⚠️ {error.slice(0, 40)}
             <button onClick={() => setError(null)} style={{ marginLeft: 6, background: 'none', border: 'none', color: '#f88', cursor: 'pointer' }}>✕</button>
           </div>
         )}
+<<<<<<< HEAD
         {loading && <div style={{ color: '#555', fontSize: 12 }}>⏳ Carregando...</div>}
+=======
+
+        {loading && (
+          <div style={{ color: '#555', fontSize: 12 }}>⏳ Carregando...</div>
+        )}
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
       </div>
 
       {/* ── Main content ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* Canvas area */}
+<<<<<<< HEAD
         <div style={{
           flex: 1, overflow: 'auto', background: '#1a1a2e',
           display: 'flex', justifyContent: 'center',
@@ -199,6 +296,37 @@ export default function Studio({ artwork, onBack }: StudioProps) {
                   dragDelta      = {dragDelta || undefined}
                   onClose        = {() => { setShowPanel(false); setSelection(null); setDragDelta(null) }}
                   onSaved        = {handleActionSaved}
+=======
+        <div
+          ref={canvasContainerRef}
+          style={{
+            flex: 1, overflow: 'auto',
+            background: '#1a1a2e',
+            display: 'flex', justifyContent: 'center',
+            alignItems: 'flex-start', padding: 32,
+            position: 'relative',
+          }}
+        >
+          {pagePreview ? (
+            <>
+              <StudioCanvas
+                previewUrl  = {pagePreview.preview_url}
+                width       = {pagePreview.width_px}
+                height      = {pagePreview.height_px}
+                elements    = {elements}
+                onSelection = {handleSelection}
+              />
+
+              {/* Floating action panel */}
+              {showPanel && selection && (
+                <ActionPanel
+                  artworkId   = {artwork.id}
+                  page        = {page}
+                  selection   = {selection}
+                  element     = {nearestElem}
+                  onClose     = {() => { setShowPanel(false); setSelection(null) }}
+                  onSaved     = {handleActionSaved}
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
                 />
               )}
 
@@ -214,16 +342,27 @@ export default function Studio({ artwork, onBack }: StudioProps) {
 
         {/* Sidebar */}
         <Sidebar
+<<<<<<< HEAD
           artworkId    = {artwork.id}
           page         = {page}
           totalPages   = {artwork.total_pages}
           onPageChange = {(p) => { setPage(p); setShowPanel(false); setDragDelta(null) }}
+=======
+          artworkId   = {artwork.id}
+          page        = {page}
+          totalPages  = {artwork.total_pages}
+          onPageChange= {(p) => { setPage(p); setShowPanel(false) }}
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
         />
       </div>
     </div>
   )
 }
 
+<<<<<<< HEAD
+=======
+// Small tooltip showing hovered element info
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 function ElementTooltip() {
   const { hoveredElem } = useStore()
   if (!hoveredElem) return null
@@ -232,7 +371,12 @@ function ElementTooltip() {
       position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)',
       background: '#1a1a2e', border: '1px solid #333', borderRadius: 8,
       padding: '6px 14px', fontSize: 12, color: '#ddd',
+<<<<<<< HEAD
       pointerEvents: 'none', zIndex: 300, boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+=======
+      pointerEvents: 'none', zIndex: 300,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
     }}>
       {hoveredElem.type === 'text' ? '📝' : '🖼️'}{' '}
       <strong>{hoveredElem.type.toUpperCase()}</strong>

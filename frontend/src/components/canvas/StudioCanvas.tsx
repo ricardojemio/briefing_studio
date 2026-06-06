@@ -1,4 +1,5 @@
 // src/components/canvas/StudioCanvas.tsx
+<<<<<<< HEAD
 // FIXES:
 //   #1 - Zoom In/Out with coordinate matrix recalculation
 //   #2 - Multiple selection with Shift key
@@ -6,6 +7,13 @@
 //   #7 - Canvas rotation in 90° steps with transposed click coords
 
 import { useEffect, useRef, useCallback, useState } from 'react'
+=======
+// Core canvas — renders artwork as background image (IMMUTABLE)
+// Fabric.js is a pure overlay for selection and annotation only.
+// RULES: No color changes, no vector edits, no dimension changes.
+
+import { useEffect, useRef, useCallback } from 'react'
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 import { fabric } from 'fabric'
 import { useStore } from '../../store'
 import type { ArtElement, Selection } from '../../types'
@@ -16,11 +24,18 @@ interface StudioCanvasProps {
   height:      number
   elements:    ArtElement[]
   onSelection: (sel: Selection, nearestElem: ArtElement | null) => void
+<<<<<<< HEAD
   onMultiSelection?: (elems: ArtElement[]) => void
   onDragMove?: (elemId: string, dx_mm: number, dy_mm: number) => void
 }
 
 const TYPE_COLOR:  Record<string, string> = {
+=======
+}
+
+// Colors per element type
+const TYPE_COLOR: Record<string, string> = {
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
   text:    'rgba(24,95,165,0.15)',
   image:   'rgba(29,158,117,0.15)',
   logo:    'rgba(186,117,23,0.15)',
@@ -35,6 +50,7 @@ const TYPE_STROKE: Record<string, string> = {
   vector:  '#888',
 }
 
+<<<<<<< HEAD
 // FIX #1: zoom levels
 const ZOOM_LEVELS = [0.25, 0.33, 0.5, 0.67, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0]
 
@@ -63,12 +79,31 @@ export default function StudioCanvas({
   // ── Init canvas ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!canvasRef.current) return
+=======
+export default function StudioCanvas({
+  previewUrl, width, height, elements, onSelection,
+}: StudioCanvasProps) {
+  const canvasRef  = useRef<HTMLCanvasElement>(null)
+  const fabricRef  = useRef<fabric.Canvas | null>(null)
+  const isDrawing  = useRef(false)
+  const startPt    = useRef<{ x: number; y: number } | null>(null)
+  const selRect    = useRef<fabric.Rect | null>(null)
+  const elemObjs   = useRef<Map<string, fabric.Rect>>(new Map())
+
+  const { activeTool, actions, setHoveredElem, setSelectedElem } = useStore()
+
+  // ── Init canvas ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!canvasRef.current) return
+
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
     const canvas = new fabric.Canvas(canvasRef.current, {
       width, height,
       selection: false,
       preserveObjectStacking: true,
     })
     fabricRef.current = canvas
+<<<<<<< HEAD
     loadBackground(canvas, previewUrl, width, height, rotation)
     return () => { canvas.dispose(); fabricRef.current = null }
   }, [previewUrl, width, height, rotation])
@@ -135,15 +170,57 @@ export default function StudioCanvas({
       const w  = ew * width,  h  = eh * height
       const bg = TYPE_COLOR[elem.type]   || 'rgba(24,95,165,0.10)'
       const st = TYPE_STROKE[elem.type]  || '#185FA5'
+=======
+
+    // Load artwork as immutable background
+    fabric.Image.fromURL(
+      previewUrl,
+      (img) => {
+        img.set({ selectable: false, evented: false })
+        img.scaleToWidth(width)
+        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas))
+      },
+      { crossOrigin: 'anonymous' }
+    )
+
+    return () => { canvas.dispose(); fabricRef.current = null }
+  }, [previewUrl, width, height])
+
+  // ── Overlay element boxes ──────────────────────────────────────────────
+  useEffect(() => {
+    const canvas = fabricRef.current
+    if (!canvas) return
+
+    // Remove old element overlays
+    elemObjs.current.forEach((obj) => canvas.remove(obj))
+    elemObjs.current.clear()
+
+    elements.forEach((elem) => {
+      const x  = elem.x_norm * width
+      const y  = elem.y_norm * height
+      const w  = elem.w_norm * width
+      const h  = elem.h_norm * height
+      const bg = TYPE_COLOR[elem.type]  || 'rgba(24,95,165,0.10)'
+      const st = TYPE_STROKE[elem.type] || '#185FA5'
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 
       const rect = new fabric.Rect({
         left: x, top: y, width: w, height: h,
         fill: bg, stroke: st, strokeWidth: 1,
         strokeDashArray: [4, 3],
+<<<<<<< HEAD
         selectable: false, evented: true, opacity: 0.6,
         data: { elemId: elem.elem_id, elem },
       })
 
+=======
+        selectable: false, evented: true,
+        opacity: 0.6,
+        data: { elemId: elem.elem_id, elem },
+      })
+
+      // Hover effect
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
       rect.on('mouseover', () => {
         rect.set({ opacity: 1, strokeWidth: 2 })
         canvas.renderAll()
@@ -154,6 +231,7 @@ export default function StudioCanvas({
         canvas.renderAll()
         setHoveredElem(null)
       })
+<<<<<<< HEAD
 
       // FIX #2: shift-click for multi-select
       rect.on('mousedown', (opt) => {
@@ -167,6 +245,11 @@ export default function StudioCanvas({
         }
         multiSel.current = [elem]
         setSelectedElem(elem)
+=======
+      rect.on('mousedown', () => {
+        setSelectedElem(elem)
+        // Auto-create selection from element bounds
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
         const sel: Selection = {
           x: elem.x_norm, y: elem.y_norm,
           w: elem.w_norm, h: elem.h_norm,
@@ -175,6 +258,7 @@ export default function StudioCanvas({
         onSelection(sel, elem)
       })
 
+<<<<<<< HEAD
       // FIX #3: drag to move
       if (elem.allowed_actions.includes('move')) {
         rect.on('mousedown', (opt) => {
@@ -188,10 +272,13 @@ export default function StudioCanvas({
         })
       }
 
+=======
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
       canvas.add(rect)
       elemObjs.current.set(elem.elem_id, rect)
     })
 
+<<<<<<< HEAD
     // FIX #3: drag move handlers on canvas level
     const canvas2 = fabricRef.current!
     const onMouseMove = (opt: fabric.IEvent<MouseEvent>) => {
@@ -257,22 +344,73 @@ export default function StudioCanvas({
       })
       const label = new fabric.Text(action.action_type.toUpperCase(), {
         left: x + 2, top: y + 2, fontSize: 9, fill: '#fff',
+=======
+    // Draw action markers on already-saved actions
+    canvas.renderAll()
+  }, [elements, width, height])
+
+  // ── Highlight saved actions ────────────────────────────────────────────
+  useEffect(() => {
+    const canvas = fabricRef.current
+    if (!canvas) return
+
+    // Remove old action markers (objects with data.isAction)
+    canvas.getObjects().filter((o: fabric.Object) =>
+      (o as any).data?.isAction
+    ).forEach((o: fabric.Object) => canvas.remove(o))
+
+    actions.forEach((action) => {
+      if (!action.sel_x) return
+      const x = action.sel_x * width
+      const y = action.sel_y! * height
+      const w = action.sel_w! * width
+      const h = action.sel_h! * height
+
+      const color = {
+        replace: '#1D9E75', delete: '#dc3545',
+        move:    '#185FA5', resize: '#BA7517',
+      }[action.action_type] || '#888'
+
+      const marker = new fabric.Rect({
+        left: x, top: y, width: w, height: h,
+        fill: 'transparent',
+        stroke: color, strokeWidth: 2,
+        selectable: false, evented: false,
+        data: { isAction: true, actionId: action.id },
+      })
+
+      // Badge label
+      const label = new fabric.Text(action.action_type.toUpperCase(), {
+        left: x + 2, top: y + 2,
+        fontSize: 9, fill: '#fff',
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
         backgroundColor: color,
         selectable: false, evented: false,
         data: { isAction: true },
       })
+<<<<<<< HEAD
       canvas.add(marker, label)
     })
     canvas.renderAll()
   }, [actions, width, height, zoom])
 
   // ── Free-draw region selection ───────────────────────────────────────
+=======
+
+      canvas.add(marker, label)
+    })
+    canvas.renderAll()
+  }, [actions, width, height])
+
+  // ── Mouse events for free-draw region selection ────────────────────────
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
   useEffect(() => {
     const canvas = fabricRef.current
     if (!canvas) return
 
     const onDown = (opt: fabric.IEvent<MouseEvent>) => {
       if (activeTool !== 'region') return
+<<<<<<< HEAD
       // FIX #1: divide by zoom to get real canvas coordinates
       const ptr = canvas.getPointer(opt.e)
       const rx = ptr.x / zoom, ry = ptr.y / zoom
@@ -283,6 +421,18 @@ export default function StudioCanvas({
         fill: 'rgba(24,95,165,0.08)',
         stroke: '#185FA5', strokeWidth: 2, strokeDashArray: [6, 3],
         selectable: false, evented: false, data: { isSelection: true },
+=======
+      const ptr = canvas.getPointer(opt.e)
+      isDrawing.current = true
+      startPt.current   = { x: ptr.x, y: ptr.y }
+      const rect = new fabric.Rect({
+        left: ptr.x, top: ptr.y, width: 0, height: 0,
+        fill: 'rgba(24,95,165,0.08)',
+        stroke: '#185FA5', strokeWidth: 2,
+        strokeDashArray: [6, 3],
+        selectable: false, evented: false,
+        data: { isSelection: true },
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
       })
       selRect.current = rect
       canvas.add(rect)
@@ -291,12 +441,20 @@ export default function StudioCanvas({
     const onMove = (opt: fabric.IEvent<MouseEvent>) => {
       if (!isDrawing.current || !startPt.current || !selRect.current) return
       const ptr = canvas.getPointer(opt.e)
+<<<<<<< HEAD
       const rx = ptr.x / zoom, ry = ptr.y / zoom
       const x = Math.min(rx, startPt.current.x)
       const y = Math.min(ry, startPt.current.y)
       const w = Math.abs(rx - startPt.current.x)
       const h = Math.abs(ry - startPt.current.y)
       selRect.current.set({ left: x * zoom, top: y * zoom, width: w * zoom, height: h * zoom })
+=======
+      const x = Math.min(ptr.x, startPt.current.x)
+      const y = Math.min(ptr.y, startPt.current.y)
+      const w = Math.abs(ptr.x - startPt.current.x)
+      const h = Math.abs(ptr.y - startPt.current.y)
+      selRect.current.set({ left: x, top: y, width: w, height: h })
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
       canvas.renderAll()
     }
 
@@ -304,43 +462,73 @@ export default function StudioCanvas({
       if (!isDrawing.current || !startPt.current || !selRect.current) return
       isDrawing.current = false
       const ptr = canvas.getPointer(opt.e)
+<<<<<<< HEAD
       const rx = ptr.x / zoom, ry = ptr.y / zoom
       const x_px = Math.min(rx, startPt.current.x)
       const y_px = Math.min(ry, startPt.current.y)
       const w_px = Math.abs(rx - startPt.current.x)
       const h_px = Math.abs(ry - startPt.current.y)
+=======
+      const x_px = Math.min(ptr.x, startPt.current.x)
+      const y_px = Math.min(ptr.y, startPt.current.y)
+      const w_px = Math.abs(ptr.x - startPt.current.x)
+      const h_px = Math.abs(ptr.y - startPt.current.y)
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 
       if (w_px < 5 || h_px < 5) {
         canvas.remove(selRect.current)
         selRect.current = null
         return
       }
+<<<<<<< HEAD
       const sel: Selection = {
         x: x_px / width,  y: y_px / height,
         w: w_px / width,  h: h_px / height,
         x_px, y_px, w_px, h_px,
       }
       const nearest = findNearest(elements, sel)
+=======
+
+      const sel: Selection = {
+        x: x_px / width, y: y_px / height,
+        w: w_px / width, h: h_px / height,
+        x_px, y_px, w_px, h_px,
+      }
+
+      // Find nearest element in the selection region
+      const nearest = findNearestElement(elements, sel)
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
       onSelection(sel, nearest)
     }
 
     canvas.on('mouse:down', onDown)
     canvas.on('mouse:move', onMove)
     canvas.on('mouse:up',   onUp)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
     return () => {
       canvas.off('mouse:down', onDown)
       canvas.off('mouse:move', onMove)
       canvas.off('mouse:up',   onUp)
     }
+<<<<<<< HEAD
   }, [activeTool, elements, width, height, zoom, rotation, onSelection])
 
   // ── Cursor ───────────────────────────────────────────────────────────
+=======
+  }, [activeTool, elements, width, height, onSelection])
+
+  // ── Cursor ────────────────────────────────────────────────────────────
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
   useEffect(() => {
     const canvas = fabricRef.current
     if (!canvas) return
     canvas.defaultCursor = activeTool === 'region' ? 'crosshair' : 'default'
   }, [activeTool])
 
+<<<<<<< HEAD
   // ── Zoom controls UI ─────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
@@ -447,13 +635,44 @@ function findNearest(elements: ArtElement[], sel: Selection): ArtElement | null 
     if (overlap) {
       const d = Math.hypot(cx - (e.x_norm + e.w_norm / 2), cy - (e.y_norm + e.h_norm / 2))
       if (d < bestD) { bestD = d; best = e }
+=======
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ display: 'block', boxShadow: '0 4px 32px rgba(0,0,0,0.5)' }}
+    />
+  )
+}
+
+// Find element whose center is closest to selection center
+function findNearestElement(elements: ArtElement[], sel: Selection): ArtElement | null {
+  const cx = sel.x + sel.w / 2
+  const cy = sel.y + sel.h / 2
+  let best: ArtElement | null = null
+  let bestDist = Infinity
+  for (const e of elements) {
+    const ex = e.x_norm + e.w_norm / 2
+    const ey = e.y_norm + e.h_norm / 2
+    // Check overlap
+    const overlap =
+      sel.x < e.x_norm + e.w_norm &&
+      sel.x + sel.w > e.x_norm &&
+      sel.y < e.y_norm + e.h_norm &&
+      sel.y + sel.h > e.y_norm
+    if (overlap) {
+      const d = Math.hypot(cx - ex, cy - ey)
+      if (d < bestDist) { bestDist = d; best = e }
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
     }
   }
   return best
 }
+<<<<<<< HEAD
 
 const zoomBtn: React.CSSProperties = {
   background: '#252540', border: '1px solid #444',
   color: '#ddd', borderRadius: 5, cursor: 'pointer',
   padding: '3px 8px', fontSize: 12,
 }
+=======
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e

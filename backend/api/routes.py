@@ -28,7 +28,10 @@ class ActionCreate(BaseModel):
     new_font_size: Optional[float]=None; dx_mm: Optional[float]=None; dy_mm: Optional[float]=None
     sel_x: Optional[float]=None; sel_y: Optional[float]=None
     sel_w: Optional[float]=None; sel_h: Optional[float]=None
+<<<<<<< HEAD
     bold: Optional[bool]=None
+=======
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
     comment: Optional[str]=None; created_by: str="user"
 
 class DraftRequest(BaseModel):
@@ -144,7 +147,11 @@ def _action(a):
             "original_text":a.original_text,"new_text":a.new_text,
             "new_font_size":a.new_font_size,"dx_mm":a.dx_mm,"dy_mm":a.dy_mm,
             "sel_x":a.sel_x,"sel_y":a.sel_y,"sel_w":a.sel_w,"sel_h":a.sel_h,
+<<<<<<< HEAD
             "bold":a.bold,"comment":a.comment,"created_at":a.created_at.isoformat()}
+=======
+            "comment":a.comment,"created_at":a.created_at.isoformat()}
+>>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 
 # ── Draft ──
 @router.post("/drafts/generate/")
