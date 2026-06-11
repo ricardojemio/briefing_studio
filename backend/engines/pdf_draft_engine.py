@@ -12,10 +12,10 @@ CRITICAL: The original PDF is NEVER modified.
           fitz.open(pdf_path) is read-only in memory; the result is saved
           to a new file at draft_path.  No shutil.copy needed.
 
-Coordinate system (confirmed by spike):
-    get_text("rawdict") → span["origin"] is in screen coords (y=0 at top)
-    insert_text(point)  → PDF coords (y=0 at bottom)
-    Conversion: pdf_y = page_height_pts - screen_origin_y
+Coordinate system (confirmed by empirical probe):
+    get_text("dict")   → span["origin"] is in screen coords (y=0 at top)
+    insert_text(point) → ALSO screen coords (y=0 at top) — no y-flip needed
+    Pass origin[1] directly; ph - origin[1] places text ~78 pts too high.
 
 Font strategy (permanent for pharma PDFs):
     All CFF/Type1 subsets return empty bytes from extract_font().
@@ -135,6 +135,141 @@ def _hex_to_rgb(hex_str: str) -> tuple[float, float, float]:
     return int(h[0:2], 16) / 255, int(h[2:4], 16) / 255, int(h[4:6], 16) / 255
 
 
+# ── Redaction helpers ─────────────────────────────────────────────────────────
+
+def _safe_redact_rect(
+    rect: fitz.Rect,
+    page_spans: list[dict],
+    target_span: dict | None,
+) -> fitz.Rect:
+    """
+    Shrink rect to avoid clipping adjacent spans whose bboxes overlap with
+    rect due to descender/ascender extent in tight line spacing.
+
+    Problem: span bboxes can overlap by 1-3 pt between adjacent lines even
+    when the rendered ink does not overlap.  Redacting the full bbox clips
+    the neighbouring span's content stream entry, leaving a fragment.
+
+    Only the target_span (the one being deleted/replaced) is excluded.
+    Returns the original rect if shrinking produces a degenerate result.
+    """
+    x0, y0, x1, y1 = rect.x0, rect.y0, rect.x1, rect.y1
+    for span in page_spans:
+        if span is target_span:
+            continue
+        sx0, sy0, sx1, sy1 = span["bbox"]
+        # No horizontal overlap → this span cannot be clipped
+        if min(x1, sx1) - max(x0, sx0) <= 0.0:
+            continue
+        # Neighbour starts inside rect from below → shrink our bottom edge
+        if y0 < sy0 < y1:
+            y1 = min(y1, sy0)
+        # Neighbour ends inside rect from above → shrink our top edge
+        if y0 < sy1 < y1:
+            y0 = max(y0, sy1)
+    if x1 <= x0 or y1 <= y0:
+        return rect  # degenerate after shrinking — fall back to original
+    return fitz.Rect(x0, y0, x1, y1)
+
+
+def _measure_text_width(text: str, fontsize_pt: float, engine: str = "pdf_native") -> float:
+    """
+    Return the rendered width of text in points.
+
+    engine="pdf_native": fitz Helvetica — matches insert_text() rendering.
+    engine="raster":     PIL DejaVu Sans — matches draft_engine.py rendering.
+                         Falls back to fitz Helvetica × 1.15 if PIL font unavailable.
+    """
+    if engine == "raster":
+        try:
+            from PIL import ImageFont
+            for path in [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            ]:
+                try:
+                    font = ImageFont.truetype(path, max(6, int(fontsize_pt * 300 / 72)))
+                    return font.getlength(text) * 72 / 300
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        try:
+            return fitz.Font("helv").text_length(text, fontsize=fontsize_pt) * 1.15
+        except Exception:
+            return len(text) * fontsize_pt * 0.575
+    else:
+        try:
+            return fitz.Font("helv").text_length(text, fontsize=fontsize_pt)
+        except Exception:
+            return len(text) * fontsize_pt * 0.5
+
+
+# ── Collision detection ────────────────────────────────────────────────────────
+
+def _replace_projected_rect(
+    span: dict | None,
+    params: dict,
+    required_w: float,
+    rect: fitz.Rect,
+) -> fitz.Rect:
+    """
+    Project the bounding box the replacement text will occupy.
+    x extends by required_w from the insert origin.
+    y uses the insert baseline to derive cap-top and descender-bottom,
+    which gives a tighter (and more accurate) vertical extent than the raw
+    span bbox (raw bbox includes leading that causes false collision flags).
+    """
+    origin_x = params["point"].x
+    origin_y = params["point"].y   # baseline in screen coords (y=0 at top)
+    fontsize  = params["fontsize"]
+    y0 = origin_y - fontsize          # approx cap top  (ascends above baseline)
+    y1 = origin_y + fontsize * 0.2   # approx descender bottom
+    return fitz.Rect(origin_x, y0, origin_x + required_w, y1)
+
+
+def _resize_projected_rect(
+    rect: fitz.Rect,
+    original_text: str,
+    new_fontsize: float,
+) -> fitz.Rect:
+    """
+    Project the bounding box the resized text will occupy.
+    Width uses helv measurement at new_fontsize; height = new_fontsize * 1.2.
+    """
+    new_w = _measure_text_width(original_text, new_fontsize, "raster")
+    new_h = new_fontsize * 1.2          # approximate cap-height + descender
+    return fitz.Rect(rect.x0, rect.y0, rect.x0 + new_w, rect.y0 + new_h)
+
+
+def _detect_collisions(
+    projected_rect: fitz.Rect,
+    page_spans: list[dict],
+    target_span: dict | None,
+    page: int,
+) -> list[dict]:
+    """
+    Return one entry per span whose bbox overlaps projected_rect.
+    target_span (the span being edited) is excluded.
+    Detection only — no correction is applied.
+    """
+    collisions = []
+    for span in page_spans:
+        if span is target_span:
+            continue
+        inter = projected_rect & fitz.Rect(span["bbox"])
+        if inter.is_empty:
+            continue
+        collisions.append({
+            "span_text":          span.get("text", "").strip(),
+            "page":               page,
+            "overlap_width_pts":  round(inter.width,  2),
+            "overlap_height_pts": round(inter.height, 2),
+            "overlap_area_pts2":  round(inter.width * inter.height, 2),
+        })
+    return collisions
+
+
 # ── Per-action helpers ─────────────────────────────────────────────────────────
 
 def _action_rect(action: dict, pw: float, ph: float) -> fitz.Rect | None:
@@ -165,7 +300,7 @@ def _resolve_insert_params(
     if span:
         origin = span.get("origin", [rect.x0, rect.y1])
         pdf_x = float(origin[0])
-        pdf_y = ph - float(origin[1])   # screen → PDF y-flip (spike-confirmed)
+        pdf_y = float(origin[1])        # insert_text() uses screen coords (y=0 at top)
         fontsize = float(span.get("size") or 12)
         color = _int_to_rgb(int(span.get("color") or 0))
 
@@ -177,8 +312,7 @@ def _resolve_insert_params(
     else:
         # No span found — estimate from selection bbox
         pdf_x = rect.x0
-        # Baseline at ~80 % from top of bbox
-        pdf_y = ph - (rect.y0 + rect.height * 0.80)
+        pdf_y = rect.y0 + rect.height * 0.80   # baseline at ~80% from top (screen y)
         fontsize = max(6.0, min(rect.height * 0.75, 72.0))
         color = (0.0, 0.0, 0.0)
         fontname = "helv"
@@ -338,9 +472,11 @@ def generate_pdf_draft(
     # Open original in read-only mode (never writes to original)
     doc = fitz.open(pdf_path)
 
-    applied  = 0
-    failed   = 0
-    skipped  = 0
+    applied           = 0
+    failed            = 0
+    skipped           = 0
+    overflow_warnings: list[dict] = []
+    collisions:        list[dict] = []
     pages_modified: set[int] = set()
 
     # Group actions by page
@@ -361,6 +497,7 @@ def generate_pdf_draft(
         # Build per-page helpers (needed before any redactions)
         font_map:   dict[str, int] = _build_font_map(doc, pg)
         font_cache: dict[int, str] = {}
+        page_spans: list[dict]     = _get_page_spans(page)  # cached for safe-rect + overflow
 
         # Separate actions by type
         deletes  = [a for a in page_actions
@@ -370,11 +507,28 @@ def generate_pdf_draft(
         others   = [a for a in page_actions
                     if str(a.get("action_type", "")).lower() not in PDF_NATIVE_TYPES]
 
-        for a in others:
+        for action in others:
+            at = str(action.get("action_type", "")).lower()
             log.warning(
                 "Action type '%s' skipped on page %d — not yet supported in pdf_native engine (Phase 2)",
-                a.get("action_type"), pg,
+                action.get("action_type"), pg,
             )
+            # Collision detection for resize runs even though rendering is skipped
+            if at == "resize":
+                r = _action_rect(action, pw, ph)
+                if r is not None:
+                    orig_text = (action.get("original_text") or "").strip()
+                    new_fs    = float(action.get("new_font_size") or 12)
+                    if new_fs > 0:
+                        best_area, tgt = 0.0, None
+                        for s in page_spans:
+                            area = abs(fitz.Rect(s["bbox"]) & r)
+                            if area > best_area:
+                                best_area, tgt = area, s
+                        projected = _resize_projected_rect(r, orig_text, new_fs)
+                        collisions.extend(
+                            _detect_collisions(projected, page_spans, tgt, pg)
+                        )
         skipped += len(others)
 
         # ── Phase A: collect span metadata & queue all redact annotations ────
@@ -406,7 +560,36 @@ def generate_pdf_draft(
             params = _resolve_insert_params(
                 span, rect, ph, new_text, doc, pg, font_map, font_cache
             )
-            page.add_redact_annot(rect)
+
+            # Overflow detection — measure before redacting
+            available_w = float(rect.width)
+            required_w  = _measure_text_width(new_text, params["fontsize"], "pdf_native")
+            overflow_warnings.append({
+                "fits":                required_w <= available_w,
+                "available_width_pts": round(available_w, 2),
+                "required_width_pts":  round(required_w, 2),
+                "overflow_width_pts":  round(max(0.0, required_w - available_w), 2),
+                "overflow_percentage": round(
+                    max(0.0, (required_w - available_w) / available_w * 100), 1
+                ),
+            })
+
+            # Collision detection — project new text bbox against page spans.
+            # Find the target in page_spans by bbox area (not _find_best_span's
+            # result, which is a different object instance from a separate
+            # _get_page_spans call — 'is' identity check would never match).
+            collision_target: dict | None = max(
+                page_spans,
+                key=lambda s: abs(fitz.Rect(s["bbox"]) & rect),
+                default=None,
+            )
+            projected_rect = _replace_projected_rect(span, params, required_w, rect)
+            collisions.extend(
+                _detect_collisions(projected_rect, page_spans, collision_target, pg)
+            )
+
+            safe_rect = _safe_redact_rect(rect, page_spans, span)
+            page.add_redact_annot(safe_rect)
             redact_count += 1
             insert_queue.append(params)
 
@@ -416,7 +599,9 @@ def generate_pdf_draft(
                 log.error("Delete action has zero-size selection — skipping")
                 failed += 1
                 continue
-            page.add_redact_annot(rect)
+            target_span = _find_best_span(page, rect)
+            safe_rect   = _safe_redact_rect(rect, page_spans, target_span)
+            page.add_redact_annot(safe_rect)
             redact_count += 1
 
         # ── Phase B: flush all redactions in one pass ────────────────────────
@@ -463,11 +648,13 @@ def generate_pdf_draft(
     doc.close()
 
     return {
-        "draft_url":       f"/previews/{name}",
-        "draft_path":      draft_path,
-        "actions_applied": applied,
-        "actions_failed":  failed,
-        "actions_skipped": skipped,
-        "engine":          "pdf_native",
-        "pages_modified":  sorted(pages_modified),
+        "draft_url":        f"/previews/{name}",
+        "draft_path":       draft_path,
+        "actions_applied":  applied,
+        "actions_failed":   failed,
+        "actions_skipped":  skipped,
+        "engine":           "pdf_native",
+        "pages_modified":   sorted(pages_modified),
+        "overflow_warnings": overflow_warnings,
+        "collisions":        collisions,
     }

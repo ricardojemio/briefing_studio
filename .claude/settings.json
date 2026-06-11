@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(UPLOAD_DIR=./uploads python3 -m pytest tests/test_pdf_draft_engine.py -v)",
+      "Bash(read f *)",
+      "Bash(python3 -c ' *)",
+      "Bash(docker exec *)",
+      "Bash(find /Users/ricardojemio/Desktop -name \"*.pdf\" 2>/dev/null | head -20)",
+      "Read(//Users/ricardojemio/Desktop/**)",
+      "Bash(docker cp *)",
+      "Read(//tmp/**)",
+      "Bash(2>&1)",
+      "Bash(docker-compose up *)"
+    ]
+  }
+}

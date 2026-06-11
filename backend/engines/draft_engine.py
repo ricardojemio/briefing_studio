@@ -223,15 +223,17 @@ def generate_draft(pdf_path, actions, elements, page_number=0, dpi=None):
                              else getattr(action, "original_text", "")) or ""
 
                 lines  = _wrap_text(orig_text, fnt_new, w)
-                line_h = new_px + 2
-                erase_h = max(h, line_h * len(lines) + 4)
+                line_h  = new_px + 2
+                text_h  = line_h * len(lines)       # actual rendered text height
+                erase_h = max(h, text_h + 4)        # fill zone clears original bbox too
 
                 draw.rectangle([x0 - 2, y0 - 2, x1 + 2, y0 + erase_h + 4],
                                 fill=bg)
                 for i, line in enumerate(lines):
                     draw.text((x0, y0 + i * line_h), line,
                                fill=oc, font=fnt_new)
-                draw.rectangle([x0 - 2, y0 - 2, x1 + 2, y0 + erase_h + 2],
+                # Outline bounds the text only — not the erase zone
+                draw.rectangle([x0 - 2, y0 - 2, x1 + 2, y0 + text_h + 2],
                                 outline=(186, 117, 23), width=2)
 
                 delta = float(nfs) - fs
