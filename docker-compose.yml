@@ -1,40 +1,43 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
+    restart: unless-stopped
     environment:
+      POSTGRES_DB: briefing_db
       POSTGRES_USER: briefing
       POSTGRES_PASSWORD: briefing123
-      POSTGRES_DB: briefing_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U briefing"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U briefing -d briefing_db"]
+      interval: 5s
       timeout: 5s
       retries: 5
 
   backend:
     build: ./backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://briefing:briefing123@db:5432/briefing_db
+      UPLOAD_DIR: /app/uploads
+      PREVIEW_DIR: /app/previews
+      SECRET_KEY: dev-secret-key
     volumes:
       - ./backend:/app
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: briefing
-      DB_PASSWORD: briefing123
-      DB_NAME: briefing_db
+      - uploads_data:/app/uploads
+      - previews_data:/app/previews
     depends_on:
       db:
         condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     ports:
       - "5173:5173"
     volumes:
@@ -45,3 +48,5 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
+  previews_data:

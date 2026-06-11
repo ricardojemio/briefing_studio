@@ -1,23 +1,9 @@
-// src/components/Studio.tsx
-<<<<<<< HEAD
-// INTEGRATION: drag callback, multi-select, zoom, rotation all wired up
-
-import { useState, useCallback, useEffect, useRef } from 'react'
-import StudioCanvas  from './canvas/StudioCanvas'
+import { useState, useCallback, useEffect } from 'react'
+import StudioCanvas from './canvas/StudioCanvas'
 import ActionPanel   from './toolbar/ActionPanel'
 import Sidebar       from './sidebar/Sidebar'
 import { useStore }  from '../store'
 import { api }       from '../services/api'
-=======
-// Main studio view — integrates canvas, toolbar, action panel and sidebar.
-
-import { useState, useCallback, useEffect, useRef } from 'react'
-import StudioCanvas from './canvas/StudioCanvas'
-import ActionPanel  from './toolbar/ActionPanel'
-import Sidebar      from './sidebar/Sidebar'
-import { useStore } from '../store'
-import { api }      from '../services/api'
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 import type { Artwork, ArtElement, Selection } from '../types'
 
 interface StudioProps {
@@ -25,40 +11,32 @@ interface StudioProps {
   onBack:  () => void
 }
 
+// ── Design tokens ─────────────────────────────────────────────────
+const T = {
+  bgBase:     '#0C0E14',
+  bgSurface:  '#141720',
+  border:     '#2A2F3F',
+  accent:     '#2D6BE4',
+  textPrimary:'#E8ECF4',
+  textSecond: '#7A8299',
+  textMuted:  '#3D4560',
+  danger:     '#D63C3C',
+  success:    '#1A9E6F',
+} as const
+
 export default function Studio({ artwork, onBack }: StudioProps) {
   const {
-<<<<<<< HEAD
     page, setPage, pagePreview, setPagePreview,
     elements, setElements, actions, setActions,
     activeTool, setActiveTool, error, setError, loading, setLoading,
   } = useStore()
 
-  const [selection,     setSelection]     = useState<Selection | null>(null)
-  const [nearestElem,   setNearestElem]   = useState<ArtElement | null>(null)
-  const [multiElems,    setMultiElems]    = useState<ArtElement[]>([])
-  const [showPanel,     setShowPanel]     = useState(false)
-  // FIX #3: drag delta state — pre-fills Move action with drag result
-  const [dragDelta,     setDragDelta]     = useState<{ dx_mm: number; dy_mm: number } | null>(null)
+  const [selection,   setSelection]   = useState<Selection | null>(null)
+  const [nearestElem, setNearestElem] = useState<ArtElement | null>(null)
+  const [multiElems,  setMultiElems]  = useState<ArtElement[]>([])
+  const [showPanel,   setShowPanel]   = useState(false)
+  const [dragDelta,   setDragDelta]   = useState<{ dx_mm: number; dy_mm: number } | null>(null)
 
-  // Load page on mount / page change
-=======
-    page, setPage,
-    pagePreview, setPagePreview,
-    elements, setElements,
-    actions, setActions,
-    activeTool, setActiveTool,
-    error, setError,
-    loading, setLoading,
-  } = useStore()
-
-  const [selection,    setSelection]    = useState<Selection | null>(null)
-  const [nearestElem,  setNearestElem]  = useState<ArtElement | null>(null)
-  const [showPanel,    setShowPanel]    = useState(false)
-  const [uploading,    setUploading]    = useState(false)
-  const canvasContainerRef = useRef<HTMLDivElement>(null)
-
-  // Load page preview + elements + existing actions
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -75,16 +53,10 @@ export default function Studio({ artwork, onBack }: StudioProps) {
           setActions(acts)
           setSelection(null)
           setShowPanel(false)
-<<<<<<< HEAD
           setDragDelta(null)
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Erro ao carregar')
-=======
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Erro ao carregar página')
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Error loading page')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -93,8 +65,6 @@ export default function Studio({ artwork, onBack }: StudioProps) {
     return () => { cancelled = true }
   }, [artwork.id, page])
 
-<<<<<<< HEAD
-  // Called when user clicks or draws a region on the canvas
   const handleSelection = useCallback((sel: Selection, elem: ArtElement | null) => {
     setSelection(sel)
     setNearestElem(elem)
@@ -103,28 +73,21 @@ export default function Studio({ artwork, onBack }: StudioProps) {
     setShowPanel(true)
   }, [])
 
-  // FIX #2: multi-select callback
   const handleMultiSelection = useCallback((elems: ArtElement[]) => {
     setMultiElems(elems)
-    if (elems.length > 0) {
-      // Build a bounding selection that covers all elements
+    if (elems.length > 0 && pagePreview) {
       const minX = Math.min(...elems.map(e => e.x_norm))
       const minY = Math.min(...elems.map(e => e.y_norm))
       const maxX = Math.max(...elems.map(e => e.x_norm + e.w_norm))
       const maxY = Math.max(...elems.map(e => e.y_norm + e.h_norm))
-      const pw   = pagePreview?.width_px  || 800
-      const ph   = pagePreview?.height_px || 1000
-      setSelection({
-        x: minX, y: minY, w: maxX - minX, h: maxY - minY,
-        x_px: minX * pw, y_px: minY * ph,
-        w_px: (maxX - minX) * pw, h_px: (maxY - minY) * ph,
-      })
+      const pw = pagePreview.width_px, ph = pagePreview.height_px
+      setSelection({ x: minX, y: minY, w: maxX-minX, h: maxY-minY,
+        x_px: minX*pw, y_px: minY*ph, w_px: (maxX-minX)*pw, h_px: (maxY-minY)*ph })
       setNearestElem(elems[0])
       setShowPanel(true)
     }
   }, [pagePreview])
 
-  // FIX #3: drag & drop move — opens action panel pre-filled
   const handleDragMove = useCallback((elemId: string, dx_mm: number, dy_mm: number) => {
     const elem = elements.find(e => e.elem_id === elemId)
     if (!elem || !pagePreview) return
@@ -132,12 +95,8 @@ export default function Studio({ artwork, onBack }: StudioProps) {
     setNearestElem(elem)
     setMultiElems([])
     setDragDelta({ dx_mm, dy_mm })
-    setSelection({
-      x: elem.x_norm, y: elem.y_norm,
-      w: elem.w_norm, h: elem.h_norm,
-      x_px: elem.x_norm * pw, y_px: elem.y_norm * ph,
-      w_px: elem.w_norm * pw, h_px: elem.h_norm * ph,
-    })
+    setSelection({ x: elem.x_norm, y: elem.y_norm, w: elem.w_norm, h: elem.h_norm,
+      x_px: elem.x_norm*pw, y_px: elem.y_norm*ph, w_px: elem.w_norm*pw, h_px: elem.h_norm*ph })
     setShowPanel(true)
   }, [elements, pagePreview])
 
@@ -146,132 +105,118 @@ export default function Studio({ artwork, onBack }: StudioProps) {
     setSelection(null)
     setDragDelta(null)
     setMultiElems([])
-=======
-  const handleSelection = useCallback((sel: Selection, elem: ArtElement | null) => {
-    setSelection(sel)
-    setNearestElem(elem)
-    setShowPanel(true)
-  }, [])
-
-  const handleActionSaved = useCallback(async () => {
-    setShowPanel(false)
-    setSelection(null)
-    // Reload actions
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
     const acts = await api.listActions(artwork.id, page)
     setActions(acts)
   }, [artwork.id, page])
 
-  const topBtn: React.CSSProperties = {
-<<<<<<< HEAD
-    background: 'transparent', border: 'none', color: '#aaa',
-    cursor: 'pointer', padding: '6px 8px', borderRadius: 6, fontSize: 14,
-=======
-    background: 'transparent', border: 'none',
-    color: '#aaa', cursor: 'pointer',
-    padding: '6px 8px', borderRadius: 6, fontSize: 14,
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
-  }
+  // mm dimensions for display
+  const wMm = pagePreview
+    ? (pagePreview.width_pts  * 25.4 / 72).toFixed(0)
+    : artwork.page_width_pts  ? (artwork.page_width_pts  * 25.4 / 72).toFixed(0) : null
+  const hMm = pagePreview
+    ? (pagePreview.height_pts * 25.4 / 72).toFixed(0)
+    : artwork.page_height_pts ? (artwork.page_height_pts * 25.4 / 72).toFixed(0) : null
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#0d0d1a' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: T.bgBase }}>
 
       {/* ── Top bar ── */}
       <div style={{
-<<<<<<< HEAD
-        height: 50, background: '#12121f', borderBottom: '1px solid #222',
-        display: 'flex', alignItems: 'center', padding: '0 12px', gap: 10, flexShrink: 0,
+        height: 52, background: T.bgSurface, borderBottom: `1px solid ${T.border}`,
+        display: 'flex', alignItems: 'center', padding: '0 14px', gap: 12, flexShrink: 0,
       }}>
-        <button onClick={onBack} style={{ ...topBtn, fontSize: 18 }}>←</button>
-        <div style={{ width: 1, height: 24, background: '#333' }} />
-        <div>
-          <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>{artwork.filename}</div>
-=======
-        height: 50, background: '#12121f',
-        borderBottom: '1px solid #222',
-        display: 'flex', alignItems: 'center',
-        padding: '0 12px', gap: 10, flexShrink: 0,
-      }}>
-        <button onClick={onBack} style={{ ...topBtn, fontSize: 18 }}>←</button>
-        <div style={{ width: 1, height: 24, background: '#333' }} />
+        {/* Back */}
+        <button onClick={onBack} title="Back to projects" style={{
+          background: 'none', border: `1px solid ${T.border}`,
+          color: T.textSecond, cursor: 'pointer', padding: '5px 8px',
+          borderRadius: 6, fontSize: 14, lineHeight: 1, transition: 'color 0.12s, border-color 0.12s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.color = T.textPrimary; e.currentTarget.style.borderColor = '#4A5070' }}
+          onMouseLeave={e => { e.currentTarget.style.color = T.textSecond;  e.currentTarget.style.borderColor = T.border }}
+        >←</button>
+
+        <div style={{ width: 1, height: 24, background: T.border }} />
 
         {/* Artwork info */}
-        <div>
-          <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            color: T.textPrimary, fontSize: 13, fontWeight: 600,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280,
+          }}>
             {artwork.filename}
           </div>
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
-          <div style={{ color: '#555', fontSize: 10, marginTop: 1 }}>
-            {artwork.total_pages} pág. · {artwork.page_width_pts?.toFixed(0)} × {artwork.page_height_pts?.toFixed(0)} pts
+          <div style={{ color: T.textMuted, fontSize: 10, fontFamily: 'monospace', marginTop: 1 }}>
+            {artwork.total_pages} {artwork.total_pages === 1 ? 'page' : 'pages'}
+            {wMm && hMm ? ` · ${wMm} × ${hMm} mm` : ''}
           </div>
         </div>
-<<<<<<< HEAD
-=======
 
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
         <div style={{ flex: 1 }} />
 
-        {/* Tool selector */}
-        <div style={{ display: 'flex', gap: 4, background: '#1a1a2e', borderRadius: 8, padding: 3 }}>
+        {/* Multi-select indicator */}
+        {multiElems.length > 1 && (
+          <div style={{
+            padding: '4px 10px', background: '#7C3AED18',
+            border: '1px solid #7C3AED50', borderRadius: 6,
+            fontSize: 11, color: '#a78bfa', fontWeight: 600,
+          }}>
+            {multiElems.length} selected
+          </div>
+        )}
+
+        {/* Error toast */}
+        {error && (
+          <div style={{
+            padding: '4px 10px', background: '#D63C3C18',
+            border: '1px solid #D63C3C50', borderRadius: 6,
+            fontSize: 11, color: '#fca5a5',
+            display: 'flex', alignItems: 'center', gap: 6, maxWidth: 280,
+          }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {error.slice(0, 50)}
+            </span>
+            <button onClick={() => setError(null)} style={{
+              background: 'none', border: 'none', color: '#fca5a5',
+              cursor: 'pointer', padding: 0, fontSize: 13, flexShrink: 0,
+            }}>✕</button>
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div style={{ color: T.textMuted, fontSize: 11 }}>Loading…</div>
+        )}
+
+        {/* Tool switcher */}
+        <div style={{
+          display: 'flex', gap: 2, background: T.bgBase,
+          borderRadius: 8, padding: 3, border: `1px solid ${T.border}`,
+        }}>
           {[
-            { id: 'select', icon: '↖️', label: 'Selecionar' },
-            { id: 'region', icon: '⬜', label: 'Região livre' },
+            { id: 'select', label: 'Select', title: 'Select (V)' },
+            { id: 'region', label: 'Region', title: 'Draw region (R)' },
           ].map(t => (
-<<<<<<< HEAD
-            <button key={t.id} onClick={() => setActiveTool(t.id as any)} title={t.label}
-              style={{ padding: '5px 10px', border: 'none', borderRadius: 6,
-                background: activeTool === t.id ? '#185FA5' : 'transparent',
-                color: '#fff', cursor: 'pointer', fontSize: 12 }}>
-=======
-            <button key={t.id} onClick={() => setActiveTool(t.id as any)}
-              title={t.label}
-              style={{
-                padding: '5px 10px', border: 'none', borderRadius: 6,
-                background: activeTool === t.id ? '#185FA5' : 'transparent',
-                color: '#fff', cursor: 'pointer', fontSize: 12,
-              }}>
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
-              {t.icon} {t.label}
+            <button key={t.id} onClick={() => setActiveTool(t.id as any)} title={t.title} style={{
+              padding: '5px 12px', border: 'none', borderRadius: 6,
+              background: activeTool === t.id ? T.accent : 'transparent',
+              color: activeTool === t.id ? '#fff' : T.textSecond,
+              cursor: 'pointer', fontSize: 11, fontWeight: 600,
+              letterSpacing: '0.03em', transition: 'all 0.12s',
+            }}>
+              {t.label}
             </button>
           ))}
         </div>
-
-<<<<<<< HEAD
-        {/* Multi-select hint */}
-        {multiElems.length > 1 && (
-          <div style={{ padding: '4px 10px', background: '#1a0d2e', border: '1px solid #9C27B0', borderRadius: 6, fontSize: 11, color: '#CE93D8' }}>
-            🟣 {multiElems.length} elementos selecionados
-          </div>
-        )}
-
-=======
-        {/* Error indicator */}
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
-        {error && (
-          <div style={{ padding: '4px 10px', background: '#2a1010', border: '1px solid #5a1010', borderRadius: 6, fontSize: 11, color: '#f88', maxWidth: 200 }}>
-            ⚠️ {error.slice(0, 40)}
-            <button onClick={() => setError(null)} style={{ marginLeft: 6, background: 'none', border: 'none', color: '#f88', cursor: 'pointer' }}>✕</button>
-          </div>
-        )}
-<<<<<<< HEAD
-        {loading && <div style={{ color: '#555', fontSize: 12 }}>⏳ Carregando...</div>}
-=======
-
-        {loading && (
-          <div style={{ color: '#555', fontSize: 12 }}>⏳ Carregando...</div>
-        )}
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
       </div>
 
-      {/* ── Main content ── */}
+      {/* ── Body ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* Canvas area */}
-<<<<<<< HEAD
         <div style={{
-          flex: 1, overflow: 'auto', background: '#1a1a2e',
-          display: 'flex', justifyContent: 'center',
-          alignItems: 'flex-start', padding: 32, position: 'relative',
+          flex: 1, overflow: 'auto', background: '#101318',
+          display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+          padding: '32px 32px 80px', position: 'relative',
         }}>
           {pagePreview ? (
             <>
@@ -280,109 +225,84 @@ export default function Studio({ artwork, onBack }: StudioProps) {
                 width            = {pagePreview.width_px}
                 height           = {pagePreview.height_px}
                 elements         = {elements}
+                dpi              = {pagePreview.dpi}
                 onSelection      = {handleSelection}
                 onMultiSelection = {handleMultiSelection}
                 onDragMove       = {handleDragMove}
               />
-
-              {/* Action panel */}
               {showPanel && selection && (
                 <ActionPanel
-                  artworkId      = {artwork.id}
-                  page           = {page}
-                  selection      = {selection}
-                  element        = {nearestElem}
-                  multiElements  = {multiElems.length > 1 ? multiElems : undefined}
-                  dragDelta      = {dragDelta || undefined}
-                  onClose        = {() => { setShowPanel(false); setSelection(null); setDragDelta(null) }}
-                  onSaved        = {handleActionSaved}
-=======
-        <div
-          ref={canvasContainerRef}
-          style={{
-            flex: 1, overflow: 'auto',
-            background: '#1a1a2e',
-            display: 'flex', justifyContent: 'center',
-            alignItems: 'flex-start', padding: 32,
-            position: 'relative',
-          }}
-        >
-          {pagePreview ? (
-            <>
-              <StudioCanvas
-                previewUrl  = {pagePreview.preview_url}
-                width       = {pagePreview.width_px}
-                height      = {pagePreview.height_px}
-                elements    = {elements}
-                onSelection = {handleSelection}
-              />
-
-              {/* Floating action panel */}
-              {showPanel && selection && (
-                <ActionPanel
-                  artworkId   = {artwork.id}
-                  page        = {page}
-                  selection   = {selection}
-                  element     = {nearestElem}
-                  onClose     = {() => { setShowPanel(false); setSelection(null) }}
-                  onSaved     = {handleActionSaved}
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
+                  artworkId     = {artwork.id}
+                  page          = {page}
+                  selection     = {selection}
+                  element       = {nearestElem}
+                  multiElements = {multiElems.length > 1 ? multiElems : undefined}
+                  dragDelta     = {dragDelta || undefined}
+                  onClose       = {() => { setShowPanel(false); setSelection(null); setDragDelta(null) }}
+                  onSaved       = {handleActionSaved}
                 />
               )}
-
-              {/* Element hover tooltip */}
               <ElementTooltip />
             </>
           ) : loading ? (
-            <div style={{ color: '#555', fontSize: 14, marginTop: 80 }}>⏳ Renderizando arte...</div>
+            <div style={{ color: T.textMuted, fontSize: 13, marginTop: 80, fontFamily: 'monospace' }}>
+              Rendering artwork…
+            </div>
           ) : (
-            <div style={{ color: '#555', fontSize: 14, marginTop: 80 }}>Selecione uma página</div>
+            <div style={{ color: T.textMuted, fontSize: 13, marginTop: 80 }}>
+              Select a page
+            </div>
           )}
         </div>
 
         {/* Sidebar */}
         <Sidebar
-<<<<<<< HEAD
           artworkId    = {artwork.id}
           page         = {page}
           totalPages   = {artwork.total_pages}
           onPageChange = {(p) => { setPage(p); setShowPanel(false); setDragDelta(null) }}
-=======
-          artworkId   = {artwork.id}
-          page        = {page}
-          totalPages  = {artwork.total_pages}
-          onPageChange= {(p) => { setPage(p); setShowPanel(false) }}
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
         />
       </div>
     </div>
   )
 }
 
-<<<<<<< HEAD
-=======
-// Small tooltip showing hovered element info
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 function ElementTooltip() {
-  const { hoveredElem } = useStore()
+  const { hoveredElem } = useStore() as any
   if (!hoveredElem) return null
+
+  const typeColors: Record<string, string> = {
+    text: '#2D6BE4', image: '#1A9E6F', logo: '#C47E1A',
+    barcode: '#D63C3C', vector: '#7A8299',
+  }
+  const color = typeColors[hoveredElem.type] || '#7A8299'
+
   return (
     <div style={{
-      position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-      background: '#1a1a2e', border: '1px solid #333', borderRadius: 8,
-      padding: '6px 14px', fontSize: 12, color: '#ddd',
-<<<<<<< HEAD
-      pointerEvents: 'none', zIndex: 300, boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-=======
+      position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+      background: '#1C2030', border: '1px solid #2A2F3F',
+      borderRadius: 8, padding: '6px 14px',
+      fontSize: 11, color: '#E8ECF4',
       pointerEvents: 'none', zIndex: 300,
       boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
+      display: 'flex', alignItems: 'center', gap: 8,
+      fontFamily: 'system-ui, -apple-system, sans-serif',
     }}>
-      {hoveredElem.type === 'text' ? '📝' : '🖼️'}{' '}
-      <strong>{hoveredElem.type.toUpperCase()}</strong>
-      {hoveredElem.font_size && ` · ${hoveredElem.font_size.toFixed(1)}pt`}
-      {hoveredElem.font_name && ` · ${hoveredElem.font_name.slice(0, 20)}`}
-      {' · '}<span style={{ color: '#888' }}>{hoveredElem.label?.slice(0, 50)}</span>
+      <span style={{
+        fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color,
+        background: `${color}20`, border: `1px solid ${color}40`,
+        padding: '2px 5px', borderRadius: 3, textTransform: 'uppercase',
+      }}>
+        {hoveredElem.type}
+      </span>
+      {hoveredElem.font_size && (
+        <span style={{ color: '#7A8299', fontFamily: 'monospace', fontSize: 10 }}>
+          {hoveredElem.font_size.toFixed(1)} pt
+        </span>
+      )}
+      <span style={{ color: '#7A8299', fontFamily: 'ui-monospace, monospace', fontSize: 10 }}>
+        {hoveredElem.label?.slice(0, 55)}{(hoveredElem.label?.length || 0) > 55 ? '…' : ''}
+      </span>
     </div>
   )
 }

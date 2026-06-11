@@ -1,10 +1,6 @@
 import uuid, enum
 from datetime import datetime
-<<<<<<< HEAD
 from sqlalchemy import String, Text, Integer, Float, Boolean, ForeignKey, DateTime, Enum as SAEnum, JSON
-=======
-from sqlalchemy import String, Text, Integer, Float, ForeignKey, DateTime, Enum as SAEnum, JSON
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from core.database import Base
@@ -13,11 +9,7 @@ class ElementType(str, enum.Enum):
     TEXT="text"; IMAGE="image"; LOGO="logo"; VECTOR="vector"; BARCODE="barcode"
 
 class ActionType(str, enum.Enum):
-<<<<<<< HEAD
     REPLACE="replace"; DELETE="delete"; MOVE="move"; RESIZE="resize"; BOLD="bold"
-=======
-    REPLACE="replace"; DELETE="delete"; MOVE="move"; RESIZE="resize"
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 
 class ActionStatus(str, enum.Enum):
     PENDING="pending"; APPLIED="applied"; REJECTED="rejected"
@@ -45,9 +37,9 @@ class Artwork(Base):
     page_height_pts: Mapped[float]     = mapped_column(Float, nullable=True)
     uploaded_by:     Mapped[str]       = mapped_column(String(100))
     uploaded_at:     Mapped[datetime]  = mapped_column(DateTime, default=datetime.utcnow)
-    project:  Mapped["Project"]             = relationship(back_populates="artworks")
-    elements: Mapped[list["Element"]]       = relationship(back_populates="artwork", cascade="all, delete-orphan")
-    actions:  Mapped[list["BriefingAction"]]= relationship(back_populates="artwork", cascade="all, delete-orphan")
+    project:  Mapped["Project"]              = relationship(back_populates="artworks")
+    elements: Mapped[list["Element"]]        = relationship(back_populates="artwork", cascade="all, delete-orphan")
+    actions:  Mapped[list["BriefingAction"]] = relationship(back_populates="artwork", cascade="all, delete-orphan")
 
 class Element(Base):
     __tablename__ = "elements"
@@ -88,10 +80,7 @@ class BriefingAction(Base):
     sel_y:         Mapped[float]        = mapped_column(Float, nullable=True)
     sel_w:         Mapped[float]        = mapped_column(Float, nullable=True)
     sel_h:         Mapped[float]        = mapped_column(Float, nullable=True)
-<<<<<<< HEAD
     bold:          Mapped[bool]         = mapped_column(Boolean, default=False)
-=======
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
     comment:       Mapped[str]          = mapped_column(Text, nullable=True)
     created_by:    Mapped[str]          = mapped_column(String(100), default="user")
     created_at:    Mapped[datetime]     = mapped_column(DateTime, default=datetime.utcnow)

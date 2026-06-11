@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 backend/engines/draft_engine.py
 FIXES APPLIED:
@@ -6,15 +5,12 @@ FIXES APPLIED:
   #5 - Replace: mantém fonte/cor, reflow de texto com quebra de linha
   #6 - Bold: detecta variante bold da fonte original
 """
-=======
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 import fitz, io, uuid, time
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 from core.config import settings
 
-<<<<<<< HEAD
 
 def _font(size_px: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     """Load font — tries bold variant first if requested."""
@@ -39,14 +35,20 @@ def _font(size_px: int, bold: bool = False) -> ImageFont.FreeTypeFont:
 
 
 def _bg(img: Image.Image, x0, y0, x1, y1) -> tuple:
-    """Sample background color above the element."""
+    """Sample background color using median of a strip above the element.
+
+    Uses median (not mean) to resist outlier pixels from logos or borders.
+    Handles both RGB and RGBA images safely.
+    """
     arr = np.array(img)
+    # Take only the first 3 channels so RGBA PDFs don't crash reshape(-1,3)
+    arr = arr[:, :, :3]
     strip = arr[max(0, y0 - 4):max(1, y0), max(0, x0):min(arr.shape[1], x1)]
     if strip.size == 0:
         strip = arr[y0:min(y0 + 4, arr.shape[0]), max(0, x0):min(arr.shape[1], x1)]
     if strip.size == 0:
         return (255, 255, 255)
-    m = strip.reshape(-1, 3).mean(axis=0)
+    m = np.median(strip.reshape(-1, 3), axis=0)
     return (int(m[0]), int(m[1]), int(m[2]))
 
 
@@ -82,33 +84,10 @@ def _wrap_text(text: str, font: ImageFont.FreeTypeFont,
 def _pts_to_px(pts: float, scale: float) -> int:
     return int(pts * scale)
 
-=======
-def _font(size_px):
-    for p in ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-              "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-              "/System/Library/Fonts/Helvetica.ttc"]:
-        try: return ImageFont.truetype(p, max(6, size_px))
-        except: pass
-    return ImageFont.load_default()
-
-def _bg(img, x0, y0, x1, y1):
-    arr = np.array(img)
-    strip = arr[max(0,y0-4):max(1,y0), max(0,x0):min(arr.shape[1],x1)]
-    if strip.size == 0:
-        strip = arr[y0:min(y0+4,arr.shape[0]), max(0,x0):min(arr.shape[1],x1)]
-    if strip.size == 0: return (255,255,255)
-    m = strip.reshape(-1,3).mean(axis=0)
-    return (int(m[0]),int(m[1]),int(m[2]))
-
-def _hex_rgb(h):
-    h = h.lstrip('#')
-    return tuple(int(h[i:i+2],16) for i in (0,2,4))
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
 
 def generate_draft(pdf_path, actions, elements, page_number=0, dpi=None):
     dpi   = dpi or settings.PDF_DPI_HIGH
     scale = dpi / 72.0
-<<<<<<< HEAD
 
     doc  = fitz.open(pdf_path)
     page = doc[page_number]
@@ -125,24 +104,10 @@ def generate_draft(pdf_path, actions, elements, page_number=0, dpi=None):
         emap[e["id"]]                     = e
         emap[e.get("elem_id", e["id"])]   = e
 
-=======
-    doc   = fitz.open(pdf_path)
-    page  = doc[page_number]
-    pix   = page.get_pixmap(matrix=fitz.Matrix(scale,scale), alpha=False)
-    img   = Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB")
-    doc.close()
-    draw     = ImageDraw.Draw(img)
-    img_w, img_h = img.size
-    emap = {e["id"]: e for e in elements}
-    # also index by elem_id field
-    for e in elements:
-        emap[e.get("elem_id", e["id"])] = e
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
     applied = failed = 0
 
     for action in actions:
         try:
-<<<<<<< HEAD
             at  = str(
                 action.get("action_type", "") if isinstance(action, dict)
                 else getattr(action, "action_type", "")
@@ -193,13 +158,11 @@ def generate_draft(pdf_path, actions, elements, page_number=0, dpi=None):
                 if not nt:
                     continue
 
-                # FIX #5: wrap text and reflow — don't cut off characters
-                lines = _wrap_text(nt, fnt, w + 40)
+                lines = _wrap_text(nt, fnt, w)
                 line_h = fpx + 2
 
-                # Erase original area + extra space for wrapped lines
                 erase_h = max(h, line_h * len(lines) + 4)
-                draw.rectangle([x0 - 2, y0 - 2, x1 + 60, y0 + erase_h + 4],
+                draw.rectangle([x0 - 2, y0 - 2, x1 + 2, y0 + erase_h + 4],
                                 fill=bg)
 
                 # Draw each line
@@ -259,12 +222,11 @@ def generate_draft(pdf_path, actions, elements, page_number=0, dpi=None):
                 orig_text = (action.get("original_text") if isinstance(action, dict)
                              else getattr(action, "original_text", "")) or ""
 
-                # FIX #5: wrap resized text too
-                lines  = _wrap_text(orig_text, fnt_new, w + 40)
+                lines  = _wrap_text(orig_text, fnt_new, w)
                 line_h = new_px + 2
                 erase_h = max(h, line_h * len(lines) + 4)
 
-                draw.rectangle([x0 - 2, y0 - 2, x1 + 60, y0 + erase_h + 4],
+                draw.rectangle([x0 - 2, y0 - 2, x1 + 2, y0 + erase_h + 4],
                                 fill=bg)
                 for i, line in enumerate(lines):
                     draw.text((x0, y0 + i * line_h), line,
@@ -284,11 +246,11 @@ def generate_draft(pdf_path, actions, elements, page_number=0, dpi=None):
                 orig_text = (action.get("original_text") if isinstance(action, dict)
                              else getattr(action, "original_text", "")) or ""
                 fnt_bold  = _font(fpx, bold=True)
-                lines     = _wrap_text(orig_text, fnt_bold, w + 40)
+                lines     = _wrap_text(orig_text, fnt_bold, w)
                 line_h    = fpx + 2
                 erase_h   = max(h, line_h * len(lines) + 4)
 
-                draw.rectangle([x0 - 2, y0 - 2, x1 + 4, y0 + erase_h + 4],
+                draw.rectangle([x0 - 2, y0 - 2, x1 + 2, y0 + erase_h + 4],
                                 fill=bg)
                 for i, line in enumerate(lines):
                     draw.text((x0, y0 + i * line_h), line,
@@ -326,80 +288,3 @@ def generate_draft(pdf_path, actions, elements, page_number=0, dpi=None):
         "actions_applied": applied,
         "actions_failed":  failed,
     }
-=======
-            at  = str(action.get("action_type","") if isinstance(action,dict) else getattr(action,"action_type","")).lower()
-            eid = action.get("element_id") if isinstance(action,dict) else getattr(action,"element_id",None)
-            elem = emap.get(str(eid) if eid else "")
-
-            if elem:
-                x0=int(elem["x_norm"]*img_w); y0=int(elem["y_norm"]*img_h)
-                x1=int((elem["x_norm"]+elem["w_norm"])*img_w); y1=int((elem["y_norm"]+elem["h_norm"])*img_h)
-                fs=elem.get("font_size") or 12
-                oc=_hex_rgb(elem.get("color") or "#000000")
-            else:
-                sx=action.get("sel_x") if isinstance(action,dict) else getattr(action,"sel_x",0) or 0
-                sy=action.get("sel_y") if isinstance(action,dict) else getattr(action,"sel_y",0) or 0
-                sw=action.get("sel_w") if isinstance(action,dict) else getattr(action,"sel_w",0) or 0
-                sh=action.get("sel_h") if isinstance(action,dict) else getattr(action,"sel_h",0) or 0
-                x0=int(sx*img_w); y0=int(sy*img_h)
-                x1=int((sx+sw)*img_w); y1=int((sy+sh)*img_h)
-                fs=12; oc=(0,0,0)
-
-            w=max(1,x1-x0); h=max(1,y1-y0)
-            bg=_bg(img,x0,y0,x1,y1)
-            fpx=int(fs*scale/1.3); fnt=_font(fpx)
-
-            if "replace" in at:
-                nt=action.get("new_text") if isinstance(action,dict) else getattr(action,"new_text","")
-                if not nt: continue
-                draw.rectangle([x0-2,y0-2,x1+max(len(nt)*fpx//2,w)+4,y1+4],fill=bg)
-                draw.text((x0,y0),nt,fill=oc,font=fnt)
-                draw.rectangle([x0-2,y0-2,x1+2,y1+2],outline=(29,158,117),width=2)
-
-            elif "delete" in at:
-                draw.rectangle([x0,y0,x1,y1],fill=bg)
-                draw.rectangle([x0-2,y0-2,x1+2,y1+2],outline=(220,50,50),width=2)
-                draw.text((x0,max(0,y0-12)),"[DELETED]",fill=(220,50,50),font=_font(max(8,fpx//2)))
-
-            elif "move" in at:
-                dx=action.get("dx_mm") if isinstance(action,dict) else getattr(action,"dx_mm",0) or 0
-                dy=action.get("dy_mm") if isinstance(action,dict) else getattr(action,"dy_mm",0) or 0
-                dpx=int(dx*scale*72/25.4); dpy=int(dy*scale*72/25.4)
-                region=img.crop((x0,y0,x1,y1))
-                draw.rectangle([x0,y0,x1,y1],fill=bg)
-                nx,ny=x0+dpx,y0+dpy
-                img.paste(region,(nx,ny)); draw=ImageDraw.Draw(img)
-                draw.rectangle([nx-2,ny-2,nx+w+2,ny+h+2],outline=(24,95,165),width=2)
-                draw.line([(x0+w//2,y0+h//2),(nx+w//2,ny+h//2)],fill=(24,95,165),width=1)
-
-            elif "resize" in at:
-                nfs=action.get("new_font_size") if isinstance(action,dict) else getattr(action,"new_font_size",None)
-                if not nfs or nfs <= 0: continue
-                # ✅ FIX: Use multiplication instead of division for correct scaling
-                nfpx=int(nfs*scale*1.3); fnew=_font(nfpx)
-                ot=action.get("original_text") if isinstance(action,dict) else getattr(action,"original_text","") or ""
-                is_increase = nfs > fs  # Track direction of change
-                eh=max(h,nfpx+8)
-                draw.rectangle([x0-2,y0-2,x1+50,y0+eh+4],fill=bg)
-                draw.text((x0,y0),ot,fill=oc,font=fnew)
-                # ✅ Change outline color based on direction: green if increasing, orange if decreasing
-                outline_color = (60,180,60) if is_increase else (200,100,50)
-                draw.rectangle([x0-2,y0-2,x1+2,y0+eh+2],outline=outline_color,width=2)
-                delta=nfs-fs; sign="+" if delta>=0 else ""
-                print(f"RESIZE: {fs}pt → {nfs}pt ({sign}{delta:.1f}pt) | {int(fs*scale*1.3)}px → {nfpx}px")
-                draw.text((x1+4,y0),f"[{sign}{delta:.0f}pt]",fill=(186,117,23),font=_font(max(8,fpx//2)))
-            applied+=1
-        except Exception as e:
-            print(f"Action failed: {e}"); failed+=1
-
-    # Watermark
-    ww,wh=img.size; wfnt=_font(18)
-    draw.rectangle([ww-390,wh-36,ww-8,wh-8],fill=(255,235,235),outline=(200,50,50),width=2)
-    draw.text((ww-386,wh-32),"DRAFT — NOT FOR PRODUCTION",fill=(200,50,50),font=wfnt)
-
-    preview_dir=Path(settings.PREVIEW_DIR); preview_dir.mkdir(exist_ok=True)
-    name=f"draft_{uuid.uuid4().hex[:8]}_{int(time.time())}.pdf"
-    path=str(preview_dir/name)
-    img.convert("RGB").save(path,"PDF",resolution=dpi)
-    return {"draft_url":f"/previews/{name}","draft_path":path,"actions_applied":applied,"actions_failed":failed}
->>>>>>> 61d4c81d2bf2ab0e66bb8907967f54fff7f0da6e
