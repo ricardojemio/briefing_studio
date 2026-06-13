@@ -339,6 +339,46 @@ def _action_rect(action: dict, pw: float, ph: float) -> fitz.Rect | None:
     return fitz.Rect(sx * pw, sy * ph, (sx + sw) * pw, (sy + sh) * ph)
 
 
+def _resolve_target_rect_and_font(
+    action: dict,
+    page: fitz.Page,
+    sel_rect: fitz.Rect,
+) -> tuple[fitz.Rect, float, str, tuple[float, float, float]]:
+    """
+    Resolve the target rect and font properties for a REPLACE or DELETE action.
+
+    Primary: stored Element data from action['_element'] (injected by routes.py).
+    Fallback: span re-matching via _find_best_span(), then sel_rect estimates.
+
+    Returns (rect, font_size, fontname, color).
+    """
+    elem = action.get("_element")
+    if elem:
+        pw, ph = page.rect.width, page.rect.height
+        rect = fitz.Rect(
+            elem["x_norm"] * pw,
+            elem["y_norm"] * ph,
+            (elem["x_norm"] + elem["w_norm"]) * pw,
+            (elem["y_norm"] + elem["h_norm"]) * ph,
+        )
+        font_size = float(elem.get("font_size") or 12)
+        fontname  = "helv"
+        color     = _hex_to_rgb(elem.get("color_rgb") or "#000000")
+        return rect, font_size, fontname, color
+    log.warning(
+        "No stored Element for action %s — falling back to span re-matching",
+        action.get("id", "?"),
+    )
+    span = _find_best_span(page, sel_rect)
+    if span:
+        font_size = float(span.get("size") or 12)
+        color     = _int_to_rgb(int(span.get("color") or 0))
+    else:
+        font_size = max(6.0, min(sel_rect.height * 0.75, 72.0))
+        color     = (0.0, 0.0, 0.0)
+    return sel_rect, font_size, "helv", color
+
+
 def _resolve_insert_params(
     span: dict | None,
     rect: fitz.Rect,
@@ -587,11 +627,12 @@ def generate_pdf_draft(
         # draw_rect appends graphics operators without rewriting the content
         # stream — all Form XObjects (transparency groups) are preserved.
         for action in deletes:
-            rect = _action_rect(action, pw, ph)
-            if rect is None:
+            sel_rect = _action_rect(action, pw, ph)
+            if sel_rect is None:
                 log.error("Delete action has zero-size selection — skipping")
                 failed += 1
                 continue
+            rect, _, _, _ = _resolve_target_rect_and_font(action, page, sel_rect)
             bg = _sample_background(page, rect)
             page.draw_rect(rect, color=None, fill=bg, width=0, overlay=True)
             applied += 1
@@ -605,21 +646,22 @@ def generate_pdf_draft(
                 failed += 1
                 continue
 
-            rect = _action_rect(action, pw, ph)
-            if rect is None:
+            sel_rect = _action_rect(action, pw, ph)
+            if sel_rect is None:
                 log.error("Replace action has zero-size selection — skipping")
                 failed += 1
                 continue
 
-            span = _find_best_span(page, rect)
-            if span is None:
-                log.warning(
-                    "No text span found in selection rect %s — using bbox estimates", rect
-                )
-
-            params = _resolve_insert_params(
-                span, rect, ph, new_text, doc, pg, font_map, font_cache
+            rect, font_size, fontname, color = _resolve_target_rect_and_font(
+                action, page, sel_rect
             )
+            params = {
+                "point":    fitz.Point(rect.x0, rect.y0 + font_size * 0.8),
+                "text":     new_text,
+                "fontname": fontname,
+                "fontsize": font_size,
+                "color":    color,
+            }
 
             # Overflow detection
             available_w = float(rect.width)
@@ -634,13 +676,13 @@ def generate_pdf_draft(
                 ),
             })
 
-            # Collision detection — find target in cached page_spans by bbox overlap
+            # Collision detection
             collision_target: dict | None = max(
                 page_spans,
                 key=lambda s: abs(fitz.Rect(s["bbox"]) & rect),
                 default=None,
             )
-            projected_rect = _replace_projected_rect(span, params, required_w, rect)
+            projected_rect = _replace_projected_rect(None, params, required_w, rect)
             collisions.extend(
                 _detect_collisions(projected_rect, page_spans, collision_target, pg)
             )
@@ -650,8 +692,7 @@ def generate_pdf_draft(
             # Cover the original text before inserting the replacement.
             # insert_text() appends to the content stream; without a cover rect
             # the original text object remains visible underneath the new text.
-            span_rect = fitz.Rect(span["bbox"]) if span else rect
-            span_rect += (-1.5, -1.5, 1.5, 1.5)   # 1.5pt padding to cover anti-aliased edges
+            span_rect = rect + (-1.5, -1.5, 1.5, 1.5)
             cover_bg = _sample_background(page, span_rect)
             page.draw_rect(span_rect, color=None, fill=cover_bg, width=0, overlay=True)
 

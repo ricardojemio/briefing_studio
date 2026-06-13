@@ -188,8 +188,26 @@ async def draft(data: DraftRequest, db: AsyncSession = Depends(get_db)):
         actions = [a for a in actions if a.id in data.action_ids]
     er = await db.execute(select(Element).where(Element.artwork_id == data.artwork_id,
                                                  Element.page == data.page))
-    elements    = [_elem(e)   for e in er.scalars().all()]
+    raw_elements = er.scalars().all()
+    elements    = [_elem(e) for e in raw_elements]
+
+    elem_lookup: dict = {}
+    for e in raw_elements:
+        edata = {
+            "x_norm": e.x_norm, "y_norm": e.y_norm,
+            "w_norm": e.w_norm, "h_norm": e.h_norm,
+            "font_size": e.font_size,
+            "font_name": e.font_name,
+            "color_rgb": e.color_rgb,
+            "label": e.label,
+        }
+        elem_lookup[str(e.id)] = edata
+        elem_lookup[f"{e.elem_type.value}_{e.id.hex[:8]}"] = edata
+
     action_dicts = [_action(a) for a in actions]
+    for action_dict in action_dicts:
+        eid = action_dict.get("element_id")
+        action_dict["_element"] = elem_lookup.get(eid) if eid else None
 
     engine = _select_engine(action_dicts)
     if engine == "pdf_native":
