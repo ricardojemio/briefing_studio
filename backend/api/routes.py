@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from core.database import get_db
 from core.config import settings
 from domain.models import Project, Artwork, Element, BriefingAction, ActionType, ElementType
-from engines.detector import detect_elements, render_page, get_pdf_info
+from engines.detector import detect_elements, render_page, get_pdf_info, DETECTION_VERSION
 from engines.draft_engine import generate_draft
 from engines.pdf_draft_engine import generate_pdf_draft, PDF_NATIVE_TYPES
 
@@ -103,7 +103,13 @@ async def get_elements(aid: uuid.UUID, page: int, db: AsyncSession = Depends(get
     a = await _404(db, Artwork, aid)
     r = await db.execute(select(Element).where(Element.artwork_id == aid, Element.page == page))
     elems = r.scalars().all()
-    if not elems:
+    needs_redetect = not elems or any(
+        (e.extra or {}).get("dv") != DETECTION_VERSION for e in elems
+    )
+    if needs_redetect:
+        for e in elems:
+            await db.delete(e)
+        await db.flush()
         await _detect_save(db, a, page)
         r = await db.execute(select(Element).where(Element.artwork_id == aid, Element.page == page))
         elems = r.scalars().all()
