@@ -90,25 +90,34 @@ def _get_page_spans(page: fitz.Page) -> list[dict]:
     return spans
 
 
+# Fonts the engine inserts via insert_text() — used in the tiebreaker below.
+_FALLBACK_FONTS: frozenset[str] = frozenset(
+    {"helv", "Helvetica", "helvetica", "Helvetica-Bold"}
+)
+
+
 def _find_best_span(page: fitz.Page, rect: fitz.Rect) -> dict | None:
     """
     Return the text span with the largest bbox overlap with rect.
+
+    Tiebreaker: when the top two candidates are within 5 % of each other's
+    overlap area, prefer the span whose font is NOT a known engine-fallback
+    font (Helvetica variants).  This prevents a previously-inserted
+    replacement text from shadowing the original artwork span when their
+    bboxes nearly coincide (the Helv metric is slightly wider → ~0.5 pt²
+    advantage that should not override the intent of the selection).
+
     Falls back to centre-point containment if no intersection found.
-    Must be called BEFORE apply_redactions() on the page.
     """
-    best_span: dict | None = None
-    best_area: float = 0.0
     all_spans = _get_page_spans(page)
 
-    for span in all_spans:
-        sr = fitz.Rect(span["bbox"])
-        inter = sr & rect
-        area = abs(inter)
-        if area > best_area:
-            best_area = area
-            best_span = span
+    scored: list[tuple[float, dict]] = [
+        (abs(fitz.Rect(span["bbox"]) & rect), span)
+        for span in all_spans
+        if abs(fitz.Rect(span["bbox"]) & rect) > 0
+    ]
 
-    if best_span is None:
+    if not scored:
         # Centre-point fallback
         cx = (rect.x0 + rect.x1) / 2
         cy = (rect.y0 + rect.y1) / 2
@@ -116,6 +125,19 @@ def _find_best_span(page: fitz.Page, rect: fitz.Rect) -> dict | None:
             sx0, sy0, sx1, sy1 = span["bbox"]
             if sx0 <= cx <= sx1 and sy0 <= cy <= sy1:
                 return span
+        return None
+
+    scored.sort(key=lambda x: -x[0])
+    best_area, best_span = scored[0]
+
+    # Tiebreaker: near-tie (≤5 %) → prefer original-artwork font over fallback
+    if len(scored) >= 2:
+        second_area, second_span = scored[1]
+        if (best_area - second_area) <= 0.05 * best_area:
+            best_is_fallback   = best_span.get("font", "")   in _FALLBACK_FONTS
+            second_is_fallback = second_span.get("font", "") in _FALLBACK_FONTS
+            if best_is_fallback and not second_is_fallback:
+                return second_span
 
     return best_span
 
@@ -170,6 +192,40 @@ def _safe_redact_rect(
     if x1 <= x0 or y1 <= y0:
         return rect  # degenerate after shrinking — fall back to original
     return fitz.Rect(x0, y0, x1, y1)
+
+
+def _sample_background(page: fitz.Page, rect: fitz.Rect) -> tuple[float, float, float]:
+    """
+    Sample the background colour from a thin strip immediately BELOW the
+    target rect — an area free of text pixels — at 300 DPI.
+
+    Sampling inside the bbox at low DPI is biased by the text pixels
+    themselves (white text on dark bg shifts the median significantly).
+    Sampling below avoids that bias entirely.  300 DPI gives accurate
+    results for CMYK transparency groups.
+
+    Falls back to sampling inside the rect if the strip falls outside the
+    page bounds.
+    """
+    import io
+    import numpy as np
+    from PIL import Image
+
+    strip_h = max(4.0, rect.height * 0.5)
+    sample_rect = fitz.Rect(
+        rect.x0, rect.y1,
+        rect.x1, min(page.rect.height, rect.y1 + strip_h),
+    )
+    if sample_rect.is_empty or sample_rect.height < 1:
+        sample_rect = rect  # span at bottom of page — fall back to inside
+
+    pix = page.get_pixmap(
+        matrix=fitz.Matrix(300 / 72, 300 / 72),
+        clip=sample_rect, alpha=False,
+    )
+    arr = np.array(Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB"))
+    median = np.median(arr.reshape(-1, 3), axis=0)
+    return (float(median[0]) / 255, float(median[1]) / 255, float(median[2]) / 255)
 
 
 def _measure_text_width(text: str, fontsize_pt: float, engine: str = "pdf_native") -> float:
@@ -370,15 +426,15 @@ def measure_surgical_precision(
     """
     Quantify the actual content change vs render noise.
 
-    Methodology (proven in Phase 1 spike):
-      apply_redactions() rewrites the content stream, causing ~7.7% pixel
-      diff even for a null redaction.  To isolate true content change we
-      compare the draft against a null-redact baseline (a copy of the
-      original that has been through apply_redactions() with no real edits).
+    Methodology:
+      cover-and-insert never calls apply_redactions(), so the draft renders
+      pixel-identically to the original outside the target bbox.  The noise
+      baseline is the original itself (save-only, 0 pixel delta) rather than
+      a null-redact copy.
 
     Returns:
-        total_px, noise_px (null-redact diff), content_px (actual change),
-        content_pct, target_bbox_pct
+        total_px, noise_px (save-only diff, always 0), content_px (actual
+        change vs original), content_pct, target_bbox_pct
     """
     import numpy as np
 
@@ -392,19 +448,15 @@ def measure_surgical_precision(
         from PIL import Image
         return np.array(Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB"))
 
-    # Null-redact baseline: open original, apply_redactions with nothing queued,
-    # save to temp, then compare with original.
+    # Save-only baseline: open original and save without any edits.
+    # cover-and-insert produces 0 rendering noise so this is the correct
+    # reference; the old null-redact trick was only needed for apply_redactions.
     import tempfile, shutil
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         null_path = tmp.name
     try:
-        shutil.copy(original_path, null_path)
-        # Open original for the null-redact, save to a SEPARATE temp path
         null_out_path = null_path + ".rendered.pdf"
-        ndoc = fitz.open(null_path)
-        # Redact a 1×1 pt blank area (outside content) to trigger content stream rewrite
-        ndoc[0].add_redact_annot(fitz.Rect(0, 0, 1, 1))
-        ndoc[0].apply_redactions()
+        ndoc = fitz.open(original_path)
         ndoc.save(null_out_path, garbage=4, deflate=True)
         ndoc.close()
 
@@ -439,7 +491,7 @@ def measure_surgical_precision(
         }
     finally:
         import os
-        for p in (null_path, null_path + ".rendered.pdf"):
+        for p in (null_path, null_out_path):
             try:
                 os.unlink(p)
             except OSError:
@@ -531,13 +583,21 @@ def generate_pdf_draft(
                         )
         skipped += len(others)
 
-        # ── Phase A: collect span metadata & queue all redact annotations ────
-        # IMPORTANT: _find_best_span must be called before apply_redactions,
-        # as apply_redactions rewrites the content stream.
+        # ── Delete: cover with background-coloured rectangle ─────────────────
+        # draw_rect appends graphics operators without rewriting the content
+        # stream — all Form XObjects (transparency groups) are preserved.
+        for action in deletes:
+            rect = _action_rect(action, pw, ph)
+            if rect is None:
+                log.error("Delete action has zero-size selection — skipping")
+                failed += 1
+                continue
+            bg = _sample_background(page, rect)
+            page.draw_rect(rect, color=None, fill=bg, width=0, overlay=True)
+            applied += 1
+            pages_modified.add(pg)
 
-        insert_queue: list[dict] = []  # insert_text kwargs for each replace
-        redact_count = 0
-
+        # ── Replace: cover original + append replacement text ────────────────
         for action in replaces:
             new_text = (action.get("new_text") or "").strip()
             if not new_text:
@@ -561,7 +621,7 @@ def generate_pdf_draft(
                 span, rect, ph, new_text, doc, pg, font_map, font_cache
             )
 
-            # Overflow detection — measure before redacting
+            # Overflow detection
             available_w = float(rect.width)
             required_w  = _measure_text_width(new_text, params["fontsize"], "pdf_native")
             overflow_warnings.append({
@@ -574,10 +634,7 @@ def generate_pdf_draft(
                 ),
             })
 
-            # Collision detection — project new text bbox against page spans.
-            # Find the target in page_spans by bbox area (not _find_best_span's
-            # result, which is a different object instance from a separate
-            # _get_page_spans call — 'is' identity check would never match).
+            # Collision detection — find target in cached page_spans by bbox overlap
             collision_target: dict | None = max(
                 page_spans,
                 key=lambda s: abs(fitz.Rect(s["bbox"]) & rect),
@@ -588,38 +645,17 @@ def generate_pdf_draft(
                 _detect_collisions(projected_rect, page_spans, collision_target, pg)
             )
 
-            safe_rect = _safe_redact_rect(rect, page_spans, span)
-            page.add_redact_annot(safe_rect)
-            redact_count += 1
-            insert_queue.append(params)
-
-        for action in deletes:
-            rect = _action_rect(action, pw, ph)
-            if rect is None:
-                log.error("Delete action has zero-size selection — skipping")
-                failed += 1
-                continue
-            target_span = _find_best_span(page, rect)
-            safe_rect   = _safe_redact_rect(rect, page_spans, target_span)
-            page.add_redact_annot(safe_rect)
-            redact_count += 1
-
-        # ── Phase B: flush all redactions in one pass ────────────────────────
-        if redact_count == 0:
-            # No native actions were queued — others already counted above
-            continue
-
-        try:
-            page.apply_redactions()
             pages_modified.add(pg)
-            applied += len(deletes)  # deletes are complete after apply_redactions
-        except Exception as exc:
-            log.error("apply_redactions failed on page %d: %s", pg, exc)
-            failed += len(deletes) + len(insert_queue)
-            continue
 
-        # ── Phase C: insert replacement texts ───────────────────────────────
-        for params in insert_queue:
+            # Cover the original text before inserting the replacement.
+            # insert_text() appends to the content stream; without a cover rect
+            # the original text object remains visible underneath the new text.
+            span_rect = fitz.Rect(span["bbox"]) if span else rect
+            span_rect += (-1.5, -1.5, 1.5, 1.5)   # 1.5pt padding to cover anti-aliased edges
+            cover_bg = _sample_background(page, span_rect)
+            page.draw_rect(span_rect, color=None, fill=cover_bg, width=0, overlay=True)
+
+            # Append replacement text to the content stream
             try:
                 chars = page.insert_text(
                     params["point"],
