@@ -10,7 +10,10 @@
       "Bash(docker cp *)",
       "Read(//tmp/**)",
       "Bash(2>&1)",
-      "Bash(docker-compose up *)"
+      "Bash(docker-compose up *)",
+      "Bash(python3 -m pytest tests/test_pdf_draft_engine.py -v)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
