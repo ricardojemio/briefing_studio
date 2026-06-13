@@ -656,7 +656,7 @@ def generate_pdf_draft(
                 action, page, sel_rect
             )
             params = {
-                "point":    fitz.Point(rect.x0, rect.y0 + font_size * 0.8),
+                "point":    fitz.Point(rect.x0, rect.y0 + rect.height * 0.8),
                 "text":     new_text,
                 "fontname": fontname,
                 "fontsize": font_size,
