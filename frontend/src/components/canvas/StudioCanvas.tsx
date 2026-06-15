@@ -98,7 +98,10 @@ export default function StudioCanvas({
   // Keyboard shortcuts
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
       if (e.key === 'Shift') shiftHeld.current = true
+      if (isTyping) return
       if ((e.ctrlKey || e.metaKey) && e.key === '=') { e.preventDefault(); setZoomIdx(i => Math.min(ZOOM_LEVELS.length-1, i+1)) }
       if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); setZoomIdx(i => Math.max(0, i-1)) }
       if (e.key === 'r' || e.key === 'R') setRotation(r => (r + 90) % 360)

@@ -17,3 +17,4 @@ PyMuPDF==1.23.8
 # Image Processing
 Pillow==10.1.0
 numpy==1.26.2
+opencv-python-headless>=4.8

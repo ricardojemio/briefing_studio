@@ -194,6 +194,72 @@ def _safe_redact_rect(
     return fitz.Rect(x0, y0, x1, y1)
 
 
+def _inpaint_cover(
+    page: fitz.Page,
+    rect: fitz.Rect,
+    dpi: int = 300,
+) -> tuple[bytes, fitz.Rect]:
+    """
+    Reconstruct the background under `rect` via cv2 inpainting rather than
+    a flat-colour fill.  Works for both solid and gradient/textured backgrounds.
+
+    Renders a patch that includes a margin around `rect` so the inpainting
+    algorithm has enough surrounding context to reproduce the local gradient.
+    Returns (PNG bytes, PDF-space Rect) ready for page.insert_image().
+    """
+    import io
+    import cv2
+    import numpy as np
+    from PIL import Image
+
+    margin = max(10.0, rect.width * 0.5, rect.height * 0.5)
+    patch_rect = fitz.Rect(
+        rect.x0 - margin, rect.y0 - margin,
+        rect.x1 + margin, rect.y1 + margin,
+    ) & page.rect   # clip to page bounds
+
+    scale = dpi / 72.0
+    pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), clip=patch_rect, alpha=False)
+    arr = np.array(Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGB"))
+
+    # Mask: white (255) inside the target rect (expanded 2 px for anti-aliased edges)
+    mask = np.zeros(arr.shape[:2], dtype=np.uint8)
+    rx0 = max(0, int((rect.x0 - patch_rect.x0) * scale) - 2)
+    ry0 = max(0, int((rect.y0 - patch_rect.y0) * scale) - 2)
+    rx1 = min(arr.shape[1], int((rect.x1 - patch_rect.x0) * scale) + 2)
+    ry1 = min(arr.shape[0], int((rect.y1 - patch_rect.y0) * scale) + 2)
+    mask[ry0:ry1, rx0:rx1] = 255
+
+    inpainted = cv2.inpaint(arr, mask, inpaintRadius=5, flags=cv2.INPAINT_TELEA)
+
+    # Crop to target rect only (small 2-px blending pad)
+    pad = 2
+    crop_y0 = max(0, ry0 - pad)
+    crop_x0 = max(0, rx0 - pad)
+    crop_y1 = min(inpainted.shape[0], ry1 + pad)
+    crop_x1 = min(inpainted.shape[1], rx1 + pad)
+    crop = inpainted[crop_y0:crop_y1, crop_x0:crop_x1]
+
+    buf = io.BytesIO()
+    Image.fromarray(crop).save(buf, format="PNG")
+
+    pad_pts = pad / scale
+    insert_rect = fitz.Rect(
+        rect.x0 - pad_pts + (rx0 - (int((rect.x0 - patch_rect.x0) * scale) - 2)) / scale,
+        rect.y0 - pad_pts + (ry0 - (int((rect.y0 - patch_rect.y0) * scale) - 2)) / scale,
+        rect.x1 + pad_pts - (int((rect.x1 - patch_rect.x0) * scale) + 2 - rx1) / scale,
+        rect.y1 + pad_pts - (int((rect.y1 - patch_rect.y0) * scale) + 2 - ry1) / scale,
+    )
+    # Simpler and equivalent: map crop pixel coords back to PDF pts
+    insert_rect = fitz.Rect(
+        patch_rect.x0 + crop_x0 / scale,
+        patch_rect.y0 + crop_y0 / scale,
+        patch_rect.x0 + crop_x1 / scale,
+        patch_rect.y0 + crop_y1 / scale,
+    )
+    return buf.getvalue(), insert_rect
+
+
 def _sample_background(page: fitz.Page, rect: fitz.Rect) -> tuple[float, float, float]:
     """
     Sample the background colour from a thin strip immediately BELOW the
@@ -623,9 +689,10 @@ def generate_pdf_draft(
                         )
         skipped += len(others)
 
-        # ── Delete: cover with background-coloured rectangle ─────────────────
-        # draw_rect appends graphics operators without rewriting the content
-        # stream — all Form XObjects (transparency groups) are preserved.
+        # ── Delete: inpaint cover ────────────────────────────────────────────
+        # insert_image() appends an image XObject without rewriting the content
+        # stream — Form XObjects (transparency groups) remain untouched.
+        # Inpainting reconstructs gradients/textures instead of a flat fill.
         for action in deletes:
             sel_rect = _action_rect(action, pw, ph)
             if sel_rect is None:
@@ -633,8 +700,13 @@ def generate_pdf_draft(
                 failed += 1
                 continue
             rect, _, _, _ = _resolve_target_rect_and_font(action, page, sel_rect)
-            bg = _sample_background(page, rect)
-            page.draw_rect(rect, color=None, fill=bg, width=0, overlay=True)
+            try:
+                patch_bytes, patch_rect = _inpaint_cover(page, rect)
+                page.insert_image(patch_rect, stream=patch_bytes, overlay=True)
+            except Exception as exc:
+                log.warning("_inpaint_cover failed (%s) — falling back to flat fill", exc)
+                bg = _sample_background(page, rect)
+                page.draw_rect(rect, color=None, fill=bg, width=0, overlay=True)
             applied += 1
             pages_modified.add(pg)
 
@@ -690,11 +762,15 @@ def generate_pdf_draft(
             pages_modified.add(pg)
 
             # Cover the original text before inserting the replacement.
-            # insert_text() appends to the content stream; without a cover rect
-            # the original text object remains visible underneath the new text.
+            # Inpainting reconstructs the background gradient/texture.
             span_rect = rect + (-1.5, -1.5, 1.5, 1.5)
-            cover_bg = _sample_background(page, span_rect)
-            page.draw_rect(span_rect, color=None, fill=cover_bg, width=0, overlay=True)
+            try:
+                patch_bytes, patch_rect = _inpaint_cover(page, span_rect)
+                page.insert_image(patch_rect, stream=patch_bytes, overlay=True)
+            except Exception as exc:
+                log.warning("_inpaint_cover failed (%s) — falling back to flat fill", exc)
+                cover_bg = _sample_background(page, span_rect)
+                page.draw_rect(span_rect, color=None, fill=cover_bg, width=0, overlay=True)
 
             # Append replacement text to the content stream
             try:
