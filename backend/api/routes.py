@@ -12,6 +12,7 @@ from domain.models import Project, Artwork, Element, BriefingAction, ActionType,
 from engines.detector import detect_elements, render_page, get_pdf_info, DETECTION_VERSION
 from engines.draft_engine import generate_draft
 from engines.pdf_draft_engine import generate_pdf_draft, PDF_NATIVE_TYPES
+from engines.raster_engine_v3 import generate_raster_draft, get_or_create_base_image
 
 router = APIRouter()
 
@@ -46,6 +47,7 @@ class DraftRequest(BaseModel):
     artwork_id: uuid.UUID
     page: int = 0
     action_ids: Optional[list[uuid.UUID]] = None
+    engine: Optional[str] = None  # "pdf_native" | "raster_v3" | None (auto-select)
 
 @router.post("/projects/", status_code=201)
 async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db)):
@@ -91,6 +93,7 @@ async def upload_artwork(
     await db.flush()
     await db.refresh(a)
     await _detect_save(db, a, 0)
+    get_or_create_base_image(fpath, str(a.id), 0, dpi=300)
     return _artwork(a)
 
 @router.get("/artworks/{aid}/pages/{page}")
@@ -215,15 +218,21 @@ async def draft(data: DraftRequest, db: AsyncSession = Depends(get_db)):
         eid = action_dict.get("element_id")
         action_dict["_element"] = elem_lookup.get(eid) if eid else None
 
-    engine = _select_engine(action_dicts)
-    if engine == "pdf_native":
+    auto_engine = _select_engine(action_dicts)
+    chosen_engine = data.engine or auto_engine
+
+    if chosen_engine == "raster_v3":
+        result = generate_raster_draft(
+            artwork.file_path, str(artwork.id), data.page, action_dicts
+        )
+    elif chosen_engine == "pdf_native":
         result = generate_pdf_draft(artwork.file_path, action_dicts, data.page)
     else:
         result = generate_draft(artwork.file_path, action_dicts, elements, data.page)
 
     return {
         **result,
-        "engine":        engine,
+        "engine":        chosen_engine,
         "total_actions": len(action_dicts),
         "briefing":      {"filename": artwork.filename, "page": data.page + 1,
                           "actions": action_dicts},
