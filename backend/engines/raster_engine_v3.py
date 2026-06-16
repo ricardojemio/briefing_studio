@@ -164,6 +164,23 @@ def _clip_patch_against_neighbors(
             px0 = max(px0, nx1)
         if ncx > rx1 and px1 > nx0:    # neighbor center right of target → clip right
             px1 = min(px1, nx0)
+
+    # HARD INVARIANT — applied last, unconditionally.
+    # Neighbor clipping must never shrink the patch past the target's own boundary.
+    # When a neighbor's bbox overlaps the target (common with line-height padding),
+    # the centroid-based clip can push e.g. py0 past ry0, leaving the top of the
+    # target outside the patch and un-maskable — producing ghost text fragments.
+    # The clamp here rolls back any such over-clip.  A few px of bleed into a
+    # neighbor whose bbox merely overlaps due to padding is the lesser failure mode
+    # compared to leaving visible ink in the target region.
+    px0 = min(px0, rx0)
+    py0 = min(py0, ry0)
+    px1 = max(px1, rx1)
+    py1 = max(py1, ry1)
+    assert px0 <= rx0 and py0 <= ry0 and px1 >= rx1 and py1 >= ry1, (
+        f"Patch invariant violated after clamp: patch=({px0},{py0},{px1},{py1}) "
+        f"does not contain target=({rx0},{ry0},{rx1},{ry1})"
+    )
     return px0, py0, px1, py1
 
 

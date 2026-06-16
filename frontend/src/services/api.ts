@@ -19,5 +19,5 @@ export const api={
   createAction:(d:ActionCreatePayload)=>req<BriefingAction>('/actions/',{method:'POST',body:JSON.stringify(d)}),
   listActions:(aid:string,page?:number)=>req<BriefingAction[]>(`/actions/artwork/${aid}${page!==undefined?`?page=${page}`:''}`,),
   deleteAction:(id:string)=>req<any>(`/actions/${id}`,{method:'DELETE'}),
-  generateDraft:(aid:string,page:number)=>req<DraftResult>('/drafts/generate/',{method:'POST',body:JSON.stringify({artwork_id:aid,page})}),
+  generateDraft:(aid:string,page:number,engine?:string)=>req<DraftResult>('/drafts/generate/',{method:'POST',body:JSON.stringify({artwork_id:aid,page,engine:engine??null})}),
 }

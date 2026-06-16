@@ -41,6 +41,7 @@ export default function Sidebar({ artworkId, page, totalPages, onPageChange, onR
   const [tab,         setTab]         = useState<'tools' | 'actions' | 'draft'>('tools')
   const [generating,  setGenerating]  = useState(false)
   const [draftResult, setDraftResult] = useState<any>(null)
+  const [engine,      setEngine]      = useState<'raster_v3' | 'pdf_native'>('raster_v3')
 
   const [activeAction, setActiveAction] = useState<ActionType | null>(null)
   const [newText,   setNewText]   = useState('')
@@ -103,7 +104,7 @@ export default function Sidebar({ artworkId, page, totalPages, onPageChange, onR
   const handleGenerate = async () => {
     setGenerating(true)
     try {
-      const result = await api.generateDraft(artworkId, page)
+      const result = await api.generateDraft(artworkId, page, engine)
       setDraftResult(result); setTab('draft')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error generating draft')
@@ -382,6 +383,13 @@ export default function Sidebar({ artworkId, page, totalPages, onPageChange, onR
                     <span style={{ color: T.success, fontSize: 12, fontWeight: 700 }}>
                       Draft generated
                     </span>
+                    {draftResult.engine === 'raster_v3' && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                        background: T.accent, color: '#fff',
+                        padding: '1px 6px', borderRadius: 10,
+                      }}>Raster V3</span>
+                    )}
                     {draftResult.engine === 'pdf_native' && (
                       <span style={{
                         fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
@@ -449,6 +457,26 @@ export default function Sidebar({ artworkId, page, totalPages, onPageChange, onR
               style={{ ...navBtn, opacity: page >= totalPages - 1 ? 0.3 : 1 }}>▶</button>
           </div>
         )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, color: T.textMuted,
+            textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0,
+          }}>Engine</span>
+          <select
+            value={engine}
+            onChange={e => setEngine(e.target.value as 'raster_v3' | 'pdf_native')}
+            style={{
+              flex: 1, padding: '5px 6px',
+              background: T.bgElevated, border: `1px solid ${T.border}`,
+              borderRadius: 6, color: T.textPrimary,
+              fontSize: 10, cursor: 'pointer',
+              appearance: 'auto',
+            }}
+          >
+            <option value="raster_v3">Raster V3 (recommended)</option>
+            <option value="pdf_native">PDF Native (legacy)</option>
+          </select>
+        </div>
         <button
           onClick={handleGenerate}
           disabled={generating || pageActions.length === 0}
