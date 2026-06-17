@@ -68,6 +68,129 @@ def _normalize_color(color_rgb: tuple) -> tuple[int, int, int]:
     return tuple(int(c) for c in color_rgb)
 
 
+_INK_COLOR_TOLERANCE = 40  # per-channel max diff for color-based ink mask
+_INK_BG_DIFF_THRESHOLD = 20  # min per-channel diff from background to count as ink
+# When ink/background contrast is below this value the color mask would absorb
+# background pixels (tolerance=40 > contrast), producing a TELEA smear instead
+# of a clean erase.  Fall back to full-bbox mask: guaranteed complete removal at
+# the cost of gradient-texture loss inside the rect — the lesser failure mode.
+#
+# Set to color_tolerance (40) + 10 channel headroom for gradient variation.
+# This covers cases where bg_median is just above tolerance but local gradient
+# variation puts some background pixels inside the tolerance envelope.
+_LOW_CONTRAST_THRESHOLD = 50
+
+
+def _sample_ink_color(
+    img: np.ndarray,
+    rect_px: tuple,
+    border_px: int = 6,
+    diff_threshold: int = _INK_BG_DIFF_THRESHOLD,
+    min_ink_pixels: int = 10,
+) -> tuple[int, int, int] | None:
+    """
+    Estimate the dominant ink color inside rect_px by contrasting pixels
+    against the surrounding background (a border_px-wide ring just outside
+    the rect).
+
+    Returns the most-common pixel whose per-channel max diff from the
+    background median exceeds diff_threshold, or None when insufficient
+    ink pixels are found (e.g. the rect is already blank).
+
+    This works regardless of what color the ink is rendered as in the
+    rasterized PNG — it does not rely on the PDF-stored color value,
+    which can differ from the rendered value due to overprint/transparency.
+    """
+    from collections import Counter
+
+    h, w = img.shape[:2]
+    x0, y0, x1, y1 = rect_px
+
+    bx0 = max(0, x0 - border_px)
+    by0 = max(0, y0 - border_px)
+    bx1 = min(w, x1 + border_px)
+    by1 = min(h, y1 + border_px)
+
+    ctx = img[by0:by1, bx0:bx1].astype(np.int16)
+    bg_mask = np.ones(ctx.shape[:2], dtype=bool)
+    bg_mask[y0 - by0:y1 - by0, x0 - bx0:x1 - bx0] = False
+    bg_pixels = ctx[bg_mask]
+
+    if len(bg_pixels) < 4:
+        return None
+
+    bg_median = np.median(bg_pixels, axis=0).astype(np.int16)
+
+    inner = img[y0:y1, x0:x1].astype(np.int16)
+    diff = np.abs(inner - bg_median).max(axis=2)
+    ink_pixels = inner[diff > diff_threshold]
+
+    if len(ink_pixels) < min_ink_pixels:
+        return None
+
+    counts = Counter(map(tuple, ink_pixels.tolist()))
+    dominant = counts.most_common(1)[0][0]
+    return tuple(int(c) for c in dominant)
+
+
+def _sample_bg_median(
+    img: np.ndarray,
+    rect_px: tuple,
+    border_px: int = 6,
+) -> np.ndarray | None:
+    """
+    Return the per-channel median of the border_px-wide ring just outside rect_px
+    as an int16 array of shape (3,).  Used to measure ink/background contrast
+    before deciding whether color-based masking is reliable.
+    Returns None when the border region contains fewer than 4 pixels.
+    """
+    h, w = img.shape[:2]
+    x0, y0, x1, y1 = rect_px
+    bx0 = max(0, x0 - border_px)
+    by0 = max(0, y0 - border_px)
+    bx1 = min(w, x1 + border_px)
+    by1 = min(h, y1 + border_px)
+    ctx = img[by0:by1, bx0:bx1].astype(np.int16)
+    bg_mask = np.ones(ctx.shape[:2], dtype=bool)
+    bg_mask[y0 - by0:y1 - by0, x0 - bx0:x1 - bx0] = False
+    bg_pixels = ctx[bg_mask]
+    if len(bg_pixels) < 4:
+        return None
+    return np.median(bg_pixels, axis=0).astype(np.int16)
+
+
+def _build_ink_mask(
+    img: np.ndarray,
+    rect_px: tuple,
+    target_color_rgb: tuple,
+    color_tolerance: int = _INK_COLOR_TOLERANCE,
+    expand_px: int = 2,
+) -> np.ndarray:
+    """
+    Return a full-image uint8 mask (255=erase, 0=keep) that marks only
+    pixels inside (rect_px expanded by expand_px) whose color is within
+    color_tolerance (per-channel max diff) of target_color_rgb.
+
+    Pixels belonging to a neighboring element (different color) remain 0
+    even if they fall inside the geometric rect — the key invariant that
+    makes color-based masking safe when adjacent bboxes overlap.
+    """
+    h, w = img.shape[:2]
+    x0, y0, x1, y1 = rect_px
+    ex0 = max(0, x0 - expand_px)
+    ey0 = max(0, y0 - expand_px)
+    ex1 = min(w, x1 + expand_px)
+    ey1 = min(h, y1 + expand_px)
+
+    target = np.array(_normalize_color(target_color_rgb), dtype=np.int16)
+    region = img[ey0:ey1, ex0:ex1].astype(np.int16)
+    diff = np.abs(region - target).max(axis=2)
+
+    mask = np.zeros((h, w), dtype=np.uint8)
+    mask[ey0:ey1, ex0:ex1][diff <= color_tolerance] = 255
+    return mask
+
+
 # ── Base image cache ──────────────────────────────────────────────────────────
 
 def get_or_create_base_image(
@@ -188,18 +311,23 @@ def _erase_region(
     img: np.ndarray,
     rect_px: tuple,
     all_element_bboxes_px: list[tuple] | None = None,
+    target_color_rgb: tuple | None = None,
 ) -> np.ndarray:
     """
-    Inpaint the region using cv2.INPAINT_TELEA — same algorithm as
-    Phase 2's _inpaint_cover, adapted to work directly on an in-memory
-    array (no PDF round-trip).
+    Inpaint the region using cv2.INPAINT_TELEA.
 
-    A margin of max(15px, 50% of rect dimensions) provides enough
-    surrounding context to reconstruct gradients and textures.
+    When target_color_rgb is provided the MASK covers only pixels whose
+    color is within _INK_COLOR_TOLERANCE of the target — so neighboring
+    elements with different ink (e.g. a white logo next to dark text)
+    are never touched even when their bboxes geometrically overlap the
+    target rect (common with font ascender/leading padding).
 
-    When all_element_bboxes_px is provided, the expanded patch is
-    clipped against each neighbor's bbox so inpainting never overwrites
-    pixels belonging to a different element on the same page.
+    When target_color_rgb is None, falls back to masking the full bbox
+    rectangle (legacy behavior).  A warning is logged on fallback so any
+    caller that forgets to pass a color is easy to diagnose.
+
+    The PATCH (inpainting context) still uses the existing margin + neighbor
+    clip logic — that is unchanged.
     """
     h, w = img.shape[:2]
     x0, y0, x1, y1 = _clamp_rect(rect_px, img.shape)
@@ -215,24 +343,81 @@ def _erase_region(
     px1 = min(w, x1 + margin)
     py1 = min(h, y1 + margin)
 
-    # Clip expanded patch against neighboring element bboxes so the
-    # inpainting context region never crosses into a neighbor's area.
     if all_element_bboxes_px:
         px0, py0, px1, py1 = _clip_patch_against_neighbors(
             px0, py0, px1, py1, x0, y0, x1, y1, all_element_bboxes_px
         )
 
     if px1 <= px0 or py1 <= py0:
-        return img  # patch collapsed entirely — skip
+        return img
 
     patch = img[py0:py1, px0:px1].copy()
 
-    mask = np.zeros(patch.shape[:2], dtype=np.uint8)
-    mx0 = max(0, (x0 - px0) - 2)
-    my0 = max(0, (y0 - py0) - 2)
-    mx1 = min(patch.shape[1], (x1 - px0) + 2)
-    my1 = min(patch.shape[0], (y1 - py0) + 2)
-    mask[my0:my1, mx0:mx1] = 255
+    # Choose masking strategy based on ink/background contrast.
+    #
+    # HIGH contrast (≥ _LOW_CONTRAST_THRESHOLD):
+    #   Build mask as UNION of (a) auto-sampled ink color and (b) PDF-stored
+    #   color hint.  Color-selective mask preserves neighboring elements that
+    #   share the same bbox footprint but have a different ink color (e.g. a
+    #   white logo next to dark text on an overlapping bbox).
+    #
+    # LOW contrast (< _LOW_CONTRAST_THRESHOLD):
+    #   The ink/background color difference is smaller than our tolerance
+    #   envelope, so the color mask would include background pixels and cause
+    #   TELEA to smear gradient texture instead of cleanly erasing the ink.
+    #   Fall back to a full-bbox mask: guaranteed complete removal at the cost
+    #   of gradient-texture loss inside the rect — the lesser failure mode.
+    full_mask = np.zeros(img.shape[:2], dtype=np.uint8)
+
+    sampled = _sample_ink_color(img, (x0, y0, x1, y1))
+    if sampled is not None:
+        bg_med = _sample_bg_median(img, (x0, y0, x1, y1))
+        contrast = (
+            int(np.abs(np.array(sampled, dtype=np.int16) - bg_med).max())
+            if bg_med is not None else 255
+        )
+        if contrast < _LOW_CONTRAST_THRESHOLD:
+            log.info(
+                "_erase_region: ink/bg contrast=%d < %d for rect %s"
+                " — falling back to full-bbox mask",
+                contrast, _LOW_CONTRAST_THRESHOLD, (x0, y0, x1, y1),
+            )
+            full_mask[y0:y1, x0:x1] = 255
+        else:
+            full_mask = np.maximum(
+                full_mask, _build_ink_mask(img, (x0, y0, x1, y1), sampled)
+            )
+            if target_color_rgb is not None:
+                full_mask = np.maximum(
+                    full_mask,
+                    _build_ink_mask(
+                        img, (x0, y0, x1, y1), _normalize_color(target_color_rgb)
+                    ),
+                )
+    elif target_color_rgb is not None:
+        full_mask = np.maximum(
+            full_mask,
+            _build_ink_mask(
+                img, (x0, y0, x1, y1), _normalize_color(target_color_rgb)
+            ),
+        )
+
+    mask = full_mask[py0:py1, px0:px1].copy()
+
+    if not mask.any():
+        # No ink found by either method — fall back to solid-bbox mask so the
+        # caller's intent (erase this region) is still honoured.
+        log.warning(
+            "_erase_region: no ink pixels found (sampled=%s, hint=%s) for rect %s "
+            "— falling back to full-bbox mask",
+            sampled, target_color_rgb, (x0, y0, x1, y1),
+        )
+        mask = np.zeros(patch.shape[:2], dtype=np.uint8)
+        mx0 = max(0, (x0 - px0) - 2)
+        my0 = max(0, (y0 - py0) - 2)
+        mx1 = min(patch.shape[1], (x1 - px0) + 2)
+        my1 = min(patch.shape[0], (y1 - py0) + 2)
+        mask[my0:my1, mx0:mx1] = 255
 
     inpainted = cv2.inpaint(patch, mask, inpaintRadius=5, flags=cv2.INPAINT_TELEA)
 
@@ -315,6 +500,7 @@ def _move_region(
     src_rect_px: tuple,
     dst_rect_px: tuple,
     all_element_bboxes_px: list[tuple] | None = None,
+    target_color_rgb: tuple | None = None,
 ) -> np.ndarray:
     """
     Erase src_rect_px (inpaint), then paste the original src content
@@ -325,7 +511,7 @@ def _move_region(
         return img
 
     crop = img[sy0:sy1, sx0:sx1].copy()
-    result = _erase_region(img, (sx0, sy0, sx1, sy1), all_element_bboxes_px)
+    result = _erase_region(img, (sx0, sy0, sx1, sy1), all_element_bboxes_px, target_color_rgb)
 
     dx0, dy0, dx1, dy1 = _clamp_rect(dst_rect_px, result.shape)
     dh = dy1 - dy0
@@ -355,7 +541,7 @@ def _resize_region(
     Erase the region (inpaint background), then redraw the same text
     at the new font size using the same baseline anchor as _draw_text.
     """
-    result = _erase_region(img, rect_px, all_element_bboxes_px)
+    result = _erase_region(img, rect_px, all_element_bboxes_px, target_color_rgb=color_rgb)
     return _draw_text(result, rect_px, text, new_font_size_pt, dpi, color_rgb)
 
 
@@ -498,7 +684,7 @@ def generate_raster_draft(
 
         try:
             if action_type == "delete":
-                img = _erase_region(img, rect_px, all_bboxes_px)
+                img = _erase_region(img, rect_px, all_bboxes_px, target_color_rgb=color_rgb)
                 applied += 1
 
             elif action_type == "replace":
@@ -519,7 +705,7 @@ def generate_raster_draft(
                         max(0.0, (required_w - rect_w_pts) / rect_w_pts * 100), 1
                     ),
                 })
-                img = _erase_region(img, rect_px, all_bboxes_px)
+                img = _erase_region(img, rect_px, all_bboxes_px, target_color_rgb=color_rgb)
                 img = _draw_text(img, rect_px, new_text, font_size_pt, dpi, color_rgb)
                 applied += 1
 
@@ -531,7 +717,7 @@ def generate_raster_draft(
                 x0, y0, x1, y1 = rect_pts
                 dst_pts = (x0 + dx_pts, y0 + dy_pts, x1 + dx_pts, y1 + dy_pts)
                 dst_px = _pdf_rect_to_px(dst_pts, dpi)
-                img = _move_region(img, rect_px, dst_px, all_bboxes_px)
+                img = _move_region(img, rect_px, dst_px, all_bboxes_px, target_color_rgb=color_rgb)
                 applied += 1
 
             elif action_type == "resize":
