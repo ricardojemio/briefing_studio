@@ -16,6 +16,10 @@
       "Bash(git commit -m ' *)",
       "Bash(find ~/.claude -name \"*.json\" -path \"*ui-ux*\" -o -name \"*.yaml\" -path \"*ui-ux*\" -o -name \"*.md\" -path \"*ui-ux*\" 2>/dev/null | head -20)",
       "Read(//Users/ricardojemio/.claude/**)"
+    ],
+    "additionalDirectories": [
+      "/tmp",
+      "/private/tmp"
     ]
   }
 }

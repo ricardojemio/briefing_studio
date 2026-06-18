@@ -80,6 +80,18 @@ _INK_BG_DIFF_THRESHOLD = 20  # min per-channel diff from background to count as 
 # variation puts some background pixels inside the tolerance envelope.
 _LOW_CONTRAST_THRESHOLD = 50
 
+# Post-erase residual verification ──────────────────────────────────────────
+# Tolerance used inside _has_residual_ink during escalating-fallback checks.
+# Wider than _INK_COLOR_TOLERANCE so it captures the anti-aliased fringe band
+# (diff 41–60 from pure ink) that survives the standard color-mask step.
+_RESIDUAL_CHECK_TOLERANCE = _INK_COLOR_TOLERANCE + 20  # 60
+# Minimum ink/background contrast required before running the residual check.
+# Below this value the background gradient is too close to the ink color for
+# _has_residual_ink to be reliable (background pixels score as "residual ink").
+# Equal to 2× _RESIDUAL_CHECK_TOLERANCE so there is at least one full tolerance
+# band of separation between ink and background.
+_RESIDUAL_MIN_CONTRAST = _RESIDUAL_CHECK_TOLERANCE * 2  # 120
+
 
 def _sample_ink_color(
     img: np.ndarray,
@@ -157,6 +169,35 @@ def _sample_bg_median(
     if len(bg_pixels) < 4:
         return None
     return np.median(bg_pixels, axis=0).astype(np.int16)
+
+
+def _has_residual_ink(
+    erased_img: np.ndarray,
+    rect_px: tuple,
+    ink_color_rgb: tuple,
+    residual_tolerance: int = 30,
+    min_pixel_count: int = 5,
+) -> bool:
+    """
+    Return True when at least min_pixel_count pixels inside rect_px of
+    erased_img are within residual_tolerance (per-channel max diff) of
+    ink_color_rgb.
+
+    Used after _erase_region to decide whether ink was fully removed.
+    Note: unreliable when ink/bg contrast < 2 * residual_tolerance because
+    the background itself can score below the threshold — callers should
+    guard on contrast before invoking (see _erase_with_verification).
+    """
+    h, w = erased_img.shape[:2]
+    rx0, ry0, rx1, ry1 = rect_px
+    rx0 = max(0, rx0); ry0 = max(0, ry0)
+    rx1 = min(w, rx1); ry1 = min(h, ry1)
+    if rx1 <= rx0 or ry1 <= ry0:
+        return False
+    region = erased_img[ry0:ry1, rx0:rx1]
+    diff = np.abs(region.astype(np.int16)
+                  - np.array(ink_color_rgb, dtype=np.int16)).max(axis=2)
+    return int((diff <= residual_tolerance).sum()) >= min_pixel_count
 
 
 def _build_ink_mask(
@@ -312,15 +353,26 @@ def _erase_region(
     rect_px: tuple,
     all_element_bboxes_px: list[tuple] | None = None,
     target_color_rgb: tuple | None = None,
+    color_tolerance: int = _INK_COLOR_TOLERANCE,
+    force_full_bbox: bool = False,
 ) -> np.ndarray:
     """
     Inpaint the region using cv2.INPAINT_TELEA.
 
     When target_color_rgb is provided the MASK covers only pixels whose
-    color is within _INK_COLOR_TOLERANCE of the target — so neighboring
+    color is within color_tolerance of the target — so neighboring
     elements with different ink (e.g. a white logo next to dark text)
     are never touched even when their bboxes geometrically overlap the
     target rect (common with font ascender/leading padding).
+
+    color_tolerance: per-channel max diff for the color-based mask.
+        Defaults to _INK_COLOR_TOLERANCE (40).  Pass a higher value
+        (e.g. _INK_COLOR_TOLERANCE + 20 = 60) to capture anti-aliased
+        fringe pixels in a fallback retry.
+
+    force_full_bbox: when True, skip all color-based logic and mask the
+        full bbox rectangle unconditionally.  Used by _erase_with_verification
+        as a last-resort step before flagging NEEDS_REVIEW.
 
     When target_color_rgb is None, falls back to masking the full bbox
     rectangle (legacy behavior).  A warning is logged on fallback so any
@@ -353,54 +405,61 @@ def _erase_region(
 
     patch = img[py0:py1, px0:px1].copy()
 
-    # Choose masking strategy based on ink/background contrast.
+    # Choose masking strategy:
     #
-    # HIGH contrast (≥ _LOW_CONTRAST_THRESHOLD):
-    #   Build mask as UNION of (a) auto-sampled ink color and (b) PDF-stored
-    #   color hint.  Color-selective mask preserves neighboring elements that
-    #   share the same bbox footprint but have a different ink color (e.g. a
-    #   white logo next to dark text on an overlapping bbox).
+    # force_full_bbox=True: unconditionally mask the entire bbox rectangle.
+    #   Used by _erase_with_verification step 3 (last resort before NEEDS_REVIEW).
     #
     # LOW contrast (< _LOW_CONTRAST_THRESHOLD):
-    #   The ink/background color difference is smaller than our tolerance
-    #   envelope, so the color mask would include background pixels and cause
-    #   TELEA to smear gradient texture instead of cleanly erasing the ink.
-    #   Fall back to a full-bbox mask: guaranteed complete removal at the cost
-    #   of gradient-texture loss inside the rect — the lesser failure mode.
+    #   The ink/bg difference is inside the tolerance envelope → color mask would
+    #   absorb background pixels → TELEA smears.  Fall back to full-bbox.
+    #
+    # HIGH contrast: build mask as union of (a) auto-sampled ink and (b) the
+    #   PDF-stored color hint.  color_tolerance controls the per-channel threshold;
+    #   callers may pass a wider value for retry escalation.
     full_mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    sampled = None  # used in fallback warning below; set inside else-branch
 
-    sampled = _sample_ink_color(img, (x0, y0, x1, y1))
-    if sampled is not None:
-        bg_med = _sample_bg_median(img, (x0, y0, x1, y1))
-        contrast = (
-            int(np.abs(np.array(sampled, dtype=np.int16) - bg_med).max())
-            if bg_med is not None else 255
-        )
-        if contrast < _LOW_CONTRAST_THRESHOLD:
-            log.info(
-                "_erase_region: ink/bg contrast=%d < %d for rect %s"
-                " — falling back to full-bbox mask",
-                contrast, _LOW_CONTRAST_THRESHOLD, (x0, y0, x1, y1),
+    if force_full_bbox:
+        full_mask[y0:y1, x0:x1] = 255
+    else:
+        sampled = _sample_ink_color(img, (x0, y0, x1, y1))
+        if sampled is not None:
+            bg_med = _sample_bg_median(img, (x0, y0, x1, y1))
+            contrast = (
+                int(np.abs(np.array(sampled, dtype=np.int16) - bg_med).max())
+                if bg_med is not None else 255
             )
-            full_mask[y0:y1, x0:x1] = 255
-        else:
-            full_mask = np.maximum(
-                full_mask, _build_ink_mask(img, (x0, y0, x1, y1), sampled)
-            )
-            if target_color_rgb is not None:
+            if contrast < _LOW_CONTRAST_THRESHOLD:
+                log.info(
+                    "_erase_region: ink/bg contrast=%d < %d for rect %s"
+                    " — falling back to full-bbox mask",
+                    contrast, _LOW_CONTRAST_THRESHOLD, (x0, y0, x1, y1),
+                )
+                full_mask[y0:y1, x0:x1] = 255
+            else:
                 full_mask = np.maximum(
                     full_mask,
-                    _build_ink_mask(
-                        img, (x0, y0, x1, y1), _normalize_color(target_color_rgb)
-                    ),
+                    _build_ink_mask(img, (x0, y0, x1, y1), sampled,
+                                    color_tolerance=color_tolerance),
                 )
-    elif target_color_rgb is not None:
-        full_mask = np.maximum(
-            full_mask,
-            _build_ink_mask(
-                img, (x0, y0, x1, y1), _normalize_color(target_color_rgb)
-            ),
-        )
+                if target_color_rgb is not None:
+                    full_mask = np.maximum(
+                        full_mask,
+                        _build_ink_mask(
+                            img, (x0, y0, x1, y1),
+                            _normalize_color(target_color_rgb),
+                            color_tolerance=color_tolerance,
+                        ),
+                    )
+        elif target_color_rgb is not None:
+            full_mask = np.maximum(
+                full_mask,
+                _build_ink_mask(
+                    img, (x0, y0, x1, y1), _normalize_color(target_color_rgb),
+                    color_tolerance=color_tolerance,
+                ),
+            )
 
     mask = full_mask[py0:py1, px0:px1].copy()
 
@@ -424,6 +483,133 @@ def _erase_region(
     result = img.copy()
     result[py0:py1, px0:px1] = inpainted
     return result
+
+
+def _draw_review_marker(img: np.ndarray, rect_px: tuple) -> np.ndarray:
+    """
+    Draw a thin orange dashed outline + corner "!" icon around rect_px.
+    Called for any element that triggered NEEDS_REVIEW so the human reviewer
+    can spot exactly which region to double-check on the draft.
+    """
+    pil_img = Image.fromarray(img)
+    draw = ImageDraw.Draw(pil_img)
+    h, w = img.shape[:2]
+    rx0, ry0, rx1, ry1 = rect_px
+    # Expand outline 3px outside the element bbox
+    ox0 = max(0, rx0 - 3); oy0 = max(0, ry0 - 3)
+    ox1 = min(w - 1, rx1 + 3); oy1 = min(h - 1, ry1 + 3)
+    orange = (255, 140, 0)
+    dash_on, dash_off = 8, 4
+
+    def _dashes(pts: list[tuple[int, int]]) -> None:
+        for i in range(len(pts) - 1):
+            x0d, y0d = pts[i]
+            x1d, y1d = pts[i + 1]
+            length = max(abs(x1d - x0d), abs(y1d - y0d))
+            if length == 0:
+                continue
+            steps = max(1, length // (dash_on + dash_off))
+            for s in range(steps):
+                t0 = s * (dash_on + dash_off) / length
+                t1 = min(1.0, t0 + dash_on / length)
+                ax = int(x0d + t0 * (x1d - x0d)); ay = int(y0d + t0 * (y1d - y0d))
+                bx = int(x0d + t1 * (x1d - x0d)); by = int(y0d + t1 * (y1d - y0d))
+                draw.line([(ax, ay), (bx, by)], fill=orange, width=2)
+
+    _dashes([(ox0, oy0), (ox1, oy0)])  # top
+    _dashes([(ox1, oy0), (ox1, oy1)])  # right
+    _dashes([(ox1, oy1), (ox0, oy1)])  # bottom
+    _dashes([(ox0, oy1), (ox0, oy0)])  # left
+
+    icon_size = max(8, min(16, (ry1 - ry0) // 3))
+    try:
+        font = _get_font(icon_size)
+        draw.text((ox0 + 3, oy0 + 1), "!", font=font, fill=orange)
+    except Exception:
+        pass
+
+    return np.array(pil_img)
+
+
+def _erase_with_verification(
+    img: np.ndarray,
+    rect_px: tuple,
+    all_element_bboxes_px: list[tuple] | None = None,
+    target_color_rgb: tuple | None = None,
+    element_id: str | None = None,
+) -> tuple[np.ndarray, bool]:
+    """
+    Erase with escalating fallback + post-erase residual-ink verification.
+
+    Steps:
+      1. Standard color-mask erase (_erase_region with default tol=40).
+         Low-contrast cases already auto-fall to full-bbox inside _erase_region.
+      2. If residual detected at _RESIDUAL_CHECK_TOLERANCE (60): retry with
+         wider mask tolerance (tol=60) to capture anti-aliased fringe band.
+      3. If still residual: force full-bbox erase (unconditional coverage).
+      4. If residual persists even after full-bbox (bbox was wrong, or
+         inpainting pulled in ink from surroundings): mark NEEDS_REVIEW.
+
+    Residual check is skipped (returns safe) when ink/bg contrast is below
+    _RESIDUAL_MIN_CONTRAST (120) — at that range the background itself scores
+    within the residual tolerance, causing false positives (e.g. INGREDIENT_B 250mg
+    where ink R=1 and bg R=72 are indistinguishable at tol=60 after erasing).
+
+    Returns (erased_img, needs_review: bool).
+    """
+    clamped = _clamp_rect(rect_px, img.shape)
+
+    ink_color = _sample_ink_color(img, clamped)
+    if ink_color is None and target_color_rgb is not None:
+        ink_color = _normalize_color(target_color_rgb)
+
+    # Compute contrast to decide whether residual check is reliable
+    contrast: int | None = None
+    if ink_color is not None:
+        bg_med = _sample_bg_median(img, clamped)
+        if bg_med is not None:
+            contrast = int(np.abs(np.array(ink_color, dtype=np.int16) - bg_med).max())
+
+    # Step 1: standard erase (handles low-contrast → full-bbox internally)
+    result = _erase_region(img, rect_px, all_element_bboxes_px, target_color_rgb)
+
+    # Skip residual check when: no ink found, or contrast too low for reliable detection
+    if ink_color is None or contrast is None or contrast < _RESIDUAL_MIN_CONTRAST:
+        return result, False
+
+    if not _has_residual_ink(result, clamped, ink_color, _RESIDUAL_CHECK_TOLERANCE):
+        return result, False
+
+    # Step 2: retry with wider color tolerance to catch AA fringe
+    log.info(
+        "_erase_with_verification [%s]: residual after step-1 — retrying tol=%d",
+        element_id or clamped, _INK_COLOR_TOLERANCE + 20,
+    )
+    result2 = _erase_region(
+        img, rect_px, all_element_bboxes_px, target_color_rgb,
+        color_tolerance=_INK_COLOR_TOLERANCE + 20,
+    )
+    if not _has_residual_ink(result2, clamped, ink_color, _RESIDUAL_CHECK_TOLERANCE):
+        return result2, False
+
+    # Step 3: force full-bbox erase
+    log.warning(
+        "_erase_with_verification [%s]: residual after step-2 — forcing full-bbox",
+        element_id or clamped,
+    )
+    result3 = _erase_region(
+        img, rect_px, all_element_bboxes_px, target_color_rgb,
+        force_full_bbox=True,
+    )
+    if not _has_residual_ink(result3, clamped, ink_color, _RESIDUAL_CHECK_TOLERANCE):
+        return result3, False
+
+    # Step 4: NEEDS_REVIEW — even full-bbox erase couldn't clean the region
+    log.error(
+        "_erase_with_verification [%s]: residual persists after full-bbox — NEEDS_REVIEW",
+        element_id or clamped,
+    )
+    return result3, True
 
 
 def _draw_text(
@@ -657,6 +843,8 @@ def generate_raster_draft(
     failed = 0
     skipped = 0
     overflow_warnings: list[dict] = []
+    needs_review_rects: list[tuple] = []  # rects where erase couldn't be verified clean
+    total_erase_actions = 0
 
     for action in actions:
         action_type = str(action.get("action_type", "")).lower()
@@ -671,6 +859,7 @@ def generate_raster_draft(
             )
             font_size_pt = float(elem.get("font_size") or 12)
             color_rgb = _hex_to_rgb_255(elem.get("color_rgb") or "#000000")
+            elem_id = elem.get("id", "?")
         else:
             sx = float(action.get("sel_x") or 0)
             sy = float(action.get("sel_y") or 0)
@@ -679,12 +868,18 @@ def generate_raster_draft(
             rect_pts = (sx * pw_pts, sy * ph_pts, (sx + sw) * pw_pts, (sy + sh) * ph_pts)
             font_size_pt = 12.0
             color_rgb = (0, 0, 0)
+            elem_id = "sel"
 
         rect_px = _pdf_rect_to_px(rect_pts, dpi)
 
         try:
             if action_type == "delete":
-                img = _erase_region(img, rect_px, all_bboxes_px, target_color_rgb=color_rgb)
+                total_erase_actions += 1
+                img, nr = _erase_with_verification(
+                    img, rect_px, all_bboxes_px, color_rgb, element_id=elem_id,
+                )
+                if nr:
+                    needs_review_rects.append(rect_px)
                 applied += 1
 
             elif action_type == "replace":
@@ -705,7 +900,12 @@ def generate_raster_draft(
                         max(0.0, (required_w - rect_w_pts) / rect_w_pts * 100), 1
                     ),
                 })
-                img = _erase_region(img, rect_px, all_bboxes_px, target_color_rgb=color_rgb)
+                total_erase_actions += 1
+                img, nr = _erase_with_verification(
+                    img, rect_px, all_bboxes_px, color_rgb, element_id=elem_id,
+                )
+                if nr:
+                    needs_review_rects.append(rect_px)
                 img = _draw_text(img, rect_px, new_text, font_size_pt, dpi, color_rgb)
                 applied += 1
 
@@ -738,6 +938,10 @@ def generate_raster_draft(
             log.error("raster_v3 action '%s' failed: %s", action_type, exc)
             failed += 1
 
+    # Draw orange dashed warning markers for any NEEDS_REVIEW elements
+    for nr_rect in needs_review_rects:
+        img = _draw_review_marker(img, nr_rect)
+
     img = _draw_watermark(img)
 
     name = f"draft_v3_{uuid.uuid4().hex[:8]}_{int(time.time())}.pdf"
@@ -754,5 +958,7 @@ def generate_raster_draft(
         "pages_modified": [page_num] if applied > 0 else [],
         "overflow_warnings": overflow_warnings,
         "collisions": [],
+        "elements_needing_review": len(needs_review_rects),
+        "total_elements": total_erase_actions,
         "generation_time_s": round(time.time() - t0, 2),
     }
