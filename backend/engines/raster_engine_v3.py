@@ -82,15 +82,29 @@ _LOW_CONTRAST_THRESHOLD = 50
 
 # Post-erase residual verification ──────────────────────────────────────────
 # Tolerance used inside _has_residual_ink during escalating-fallback checks.
-# Wider than _INK_COLOR_TOLERANCE so it captures the anti-aliased fringe band
-# (diff 41–60 from pure ink) that survives the standard color-mask step.
-_RESIDUAL_CHECK_TOLERANCE = _INK_COLOR_TOLERANCE + 20  # 60
+#
+# Must be HIGH enough to detect ALL visually-perceptible AA fringe, not just
+# the band immediately above the color-mask tolerance.  Measured on "Hasta 12
+# Horas" (white text, dark bg, contrast=241):
+#   step-1 (tol=40 mask) → 828 residual px at diff ≤ 150  (visible ghost)
+#   step-2 (tol=60 mask) → 619 residual px at diff ≤ 150  (ghost still there)
+#   full-bbox            →   0 residual px at diff ≤ 200  (clean)
+#
+# Setting this to 150 causes step-2 to still detect residual → escalate to
+# step-3 (full-bbox) → guaranteed clean for high-contrast elements.
+# Setting it to 60 (old value) trivially passed after step-2 because every
+# pixel within diff=60 of ink was already masked — the ghost at diff 61-150
+# was never detected, so full-bbox was never triggered.
+_RESIDUAL_CHECK_TOLERANCE = 150
 # Minimum ink/background contrast required before running the residual check.
-# Below this value the background gradient is too close to the ink color for
-# _has_residual_ink to be reliable (background pixels score as "residual ink").
-# Equal to 2× _RESIDUAL_CHECK_TOLERANCE so there is at least one full tolerance
-# band of separation between ink and background.
-_RESIDUAL_MIN_CONTRAST = _RESIDUAL_CHECK_TOLERANCE * 2  # 120
+# Below this value the background pixels have a diff from the ink that falls
+# inside _RESIDUAL_CHECK_TOLERANCE, causing false positives (background looks
+# like "residual ink").  Set to tol + 50 channel safety margin so there is a
+# clear gap between the background score and the detection threshold.
+# Examples:
+#   "Hasta 12 Horas" contrast=241 ≥ 200 → check runs   → full-bbox triggered
+#   INGREDIENT_B        contrast= 71 < 200 → check skipped → no false positive
+_RESIDUAL_MIN_CONTRAST = _RESIDUAL_CHECK_TOLERANCE + 50  # 200
 
 
 def _sample_ink_color(
