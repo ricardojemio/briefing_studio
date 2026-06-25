@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { processApi } from '../services/processApi'
 import type { ArtworkProcess, AssignmentRole } from '../types/process'
 import { ROLE_LABELS, STATUS_ORDER } from '../types/process'
+import ComparisonViewer from '../components/ComparisonViewer'
 
 // ── Design tokens ────────────────────────────────────────────────────────────────
 const T = {
@@ -233,7 +234,13 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
       </div>
 
       {/* ── Tab content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+      <div style={{
+        flex: 1,
+        overflowY: tab === 'comparison' ? 'hidden' : 'auto',
+        padding:   tab === 'comparison' ? 0 : 24,
+        display:   tab === 'comparison' ? 'flex' : 'block',
+        flexDirection: 'column',
+      }}>
         {tab === 'overview' && (
           <OverviewTab
             proc={proc}
@@ -248,7 +255,14 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
           />
         )}
 
-        {tab !== 'overview' && (
+        {tab === 'comparison' && (
+          <ComparisonViewer
+            processId={proc.id}
+            originalPdfPath={proc.components?.[0]?.pdf_path ?? null}
+          />
+        )}
+
+        {(tab === 'briefing' || tab === 'timeline') && (
           <PlaceholderTab name={tab} />
         )}
       </div>

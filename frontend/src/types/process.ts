@@ -80,3 +80,63 @@ export const STATUS_ORDER: ProcessStatus[] = [
   'approval',
   'ready',
 ]
+
+// ── Comparison types ──────────────────────────────────────────────────────────────
+
+export type DiffSeverity = 'high' | 'medium' | 'low'
+
+export type DiffType =
+  | 'text_changed'
+  | 'text_added'
+  | 'text_removed'
+  | 'font_size'
+  | 'font_style'
+  | 'color'
+  | 'ean_changed'
+  | 'pharmaCode'
+  | 'visual'
+  | 'dimensional'
+  | 'compliance'
+
+export interface DiffEntry {
+  id:            string
+  type:          DiffType
+  severity:      DiffSeverity
+  original_text: string
+  revised_text:  string
+  bbox:          [number, number, number, number]  // x0,y0,x1,y1 in PDF points
+  page:          number
+  description:   string
+}
+
+export interface PageComparison {
+  page_num:            number
+  page_size_pts:       [number, number]  // [width, height] in PDF points
+  differences:         DiffEntry[]
+  original_render_url: string | null
+  revised_render_url:  string | null
+  diff_render_url:     string | null
+}
+
+export interface ComparisonSummary {
+  total_differences:    number
+  text_changes:         number
+  code_changes:         number
+  visual_changes:       number
+  dimensional_changes:  number
+  compliance_flags:     number
+}
+
+export interface ComparisonRecord {
+  id:                string
+  process_id:        string
+  original_pdf_path: string
+  revised_pdf_path:  string
+  created_at:        string
+  created_by:        string
+  result: {
+    comparison_id: string
+    summary:       ComparisonSummary
+    pages:         PageComparison[]
+  } | null
+}

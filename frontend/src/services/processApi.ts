@@ -1,6 +1,7 @@
 import type {
   ArtworkProcess,
   AssignmentRole,
+  ComparisonRecord,
   ProcessAssignment,
   ProcessComponent,
   ProcessStatus,
@@ -65,4 +66,30 @@ export const processApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // ── Comparisons ──────────────────────────────────────────────────────────────
+  listComparisons: (id: string) =>
+    req<ComparisonRecord[]>(`/processes/${id}/comparisons`),
+
+  getComparison: (id: string, cid: string) =>
+    req<ComparisonRecord>(`/processes/${id}/comparisons/${cid}`),
+
+  runComparison: async (
+    processId: string,
+    revisedFile: File,
+    originalPdfPath?: string,
+  ): Promise<ComparisonRecord> => {
+    const fd = new FormData()
+    fd.append('file', revisedFile)
+    if (originalPdfPath) fd.append('original_pdf_path', originalPdfPath)
+    const r = await fetch(`${BASE}/processes/${processId}/comparison`, {
+      method: 'POST',
+      body: fd,
+    })
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({ detail: r.statusText }))
+      throw new Error(e.detail || 'API error')
+    }
+    return r.json()
+  },
 }
