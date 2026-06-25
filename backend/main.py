@@ -6,6 +6,7 @@ from pathlib import Path
 from core.config import settings
 from core.database import create_tables
 from api.routes import router
+from api.process_routes import router as process_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,6 +25,7 @@ app.mount("/previews", StaticFiles(directory=settings.PREVIEW_DIR), name="previe
 app.mount("/uploads",  StaticFiles(directory=settings.UPLOAD_DIR),  name="uploads")
 
 app.include_router(router, prefix="/api/v1")
+app.include_router(process_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():

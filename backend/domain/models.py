@@ -5,6 +5,15 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from core.database import Base
 
+# ── ArtReview constants ──────────────────────────────────────────────────────────
+
+MARKETS = [
+    "South America", "North America", "Central America", "Caribbean",
+    "Europe", "Asia", "Russia", "Oceania",
+]
+
+MANUFACTURING_SITES = [f"Manufacturing Site {i}" for i in range(1, 21)]
+
 class ElementType(str, enum.Enum):
     TEXT="text"; IMAGE="image"; LOGO="logo"; VECTOR="vector"; BARCODE="barcode"
 
@@ -85,3 +94,99 @@ class BriefingAction(Base):
     created_by:    Mapped[str]          = mapped_column(String(100), default="user")
     created_at:    Mapped[datetime]     = mapped_column(DateTime, default=datetime.utcnow)
     artwork: Mapped["Artwork"] = relationship(back_populates="actions")
+
+
+# ── ArtReview models ─────────────────────────────────────────────────────────────
+
+class ProcessStatus(str, enum.Enum):
+    DRAFT            = "draft"
+    BRIEFING         = "briefing"
+    ARTWORK_CREATION = "artwork_creation"
+    APPROVAL         = "approval"
+    READY            = "ready"
+
+
+class AssignmentRole(str, enum.Enum):
+    ARTWORK_COORDINATOR = "artwork_coordinator"
+    MARKETING           = "marketing"
+    REGULATORY          = "regulatory"
+    MANUFACTURING_SITE  = "manufacturing_site"
+    EXTERNAL_STUDIO     = "external_studio"
+
+
+class AnnotationActionType(str, enum.Enum):
+    DELETE  = "delete"
+    REPLACE = "replace"
+    MOVE    = "move"
+    RESIZE  = "resize"
+
+
+class ArtworkProcess(Base):
+    __tablename__ = "artwork_processes"
+    id:                  Mapped[uuid.UUID]    = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_name:        Mapped[str]          = mapped_column(String(255))
+    project_description: Mapped[str]          = mapped_column(Text, nullable=True)
+    status:              Mapped[ProcessStatus] = mapped_column(SAEnum(ProcessStatus, native_enum=False), default=ProcessStatus.DRAFT)
+    is_active:           Mapped[bool]         = mapped_column(Boolean, default=True)
+    created_at:          Mapped[datetime]     = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at:          Mapped[datetime]     = mapped_column(DateTime, default=datetime.utcnow)
+    created_by:          Mapped[str]          = mapped_column(String(255), default="user")
+
+    components:  Mapped[list["ProcessComponent"]]  = relationship(back_populates="process", cascade="all, delete-orphan")
+    assignments: Mapped[list["ProcessAssignment"]] = relationship(back_populates="process", cascade="all, delete-orphan")
+    annotations: Mapped[list["BriefingAnnotation"]]= relationship(back_populates="process", cascade="all, delete-orphan")
+    comparisons: Mapped[list["ComparisonResult"]]  = relationship(back_populates="process", cascade="all, delete-orphan")
+
+
+class ProcessComponent(Base):
+    __tablename__ = "process_components"
+    id:                  Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    process_id:          Mapped[uuid.UUID] = mapped_column(ForeignKey("artwork_processes.id"))
+    component_code:      Mapped[str]       = mapped_column(String(100))
+    sku:                 Mapped[str]       = mapped_column(String(100), nullable=True)
+    is_new_sku:          Mapped[bool]      = mapped_column(Boolean, default=False)
+    pdf_path:            Mapped[str]       = mapped_column(String(500), nullable=True)
+    market:              Mapped[str]       = mapped_column(String(100))
+    manufacturing_site:  Mapped[str]       = mapped_column(String(100), nullable=True)
+
+    process: Mapped["ArtworkProcess"] = relationship(back_populates="components")
+
+
+class ProcessAssignment(Base):
+    __tablename__ = "process_assignments"
+    id:             Mapped[uuid.UUID]    = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    process_id:     Mapped[uuid.UUID]    = mapped_column(ForeignKey("artwork_processes.id"))
+    role:           Mapped[AssignmentRole]= mapped_column(SAEnum(AssignmentRole, native_enum=False))
+    assignee_email: Mapped[str]          = mapped_column(String(255))
+    assigned_at:    Mapped[datetime]     = mapped_column(DateTime, default=datetime.utcnow)
+
+    process: Mapped["ArtworkProcess"] = relationship(back_populates="assignments")
+
+
+class BriefingAnnotation(Base):
+    __tablename__ = "briefing_annotations"
+    id:               Mapped[uuid.UUID]         = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    process_id:       Mapped[uuid.UUID]         = mapped_column(ForeignKey("artwork_processes.id"))
+    action_type:      Mapped[AnnotationActionType]= mapped_column(SAEnum(AnnotationActionType, native_enum=False))
+    selected_text:    Mapped[str]               = mapped_column(Text, nullable=True)
+    replacement_text: Mapped[str]               = mapped_column(Text, nullable=True)
+    bbox_json:        Mapped[dict]              = mapped_column(JSON, nullable=True)
+    comment:          Mapped[str]               = mapped_column(Text, nullable=True)
+    created_by:       Mapped[str]               = mapped_column(String(255), default="user")
+    created_at:       Mapped[datetime]          = mapped_column(DateTime, default=datetime.utcnow)
+    page_num:         Mapped[int]               = mapped_column(Integer, default=0)
+
+    process: Mapped["ArtworkProcess"] = relationship(back_populates="annotations")
+
+
+class ComparisonResult(Base):
+    __tablename__ = "comparison_results"
+    id:                 Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    process_id:         Mapped[uuid.UUID] = mapped_column(ForeignKey("artwork_processes.id"))
+    original_pdf_path:  Mapped[str]       = mapped_column(String(500))
+    revised_pdf_path:   Mapped[str]       = mapped_column(String(500))
+    differences_json:   Mapped[dict]      = mapped_column(JSON, nullable=True)
+    created_at:         Mapped[datetime]  = mapped_column(DateTime, default=datetime.utcnow)
+    created_by:         Mapped[str]       = mapped_column(String(255), default="user")
+
+    process: Mapped["ArtworkProcess"] = relationship(back_populates="comparisons")

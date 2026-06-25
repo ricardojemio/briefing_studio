@@ -5,7 +5,8 @@ import { useStore } from '../store'
 import type { Project, Artwork } from '../types'
 
 interface DashboardProps {
-  onOpenStudio: (artwork: Artwork) => void
+  onOpenStudio:          (artwork: Artwork) => void
+  onNavigateProcesses?:  () => void
 }
 
 // ── Design tokens ─────────────────────────────────────────────────
@@ -28,7 +29,7 @@ const COMPONENT_LABELS: Record<string, string> = {
   carton: 'Carton', blister: 'Blister', label: 'Label', leaflet: 'Leaflet',
 }
 
-export default function Dashboard({ onOpenStudio }: DashboardProps) {
+export default function Dashboard({ onOpenStudio, onNavigateProcesses }: DashboardProps) {
   const [projects,  setProjects]  = useState<Project[]>([])
   const [loading,   setLoading]   = useState(true)
   const [showForm,  setShowForm]  = useState(false)
@@ -106,17 +107,31 @@ export default function Dashboard({ onOpenStudio }: DashboardProps) {
             </div>
           </div>
         </div>
-        <button onClick={() => setShowForm(s => !s)} style={{
-          padding: '7px 14px', background: T.accent, color: '#fff',
-          border: 'none', borderRadius: 7, cursor: 'pointer',
-          fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
-          transition: 'opacity 0.15s',
-        }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-        >
-          + New project
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {onNavigateProcesses && (
+            <button onClick={onNavigateProcesses} style={{
+              padding: '7px 14px', background: 'transparent', color: T.textSecond,
+              border: `1px solid ${T.border}`, borderRadius: 7, cursor: 'pointer',
+              fontSize: 12, fontWeight: 600, letterSpacing: '0.02em', transition: 'color 0.15s, border-color 0.15s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = T.textPrimary; e.currentTarget.style.borderColor = '#4A5070' }}
+              onMouseLeave={e => { e.currentTarget.style.color = T.textSecond;  e.currentTarget.style.borderColor = T.border }}
+            >
+              ArtReview
+            </button>
+          )}
+          <button onClick={() => setShowForm(s => !s)} style={{
+            padding: '7px 14px', background: T.accent, color: '#fff',
+            border: 'none', borderRadius: 7, cursor: 'pointer',
+            fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
+            transition: 'opacity 0.15s',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          >
+            + New project
+          </button>
+        </div>
       </div>
 
       {/* ── Content ── */}
