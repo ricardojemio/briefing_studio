@@ -16,7 +16,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
@@ -29,6 +29,8 @@ from domain.models import (
     ArtworkProcess,
     BriefingAnnotation,
     ComparisonResult,
+    DiffReviewStatus,
+    DifferenceReview,
     ProcessAssignment,
     ProcessComponent,
     ProcessStatus,
@@ -52,6 +54,16 @@ class ProcessStatusUpdate(BaseModel):
 class AssignmentCreate(BaseModel):
     role: AssignmentRole
     assignee_email: str
+
+
+class DiffReviewBody(BaseModel):
+    status: str  # "accepted" | "rejected"
+    reviewer_email: str
+    comment: Optional[str] = None
+
+
+class ApproveBody(BaseModel):
+    approved_by: str
 
 
 # ── Serialisers ──────────────────────────────────────────────────────────────────
@@ -272,8 +284,35 @@ def _cmp(c: ComparisonResult) -> dict:
         "revised_pdf_path":  c.revised_pdf_path,
         "created_at":        c.created_at.isoformat(),
         "created_by":        c.created_by,
+        "approved_by":       c.approved_by,
+        "approved_at":       c.approved_at.isoformat() if c.approved_at else None,
         "result":            c.differences_json,
     }
+
+
+def _review(r: DifferenceReview) -> dict:
+    return {
+        "diff_id":        r.diff_id,
+        "status":         r.status.value,
+        "reviewer_email": r.reviewer_email,
+        "comment":        r.comment,
+        "reviewed_at":    r.reviewed_at.isoformat() if r.reviewed_at else None,
+    }
+
+
+async def _get_comparison_or_404(
+    db: AsyncSession, pid: uuid.UUID, cid: uuid.UUID
+) -> ComparisonResult:
+    r = await db.execute(
+        select(ComparisonResult).where(
+            ComparisonResult.id == cid,
+            ComparisonResult.process_id == pid,
+        )
+    )
+    c = r.scalar_one_or_none()
+    if not c:
+        raise HTTPException(404, "Comparison not found")
+    return c
 
 
 @router.get("/{pid}/comparisons")
@@ -294,15 +333,7 @@ async def get_comparison(
     db: AsyncSession = Depends(get_db),
 ):
     await _get_or_404(db, ArtworkProcess, pid)
-    r = await db.execute(
-        select(ComparisonResult).where(
-            ComparisonResult.id == cid,
-            ComparisonResult.process_id == pid,
-        )
-    )
-    c = r.scalar_one_or_none()
-    if not c:
-        raise HTTPException(404, "Comparison not found")
+    c = await _get_comparison_or_404(db, pid, cid)
     return _cmp(c)
 
 
@@ -377,3 +408,135 @@ async def run_comparison(
     await db.flush()
     await db.refresh(c)
     return _cmp(c)
+
+
+# ── Difference reviews ────────────────────────────────────────────────────────────
+
+@router.patch("/{pid}/comparisons/{cid}/differences/{diff_id}")
+async def review_difference(
+    pid:     uuid.UUID,
+    cid:     uuid.UUID,
+    diff_id: str,
+    data:    DiffReviewBody,
+    db:      AsyncSession = Depends(get_db),
+):
+    await _get_or_404(db, ArtworkProcess, pid)
+    c = await _get_comparison_or_404(db, pid, cid)
+
+    if data.status not in ("accepted", "rejected"):
+        raise HTTPException(400, "status must be 'accepted' or 'rejected'")
+
+    all_diff_ids = {
+        d["id"]
+        for page in (c.differences_json or {}).get("pages", [])
+        for d in page.get("differences", [])
+    }
+    if diff_id not in all_diff_ids:
+        raise HTTPException(404, f"diff_id '{diff_id}' not found in comparison")
+
+    r = await db.execute(
+        select(DifferenceReview).where(
+            DifferenceReview.comparison_id == cid,
+            DifferenceReview.diff_id == diff_id,
+        )
+    )
+    review = r.scalar_one_or_none()
+    now = datetime.utcnow()
+
+    if review:
+        review.status         = DiffReviewStatus(data.status)
+        review.reviewer_email = data.reviewer_email
+        review.comment        = data.comment
+        review.reviewed_at    = now
+    else:
+        review = DifferenceReview(
+            comparison_id  = cid,
+            diff_id        = diff_id,
+            status         = DiffReviewStatus(data.status),
+            reviewer_email = data.reviewer_email,
+            comment        = data.comment,
+            reviewed_at    = now,
+        )
+        db.add(review)
+
+    await db.flush()
+    await db.refresh(review)
+    return _review(review)
+
+
+@router.get("/{pid}/comparisons/{cid}/reviews")
+async def list_diff_reviews(
+    pid: uuid.UUID,
+    cid: uuid.UUID,
+    db:  AsyncSession = Depends(get_db),
+):
+    await _get_or_404(db, ArtworkProcess, pid)
+    await _get_comparison_or_404(db, pid, cid)
+    r = await db.execute(
+        select(DifferenceReview).where(DifferenceReview.comparison_id == cid)
+    )
+    return [_review(rev) for rev in r.scalars().all()]
+
+
+@router.get("/{pid}/comparisons/{cid}/review-summary")
+async def get_review_summary(
+    pid: uuid.UUID,
+    cid: uuid.UUID,
+    db:  AsyncSession = Depends(get_db),
+):
+    await _get_or_404(db, ArtworkProcess, pid)
+    c = await _get_comparison_or_404(db, pid, cid)
+
+    total = (c.differences_json or {}).get("summary", {}).get("total_differences", 0)
+
+    rows = await db.execute(
+        select(DifferenceReview.status, func.count(DifferenceReview.id).label("cnt"))
+        .where(DifferenceReview.comparison_id == cid)
+        .group_by(DifferenceReview.status)
+    )
+    counts   = {row.status: row.cnt for row in rows}
+    accepted = counts.get(DiffReviewStatus.ACCEPTED, 0)
+    rejected = counts.get(DiffReviewStatus.REJECTED, 0)
+    pending  = max(0, total - accepted - rejected)
+
+    return {
+        "total":          total,
+        "accepted":       accepted,
+        "rejected":       rejected,
+        "pending":        pending,
+        "can_approve":    pending == 0,
+        "has_rejections": rejected > 0,
+    }
+
+
+@router.post("/{pid}/comparisons/{cid}/approve")
+async def approve_comparison(
+    pid:  uuid.UUID,
+    cid:  uuid.UUID,
+    data: ApproveBody,
+    db:   AsyncSession = Depends(get_db),
+):
+    await _get_or_404(db, ArtworkProcess, pid)
+    c = await _get_comparison_or_404(db, pid, cid)
+
+    total = (c.differences_json or {}).get("summary", {}).get("total_differences", 0)
+    row   = await db.execute(
+        select(func.count(DifferenceReview.id))
+        .where(DifferenceReview.comparison_id == cid)
+    )
+    reviewed = row.scalar_one()
+    if reviewed < total:
+        raise HTTPException(
+            400,
+            f"Cannot approve: {total - reviewed} difference(s) still pending review",
+        )
+
+    now           = datetime.utcnow()
+    c.approved_by = data.approved_by
+    c.approved_at = now
+    await db.flush()
+
+    return {
+        "approved_by": c.approved_by,
+        "approved_at": c.approved_at.isoformat(),
+    }

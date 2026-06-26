@@ -134,9 +134,37 @@ export interface ComparisonRecord {
   revised_pdf_path:  string
   created_at:        string
   created_by:        string
+  approved_by:       string | null
+  approved_at:       string | null
   result: {
     comparison_id: string
     summary:       ComparisonSummary
     pages:         PageComparison[]
   } | null
+}
+
+// ── Difference review types ───────────────────────────────────────────────────────
+
+export type DiffReviewStatus = 'pending' | 'accepted' | 'rejected'
+
+export interface DifferenceReview {
+  diff_id:        string
+  status:         DiffReviewStatus
+  reviewer_email: string
+  comment:        string | null
+  reviewed_at:    string | null
+}
+
+export interface ReviewSummary {
+  total:          number
+  accepted:       number
+  rejected:       number
+  pending:        number
+  can_approve:    boolean
+  has_rejections: boolean
+}
+
+export interface ApproveResult {
+  approved_by: string
+  approved_at: string
 }

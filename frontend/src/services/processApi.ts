@@ -1,10 +1,13 @@
 import type {
+  ApproveResult,
   ArtworkProcess,
   AssignmentRole,
   ComparisonRecord,
+  DifferenceReview,
   ProcessAssignment,
   ProcessComponent,
   ProcessStatus,
+  ReviewSummary,
 } from '../types/process'
 
 const BASE = '/api/v1'
@@ -92,4 +95,32 @@ export const processApi = {
     }
     return r.json()
   },
+
+  // ── Difference reviews ────────────────────────────────────────────────────────
+  listDiffReviews: (processId: string, cid: string) =>
+    req<DifferenceReview[]>(`/processes/${processId}/comparisons/${cid}/reviews`),
+
+  getReviewSummary: (processId: string, cid: string) =>
+    req<ReviewSummary>(`/processes/${processId}/comparisons/${cid}/review-summary`),
+
+  reviewDifference: (
+    processId: string,
+    cid: string,
+    diffId: string,
+    data: { status: 'accepted' | 'rejected'; reviewer_email: string; comment?: string },
+  ) =>
+    req<DifferenceReview>(
+      `/processes/${processId}/comparisons/${cid}/differences/${diffId}`,
+      { method: 'PATCH', body: JSON.stringify(data) },
+    ),
+
+  approveComparison: (
+    processId: string,
+    cid: string,
+    data: { approved_by: string },
+  ) =>
+    req<ApproveResult>(
+      `/processes/${processId}/comparisons/${cid}/approve`,
+      { method: 'POST', body: JSON.stringify(data) },
+    ),
 }

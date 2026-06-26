@@ -5,7 +5,9 @@ import type {
   DiffEntry,
   DiffSeverity,
   DiffType,
+  DifferenceReview,
   PageComparison,
+  ReviewSummary,
 } from '../types/process'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────────
@@ -70,10 +72,6 @@ interface DisplayRect { left: number; top: number; width: number; height: number
 /**
  * Convert a PDF-coordinate bbox [x0,y0,x1,y1] (in pts) to a fractional
  * display-space rect (0..1) after applying CW rotation.
- *
- * PDF origin: top-left, y increases down.
- * Each rotation is clockwise. Fractions are relative to the OUTER display
- * container which already accounts for the axis swap at 90°/270°.
  */
 function transformBbox(
   bbox:        [number, number, number, number],
@@ -87,12 +85,10 @@ function transformBbox(
 
   switch (rotation) {
     case 90:
-      // CW 90°: PDF x→display y (from bottom), PDF y→display x
       return { left: fy0, top: 1 - fx1, width: fy1 - fy0, height: fx1 - fx0 }
     case 180:
       return { left: 1 - fx1, top: 1 - fy1, width: fx1 - fx0, height: fy1 - fy0 }
     case 270:
-      // CW 270°: PDF x→display y (from top), PDF y→display x (from right)
       return { left: 1 - fy1, top: fx0, width: fy1 - fy0, height: fx1 - fx0 }
     default: // 0°
       return { left: fx0, top: fy0, width: fx1 - fx0, height: fy1 - fy0 }
@@ -150,23 +146,6 @@ function DiffHighlights({
 
 // ── Single page panel ─────────────────────────────────────────────────────────────
 
-/**
- * The image display uses a two-layer approach for rotation:
- *
- *   OUTER div (position:relative, overflow:hidden)
- *     - dimensions = DISPLAY dimensions (axes swapped at 90°/270°)
- *     - width = zoom% of the scroll-viewport content width
- *     - aspect-ratio reflects the post-rotation shape
- *     - diff highlights are absolutely positioned here (display space)
- *
- *   INNER div (position:absolute, centered, rotated)
- *     - sized so that AFTER rotate(Ndeg) its visual footprint
- *       exactly fills the outer
- *     - for 90°/270°: inner_width = (W/H)*100% of outer, inner_height = (H/W)*100% of outer_height
- *     - for 0°/180°: inner is 100%×100% of outer
- *
- *   IMG fills the inner div 100%×100%.
- */
 function PagePanel({
   imgUrl,
   label,
@@ -191,16 +170,12 @@ function PagePanel({
   const [W, H]    = page.page_size_pts
   const isSwapped = rotation === 90 || rotation === 270
 
-  // Outer display aspect-ratio: swapped when 90°/270°
-  const displayAR = isSwapped ? `${H} / ${W}` : `${W} / ${H}`
-
-  // Inner image dimensions (as % of outer) so that after CSS rotate it fills outer
+  const displayAR      = isSwapped ? `${H} / ${W}` : `${W} / ${H}`
   const innerWidthPct  = isSwapped ? (W / H) * 100 : 100
   const innerHeightPct = isSwapped ? (H / W) * 100 : 100
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-      {/* Column label */}
       <div style={{
         padding: '6px 12px', flexShrink: 0,
         fontSize: 10, fontWeight: 700, color: T.textMuted,
@@ -210,7 +185,6 @@ function PagePanel({
         {label}
       </div>
 
-      {/* Scrollable viewport */}
       <div
         ref={scrollRef}
         onScroll={onScroll}
@@ -218,7 +192,6 @@ function PagePanel({
       >
         <div style={{ padding: 16 }}>
           {imgUrl ? (
-            /* OUTER: display-space container, zoom-scaled width */
             <div style={{
               position:    'relative',
               width:       `${zoom}%`,
@@ -227,7 +200,6 @@ function PagePanel({
               overflow:    'hidden',
               margin:      '0 auto',
             }}>
-              {/* INNER: pre-rotation image, centered then rotated */}
               <div style={{
                 position:        'absolute',
                 top:             '50%',
@@ -245,7 +217,6 @@ function PagePanel({
                 />
               </div>
 
-              {/* Highlights: absolute in OUTER (display space, no rotation) */}
               <DiffHighlights
                 diffs={page.differences}
                 pageSizePts={page.page_size_pts}
@@ -271,17 +242,144 @@ function PagePanel({
   )
 }
 
+// ── Review status bar ─────────────────────────────────────────────────────────────
+
+function ReviewStatusBar({
+  summary,
+  reviewerEmail,
+  onEmailChange,
+  onApprove,
+  approving,
+  approvedAt,
+}: {
+  summary:       ReviewSummary | null
+  reviewerEmail: string
+  onEmailChange: (v: string) => void
+  onApprove:     () => void
+  approving:     boolean
+  approvedAt:    string | null
+}) {
+  if (!summary || summary.total === 0) return null
+
+  const reviewed = summary.accepted + summary.rejected
+
+  return (
+    <div style={{
+      padding: '7px 16px',
+      background: T.bgSurface,
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flexShrink: 0,
+    }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: T.textSecond, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        Review
+      </span>
+
+      <div style={{ display: 'flex', gap: 5 }}>
+        {summary.pending > 0 && (
+          <span style={{
+            fontSize: 10, padding: '1px 7px', borderRadius: 10, fontWeight: 700,
+            background: `${T.warning}18`, color: T.warning, border: `1px solid ${T.warning}40`,
+          }}>
+            {summary.pending} pending
+          </span>
+        )}
+        {summary.accepted > 0 && (
+          <span style={{
+            fontSize: 10, padding: '1px 7px', borderRadius: 10, fontWeight: 700,
+            background: `${T.success}18`, color: T.success, border: `1px solid ${T.success}40`,
+          }}>
+            {summary.accepted} accepted
+          </span>
+        )}
+        {summary.rejected > 0 && (
+          <span style={{
+            fontSize: 10, padding: '1px 7px', borderRadius: 10, fontWeight: 700,
+            background: `${T.danger}18`, color: T.danger, border: `1px solid ${T.danger}40`,
+          }}>
+            {summary.rejected} rejected
+          </span>
+        )}
+        <span style={{ fontSize: 10, color: T.textMuted }}>
+          ({reviewed}/{summary.total} reviewed)
+        </span>
+      </div>
+
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+        {approvedAt ? (
+          <span style={{ fontSize: 11, color: T.success, fontWeight: 700 }}>
+            ✓ Approved {new Date(approvedAt).toLocaleString()}
+          </span>
+        ) : (
+          <>
+            <input
+              value={reviewerEmail}
+              onChange={e => onEmailChange(e.target.value)}
+              placeholder="reviewer@company.com"
+              title="Your email — required to record reviews"
+              style={{
+                background: T.bgElevated, border: `1px solid ${T.border}`,
+                borderRadius: 5, color: T.textPrimary, fontSize: 11,
+                padding: '3px 8px', outline: 'none', width: 190,
+                fontFamily: 'inherit',
+              }}
+            />
+            {summary.can_approve && (
+              <button
+                onClick={onApprove}
+                disabled={approving || !reviewerEmail.trim()}
+                title={!reviewerEmail.trim() ? 'Enter your reviewer email first' : undefined}
+                style={{
+                  padding: '5px 14px',
+                  background: approving || !reviewerEmail.trim() ? T.bgElevated : (summary.has_rejections ? T.warning : T.success),
+                  color: approving || !reviewerEmail.trim() ? T.textMuted : '#fff',
+                  border: 'none', borderRadius: 6,
+                  cursor: approving || !reviewerEmail.trim() ? 'not-allowed' : 'pointer',
+                  fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                  opacity: !reviewerEmail.trim() ? 0.5 : 1,
+                }}
+              >
+                {approving
+                  ? 'Approving…'
+                  : summary.has_rejections
+                    ? '⚠ Approve with Rejections'
+                    : '✓ Approve Comparison'}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Diff list sidebar ─────────────────────────────────────────────────────────────
 
 function DiffListPanel({
   page,
   selectedId,
   onSelect,
+  reviews,
+  submitting,
+  onReview,
+  reviewerEmailSet,
 }: {
-  page:       PageComparison
-  selectedId: string | null
-  onSelect:   (id: string) => void
+  page:             PageComparison
+  selectedId:       string | null
+  onSelect:         (id: string) => void
+  reviews:          Record<string, DifferenceReview>
+  submitting:       Set<string>
+  onReview:         (diffId: string, status: 'accepted' | 'rejected', comment: string) => void
+  reviewerEmailSet: boolean
 }) {
+  const [editing, setEditing] = useState<{
+    diffId:  string
+    action:  'accepted' | 'rejected'
+    comment: string
+  } | null>(null)
+
+  // Reset in-progress edit when the user navigates to a different page
+  useEffect(() => { setEditing(null) }, [page])
+
   const grouped: Record<string, DiffEntry[]> = {}
   for (const d of page.differences) {
     const g = TYPE_GROUP[d.type] ?? 'Other'
@@ -289,6 +387,12 @@ function DiffListPanel({
     grouped[g].push(d)
   }
   const totalCount = page.differences.length
+
+  const confirmReview = () => {
+    if (!editing) return
+    onReview(editing.diffId, editing.action, editing.comment)
+    setEditing(null)
+  }
 
   return (
     <div style={{
@@ -335,59 +439,197 @@ function DiffListPanel({
             </div>
 
             {grouped[groupName].map(d => {
-              const isSelected = selectedId === d.id
-              const color      = SEV_COLOR[d.severity]
+              const isSelected   = selectedId === d.id
+              const color        = SEV_COLOR[d.severity]
+              const review       = reviews[d.id]
+              const isSub        = submitting.has(d.id)
+              const isEditing    = editing?.diffId === d.id
+              const reviewStatus = review?.status ?? 'pending'
+
               return (
                 <div
                   key={d.id}
-                  onClick={() => onSelect(d.id)}
                   style={{
                     padding: '9px 14px',
-                    background:  isSelected ? `${color}12` : 'transparent',
+                    background:   isSelected ? `${color}12` : 'transparent',
                     borderBottom: `1px solid ${T.border}`,
-                    cursor: 'pointer',
-                    borderLeft: `3px solid ${isSelected ? color : 'transparent'}`,
-                    transition: 'background 0.1s',
-                  }}
-                  onMouseEnter={e => {
-                    if (!isSelected)
-                      (e.currentTarget as HTMLDivElement).style.background = T.bgElevated
-                  }}
-                  onMouseLeave={e => {
-                    if (!isSelected)
-                      (e.currentTarget as HTMLDivElement).style.background = 'transparent'
+                    borderLeft:   `3px solid ${isSelected ? color : 'transparent'}`,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span style={{
-                      fontSize: 8, fontWeight: 700, color,
-                      background: `${color}18`, border: `1px solid ${color}35`,
-                      padding: '1px 5px', borderRadius: 3, textTransform: 'uppercase',
-                      letterSpacing: '0.06em', flexShrink: 0,
-                    }}>
-                      {TYPE_LABEL[d.type] ?? d.type}
-                    </span>
-                    <span style={{ fontSize: 8, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      {d.severity}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 11, color: T.textPrimary, lineHeight: 1.4, wordBreak: 'break-word' }}>
-                    {d.description.length > 80 ? d.description.slice(0, 80) + '…' : d.description}
-                  </div>
-                  {(d.original_text || d.revised_text) && (
-                    <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {d.original_text && (
-                        <div style={{ fontSize: 10, color: '#ff8888', fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                          − {d.original_text.slice(0, 50)}{d.original_text.length > 50 ? '…' : ''}
-                        </div>
-                      )}
-                      {d.revised_text && (
-                        <div style={{ fontSize: 10, color: '#88ff99', fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                          + {d.revised_text.slice(0, 50)}{d.revised_text.length > 50 ? '…' : ''}
-                        </div>
-                      )}
+                  {/* Clickable content area */}
+                  <div
+                    onClick={() => onSelect(d.id)}
+                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={e => {
+                      if (!isSelected)
+                        (e.currentTarget as HTMLDivElement).style.opacity = '0.85'
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLDivElement).style.opacity = '1'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <span style={{
+                        fontSize: 8, fontWeight: 700, color,
+                        background: `${color}18`, border: `1px solid ${color}35`,
+                        padding: '1px 5px', borderRadius: 3, textTransform: 'uppercase',
+                        letterSpacing: '0.06em', flexShrink: 0,
+                      }}>
+                        {TYPE_LABEL[d.type] ?? d.type}
+                      </span>
+                      <span style={{ fontSize: 8, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        {d.severity}
+                      </span>
                     </div>
-                  )}
+                    <div style={{ fontSize: 11, color: T.textPrimary, lineHeight: 1.4, wordBreak: 'break-word' }}>
+                      {d.description.length > 80 ? d.description.slice(0, 80) + '…' : d.description}
+                    </div>
+                    {(d.original_text || d.revised_text) && (
+                      <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {d.original_text && (
+                          <div style={{ fontSize: 10, color: '#ff8888', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                            − {d.original_text.slice(0, 50)}{d.original_text.length > 50 ? '…' : ''}
+                          </div>
+                        )}
+                        {d.revised_text && (
+                          <div style={{ fontSize: 10, color: '#88ff99', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                            + {d.revised_text.slice(0, 50)}{d.revised_text.length > 50 ? '…' : ''}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Review section ── */}
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.border}40` }}>
+
+                    {/* Current status badge (when reviewed and not editing) */}
+                    {review && !isEditing && (
+                      <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                          textTransform: 'uppercase', letterSpacing: '0.06em',
+                          background: reviewStatus === 'accepted' ? `${T.success}20` : `${T.danger}20`,
+                          color:      reviewStatus === 'accepted' ? T.success          : T.danger,
+                          border:    `1px solid ${reviewStatus === 'accepted' ? T.success : T.danger}40`,
+                        }}>
+                          {reviewStatus === 'accepted' ? '✓ Accepted' : '✗ Rejected'}
+                        </span>
+                        {review.comment && (
+                          <span style={{ fontSize: 9, color: T.textMuted, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            "{review.comment.slice(0, 40)}{review.comment.length > 40 ? '…' : ''}"
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Accept / Reject buttons */}
+                    {!isEditing && (
+                      <div style={{ display: 'flex', gap: 5 }}>
+                        <button
+                          disabled={isSub || !reviewerEmailSet}
+                          title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : (reviewStatus === 'accepted' ? 'Edit acceptance' : 'Accept this difference')}
+                          onClick={e => {
+                            e.stopPropagation()
+                            setEditing({ diffId: d.id, action: 'accepted', comment: review?.comment ?? '' })
+                          }}
+                          style={{
+                            flex: 1, padding: '4px 0', fontSize: 10, fontWeight: 700,
+                            border:     `1px solid ${reviewStatus === 'accepted' ? T.success : T.border}`,
+                            background: reviewStatus === 'accepted' ? `${T.success}25` : T.bgElevated,
+                            color:      reviewStatus === 'accepted' ? T.success          : T.textSecond,
+                            borderRadius: 4,
+                            cursor: isSub || !reviewerEmailSet ? 'not-allowed' : 'pointer',
+                            opacity: isSub || !reviewerEmailSet ? 0.45 : 1,
+                            transition: 'background 0.1s, border-color 0.1s',
+                          }}
+                        >
+                          ✓ Accept
+                        </button>
+                        <button
+                          disabled={isSub || !reviewerEmailSet}
+                          title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : (reviewStatus === 'rejected' ? 'Edit rejection' : 'Reject this difference')}
+                          onClick={e => {
+                            e.stopPropagation()
+                            setEditing({ diffId: d.id, action: 'rejected', comment: review?.comment ?? '' })
+                          }}
+                          style={{
+                            flex: 1, padding: '4px 0', fontSize: 10, fontWeight: 700,
+                            border:     `1px solid ${reviewStatus === 'rejected' ? T.danger : T.border}`,
+                            background: reviewStatus === 'rejected' ? `${T.danger}20` : T.bgElevated,
+                            color:      reviewStatus === 'rejected' ? T.danger          : T.textSecond,
+                            borderRadius: 4,
+                            cursor: isSub || !reviewerEmailSet ? 'not-allowed' : 'pointer',
+                            opacity: isSub || !reviewerEmailSet ? 0.45 : 1,
+                            transition: 'background 0.1s, border-color 0.1s',
+                          }}
+                        >
+                          ✗ Reject
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Inline edit form */}
+                    {isEditing && editing && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{
+                            fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                            textTransform: 'uppercase',
+                            background: editing.action === 'accepted' ? `${T.success}20` : `${T.danger}20`,
+                            color:      editing.action === 'accepted' ? T.success          : T.danger,
+                            border:    `1px solid ${editing.action === 'accepted' ? T.success : T.danger}40`,
+                          }}>
+                            {editing.action === 'accepted' ? '✓ Accept' : '✗ Reject'}
+                          </span>
+                          <span style={{ fontSize: 9, color: T.textMuted }}>Optional note</span>
+                        </div>
+                        <textarea
+                          autoFocus
+                          value={editing.comment}
+                          onChange={e => setEditing(prev => prev ? { ...prev, comment: e.target.value } : prev)}
+                          placeholder="Audit comment (optional)…"
+                          rows={2}
+                          style={{
+                            width: '100%', boxSizing: 'border-box',
+                            background: T.bgElevated, border: `1px solid ${T.border}`,
+                            borderRadius: 4, color: T.textPrimary, fontSize: 11,
+                            padding: '5px 7px', resize: 'vertical', outline: 'none',
+                            fontFamily: 'inherit', lineHeight: 1.4,
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: 5 }}>
+                          <button
+                            onClick={e => { e.stopPropagation(); confirmReview() }}
+                            style={{
+                              flex: 1, padding: '5px 0', fontSize: 10, fontWeight: 700,
+                              background: editing.action === 'accepted' ? T.success : T.danger,
+                              color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer',
+                            }}
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); setEditing(null) }}
+                            style={{
+                              flex: 1, padding: '5px 0', fontSize: 10, fontWeight: 700,
+                              background: T.bgElevated, color: T.textSecond,
+                              border: `1px solid ${T.border}`, borderRadius: 4, cursor: 'pointer',
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Submitting spinner */}
+                    {isSub && (
+                      <div style={{ fontSize: 9, color: T.textMuted, textAlign: 'center', marginTop: 4 }}>
+                        Saving…
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -590,7 +832,6 @@ function ViewToolbar({
       padding: '5px 12px', background: T.bgSurface, borderBottom: `1px solid ${T.border}`,
       display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
     }}>
-      {/* Fit to width */}
       <ToolbarBtn onClick={onFitWidth} title="Fit to width (Ctrl+0)" active={is100}>
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
           <rect x="1" y="2" width="9" height="7" rx="1"/>
@@ -603,7 +844,6 @@ function ViewToolbar({
 
       <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
 
-      {/* Min zoom jump */}
       <ToolbarBtn
         onClick={() => onZoom(ZOOM_STEPS[0])}
         disabled={zoomIdx === 0}
@@ -612,7 +852,6 @@ function ViewToolbar({
         {ZOOM_STEPS[0]}%
       </ToolbarBtn>
 
-      {/* Zoom out */}
       <ToolbarBtn onClick={zoomOut} disabled={!canOut} title="Zoom out (Ctrl+−)">
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
           <circle cx="5" cy="5" r="3.5"/>
@@ -621,7 +860,6 @@ function ViewToolbar({
         </svg>
       </ToolbarBtn>
 
-      {/* Zoom level display */}
       <span style={{
         minWidth: 42, textAlign: 'center',
         fontSize: 11, fontWeight: 700, color: T.textPrimary,
@@ -632,7 +870,6 @@ function ViewToolbar({
         {zoom}%
       </span>
 
-      {/* Zoom in */}
       <ToolbarBtn onClick={zoomIn} disabled={!canIn} title="Zoom in (Ctrl+=)">
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
           <circle cx="5" cy="5" r="3.5"/>
@@ -642,7 +879,6 @@ function ViewToolbar({
         </svg>
       </ToolbarBtn>
 
-      {/* Max zoom jump */}
       <ToolbarBtn
         onClick={() => onZoom(ZOOM_STEPS[ZOOM_STEPS.length - 1])}
         disabled={zoomIdx === ZOOM_STEPS.length - 1}
@@ -653,7 +889,6 @@ function ViewToolbar({
 
       <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
 
-      {/* Rotate CW */}
       <ToolbarBtn onClick={onRotate} title="Rotate 90° clockwise">
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M2 5.5a3.5 3.5 0 107-0"/>
@@ -689,6 +924,15 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
   // View controls
   const [zoom,     setZoom]     = useState<number>(ZOOM_DEFAULT)
   const [rotation, setRotation] = useState<number>(0)
+
+  // Reviews
+  const [reviews,       setReviews]       = useState<Record<string, DifferenceReview>>({})
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null)
+  const [submitting,    setSubmitting]    = useState<Set<string>>(new Set())
+  const [approving,     setApproving]     = useState(false)
+  const [reviewerEmail, setReviewerEmail] = useState(
+    () => localStorage.getItem('bs_reviewer_email') ?? ''
+  )
 
   // Scroll refs — shared between both panels for sync
   const leftRef  = useRef<HTMLDivElement>(null)
@@ -741,7 +985,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           const i = ZOOM_STEPS.indexOf(z)
           if (i < 0) return z
           const next = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, i + 1)]
-          // Capture scroll state inline since doZoom isn't accessible here
           const el = leftRef.current
           if (el && el.scrollHeight > el.clientHeight)
             scrollFracRef.current = (el.scrollTop + el.clientHeight / 2) / el.scrollHeight
@@ -783,6 +1026,64 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
       .finally(() => setLoading(false))
   }, [processId])
 
+  // ── Load reviews when active comparison changes ───────────────────────────────
+  useEffect(() => {
+    if (!activeRec) { setReviews({}); setReviewSummary(null); return }
+    Promise.all([
+      processApi.listDiffReviews(processId, activeRec.id),
+      processApi.getReviewSummary(processId, activeRec.id),
+    ])
+      .then(([revList, summary]) => {
+        setReviews(Object.fromEntries(revList.map(r => [r.diff_id, r])))
+        setReviewSummary(summary)
+      })
+      .catch(() => {})
+  }, [activeRec?.id, processId])
+
+  // ── Review handlers ───────────────────────────────────────────────────────────
+  const handleReviewerEmailChange = (email: string) => {
+    setReviewerEmail(email)
+    localStorage.setItem('bs_reviewer_email', email)
+  }
+
+  const handleReview = async (
+    diffId: string,
+    status: 'accepted' | 'rejected',
+    comment: string,
+  ) => {
+    if (!activeRec || !reviewerEmail.trim()) return
+    setSubmitting(s => new Set(s).add(diffId))
+    try {
+      const updated = await processApi.reviewDifference(processId, activeRec.id, diffId, {
+        status,
+        reviewer_email: reviewerEmail.trim(),
+        comment: comment.trim() || undefined,
+      })
+      setReviews(r => ({ ...r, [updated.diff_id]: updated }))
+      const summary = await processApi.getReviewSummary(processId, activeRec.id)
+      setReviewSummary(summary)
+    } catch {
+      // Error is silent; the UI doesn't change so the user can retry
+    } finally {
+      setSubmitting(s => { const n = new Set(s); n.delete(diffId); return n })
+    }
+  }
+
+  const handleApprove = async () => {
+    if (!activeRec || !reviewerEmail.trim()) return
+    setApproving(true)
+    try {
+      const result = await processApi.approveComparison(processId, activeRec.id, {
+        approved_by: reviewerEmail.trim(),
+      })
+      setActiveRec(r => r ? { ...r, approved_by: result.approved_by, approved_at: result.approved_at } : r)
+    } catch {
+      // Silent — review summary still shows pending
+    } finally {
+      setApproving(false)
+    }
+  }
+
   const handleNewComparison = (rec: ComparisonRecord) => {
     setComparisons(prev => [rec, ...prev])
     setActiveRec(rec)
@@ -791,6 +1092,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setSelectedId(null)
     setZoom(ZOOM_DEFAULT)
     setRotation(0)
+    setReviews({})
+    setReviewSummary(null)
   }
 
   // ── Render guards ─────────────────────────────────────────────────────────────
@@ -822,6 +1125,16 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
       {/* ── Summary bar ── */}
       <SummaryBar rec={activeRec} onNew={() => setShowUpload(true)} />
+
+      {/* ── Review status bar ── */}
+      <ReviewStatusBar
+        summary={reviewSummary}
+        reviewerEmail={reviewerEmail}
+        onEmailChange={handleReviewerEmailChange}
+        onApprove={handleApprove}
+        approving={approving}
+        approvedAt={activeRec.approved_at ?? null}
+      />
 
       {/* ── Page navigation (only when multi-page) ── */}
       {pages.length > 1 && (
@@ -901,6 +1214,10 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           page={page}
           selectedId={selectedId}
           onSelect={setSelectedId}
+          reviews={reviews}
+          submitting={submitting}
+          onReview={handleReview}
+          reviewerEmailSet={!!reviewerEmail.trim()}
         />
       </div>
     </div>

@@ -1,6 +1,6 @@
 import uuid, enum
 from datetime import datetime
-from sqlalchemy import String, Text, Integer, Float, Boolean, ForeignKey, DateTime, Enum as SAEnum, JSON
+from sqlalchemy import String, Text, Integer, Float, Boolean, ForeignKey, DateTime, Enum as SAEnum, JSON, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from core.database import Base
@@ -121,6 +121,12 @@ class AnnotationActionType(str, enum.Enum):
     RESIZE  = "resize"
 
 
+class DiffReviewStatus(str, enum.Enum):
+    PENDING  = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
 class ArtworkProcess(Base):
     __tablename__ = "artwork_processes"
     id:                  Mapped[uuid.UUID]    = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -188,5 +194,22 @@ class ComparisonResult(Base):
     differences_json:   Mapped[dict]      = mapped_column(JSON, nullable=True)
     created_at:         Mapped[datetime]  = mapped_column(DateTime, default=datetime.utcnow)
     created_by:         Mapped[str]       = mapped_column(String(255), default="user")
+    approved_by:        Mapped[str]       = mapped_column(String(255), nullable=True)
+    approved_at:        Mapped[datetime]  = mapped_column(DateTime, nullable=True)
 
-    process: Mapped["ArtworkProcess"] = relationship(back_populates="comparisons")
+    process: Mapped["ArtworkProcess"]          = relationship(back_populates="comparisons")
+    reviews: Mapped[list["DifferenceReview"]]  = relationship(back_populates="comparison", cascade="all, delete-orphan")
+
+
+class DifferenceReview(Base):
+    __tablename__ = "difference_reviews"
+    __table_args__ = (UniqueConstraint("comparison_id", "diff_id", name="uq_difference_review"),)
+    id:             Mapped[uuid.UUID]        = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    comparison_id:  Mapped[uuid.UUID]        = mapped_column(ForeignKey("comparison_results.id"))
+    diff_id:        Mapped[str]              = mapped_column(String(100))
+    status:         Mapped[DiffReviewStatus] = mapped_column(SAEnum(DiffReviewStatus, native_enum=False))
+    reviewer_email: Mapped[str]              = mapped_column(String(255))
+    comment:        Mapped[str]              = mapped_column(Text, nullable=True)
+    reviewed_at:    Mapped[datetime]         = mapped_column(DateTime, nullable=True)
+
+    comparison: Mapped["ComparisonResult"] = relationship(back_populates="reviews")
