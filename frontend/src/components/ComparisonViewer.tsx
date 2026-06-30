@@ -1053,16 +1053,21 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // After a diff-zoom, scroll to the diff centre using the NEW scrollHeight.
   // Double rAF ensures the browser has completed layout before we read scrollHeight.
+  // Padding correction: the panel has 16px padding on all sides, so the image
+  // occupies [16, scrollHeight-16] — the fraction must be mapped into that range.
   useLayoutEffect(() => {
     if (pendingScrollRef.current === null) return
     const frac = pendingScrollRef.current
-    pendingScrollRef.current = null
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        pendingScrollRef.current = null
+        const PANEL_PADDING = 16
         for (const ref of [leftRef, rightRef]) {
           const el = ref.current
           if (!el) continue
-          el.scrollTop = Math.max(0, frac * el.scrollHeight - el.clientHeight / 2)
+          const imageHeight = el.scrollHeight - PANEL_PADDING * 2
+          const centre = PANEL_PADDING + frac * imageHeight
+          el.scrollTop = Math.max(0, centre - el.clientHeight / 2)
         }
       })
     })
