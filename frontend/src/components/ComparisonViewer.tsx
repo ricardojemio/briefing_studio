@@ -1010,7 +1010,10 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // When a diff double-click zoom fires, store the target frac here so the
   // layout effect below can scroll AFTER the DOM reflects the new zoom level.
-  const pendingScrollRef = useRef<number | null>(null)
+  const pendingScrollRef    = useRef<number | null>(null)
+  // scrollHeight of leftRef BEFORE the zoom change — used to detect when
+  // the DOM has reflowed to the new zoom level.
+  const preZoomScrollHeight = useRef<number>(0)
 
   // Ref to current rotation for scroll-to-diff effect (avoids stale closure)
   const rotationRef = useRef(rotation)
@@ -1052,25 +1055,42 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
   }, [zoom])
 
   // After a diff-zoom, scroll to the diff centre using the NEW scrollHeight.
-  // Double rAF ensures the browser has completed layout before we read scrollHeight.
-  // Padding correction: the panel has 16px padding on all sides, so the image
-  // occupies [16, scrollHeight-16] — the fraction must be mapped into that range.
+  // Poll each rAF until scrollHeight has grown past the pre-zoom value — this
+  // is the only reliable signal that the browser has finished reflowing the
+  // zoomed content. Falls back after 20 frames (~333 ms at 60 fps).
   useLayoutEffect(() => {
     if (pendingScrollRef.current === null) return
-    const frac = pendingScrollRef.current
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    const frac  = pendingScrollRef.current
+    const preH  = preZoomScrollHeight.current
+    let attempts = 0
+
+    const tryScroll = () => {
+      attempts++
+      if (attempts > 20) {
         pendingScrollRef.current = null
-        const PANEL_PADDING = 16
-        for (const ref of [leftRef, rightRef]) {
-          const el = ref.current
-          if (!el) continue
-          const imageHeight = el.scrollHeight - PANEL_PADDING * 2
-          const centre = PANEL_PADDING + frac * imageHeight
-          el.scrollTop = Math.max(0, centre - el.clientHeight / 2)
-        }
-      })
-    })
+        return
+      }
+      const el = leftRef.current
+      if (!el) { requestAnimationFrame(tryScroll); return }
+
+      // Keep waiting if scrollHeight hasn't grown beyond the pre-zoom value
+      // (1.05× threshold avoids false positives from minor sub-pixel changes).
+      if (preH > 0 && el.scrollHeight <= preH * 1.05) {
+        requestAnimationFrame(tryScroll)
+        return
+      }
+
+      pendingScrollRef.current = null
+      const PANEL_PADDING = 16
+      for (const ref of [leftRef, rightRef]) {
+        const panel = ref.current
+        if (!panel) continue
+        const imageHeight = panel.scrollHeight - PANEL_PADDING * 2
+        const centre      = PANEL_PADDING + frac * imageHeight
+        panel.scrollTop   = Math.max(0, centre - panel.clientHeight / 2)
+      }
+    }
+    requestAnimationFrame(tryScroll)
   }, [zoom])
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
@@ -1270,8 +1290,9 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     const snapped = ZOOM_STEPS.reduce((prev, curr) =>
       Math.abs(curr - targetZoom) < Math.abs(prev - targetZoom) ? curr : prev)
 
-    // Store the centre fraction — the useLayoutEffect will scroll after
-    // the DOM reflects the new zoom level.
+    // Capture scrollHeight NOW (before doZoom mutates state) so the polling
+    // loop knows when the DOM has reflowed to the new zoom level.
+    preZoomScrollHeight.current = panel.scrollHeight
     pendingScrollRef.current = r.top < 0.1
       ? 0.05
       : r.top + r.height > 0.9
@@ -1300,6 +1321,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     const targetZoom = Math.min(300, Math.max(150, Math.round(Math.min(zoomByH, zoomByW))))
     const snapped = ZOOM_STEPS.reduce((prev, curr) =>
       Math.abs(curr - targetZoom) < Math.abs(prev - targetZoom) ? curr : prev)
+    preZoomScrollHeight.current = panel.scrollHeight
     pendingScrollRef.current = r.top < 0.1
       ? 0.05
       : r.top + r.height > 0.9
