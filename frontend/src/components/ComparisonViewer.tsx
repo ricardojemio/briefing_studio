@@ -418,8 +418,21 @@ function DiffListPanel({
     comment: string
   } | null>(null)
 
-  // Reset in-progress edit when the user navigates to a different page
-  useEffect(() => { setEditing(null) }, [page])
+  // Click disambiguation: track the pending single-click timer and which
+  // diff it belongs to so we can promote to double-click if the same item
+  // is clicked a second time within 300 ms.
+  const clickTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clickTargetRef = useRef<string | null>(null)
+
+  // Reset editing and cancel any pending click timer on page navigation
+  useEffect(() => {
+    setEditing(null)
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current)
+      clickTimerRef.current  = null
+      clickTargetRef.current = null
+    }
+  }, [page])
 
   // Sequential number across all diffs on this page (order = page.differences)
   const diffIndex = new Map(page.differences.map((d, i) => [d.id, i + 1]))
@@ -500,12 +513,26 @@ function DiffListPanel({
                     borderLeft:   `3px solid ${isSelected ? color : 'transparent'}`,
                   }}
                 >
-                  {/* Clickable content area */}
+                  {/* Clickable content area — single vs double click disambiguation */}
                   <div
-                    onClick={() => onSelect(d.id)}
-                    onDoubleClick={e => {
+                    onClick={e => {
                       e.stopPropagation()
-                      onDiffDoubleClick(d.id, d.bbox as [number,number,number,number], page.page_size_pts)
+                      if (clickTimerRef.current && clickTargetRef.current === d.id) {
+                        // Same item clicked within 300 ms → double-click
+                        clearTimeout(clickTimerRef.current)
+                        clickTimerRef.current  = null
+                        clickTargetRef.current = null
+                        onDiffDoubleClick(d.id, d.bbox as [number,number,number,number], page.page_size_pts)
+                      } else {
+                        // First click (or different item) — cancel any stale timer
+                        if (clickTimerRef.current) clearTimeout(clickTimerRef.current)
+                        clickTargetRef.current = d.id
+                        clickTimerRef.current  = setTimeout(() => {
+                          clickTimerRef.current  = null
+                          clickTargetRef.current = null
+                          onSelect(d.id)
+                        }, 300)
+                      }
                     }}
                     style={{ cursor: 'pointer' }}
                     onMouseEnter={e => {
@@ -997,8 +1024,11 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     () => localStorage.getItem('bs_reviewer_email') ?? ''
   )
 
-  // Double-click zoom-to-diff state
+  // Double-click zoom-to-diff: ref for logic (avoids stale-closure race),
+  // state only for the UI badge / ↩ indicator.
   const [zoomedToDiff, setZoomedToDiff] = useState(false)
+  const zoomedToDiffRef    = useRef(false)
+  const zoomedToDiffDiffId = useRef<string | null>(null)
 
   // Scroll refs — shared between both panels for sync
   const leftRef  = useRef<HTMLDivElement>(null)
@@ -1251,6 +1281,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setRotation(0)
     setReviews({})
     setReviewSummary(null)
+    zoomedToDiffRef.current    = false
+    zoomedToDiffDiffId.current = null
   }
 
   // ── Double-click from sidebar: zoom to diff region ───────────────────────────
@@ -1269,12 +1301,16 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     console.log('r.top:', r.top, 'r.height:', r.height)
     console.log('scroll frac:', r.top + r.height / 2)
 
-    if (selectedId === diffId && zoomedToDiff) {
+    if (zoomedToDiffRef.current && zoomedToDiffDiffId.current === diffId) {
+      zoomedToDiffRef.current    = false
+      zoomedToDiffDiffId.current = null
       setZoomedToDiff(false)
       doZoom(ZOOM_DEFAULT)
       return
     }
 
+    zoomedToDiffRef.current    = true
+    zoomedToDiffDiffId.current = diffId
     setSelectedId(diffId)
     setZoomedToDiff(true)
 
@@ -1299,15 +1335,19 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
         ? 0.95
         : r.top + r.height / 2
     doZoom(snapped)
-  }, [selectedId, zoomedToDiff, zoom, rotation, doZoom])
+  }, [zoom, rotation, doZoom])
 
   // Overlay double-click: receives pre-computed DisplayRect from DiffHighlights
   const handleOverlayDoubleSelect = useCallback((diffId: string, r: DisplayRect) => {
-    if (selectedId === diffId && zoomedToDiff) {
+    if (zoomedToDiffRef.current && zoomedToDiffDiffId.current === diffId) {
+      zoomedToDiffRef.current    = false
+      zoomedToDiffDiffId.current = null
       setZoomedToDiff(false)
       doZoom(ZOOM_DEFAULT)
       return
     }
+    zoomedToDiffRef.current    = true
+    zoomedToDiffDiffId.current = diffId
     setSelectedId(diffId)
     setZoomedToDiff(true)
     const panel = leftRef.current
@@ -1328,15 +1368,17 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
         ? 0.95
         : r.top + r.height / 2
     doZoom(snapped)
-  }, [selectedId, zoomedToDiff, zoom, doZoom])
+  }, [zoom, doZoom])
 
   const handleBackgroundClick = useCallback(() => {
-    if (zoomedToDiff) {
+    if (zoomedToDiffRef.current) {
+      zoomedToDiffRef.current    = false
+      zoomedToDiffDiffId.current = null
       setZoomedToDiff(false)
       doZoom(ZOOM_DEFAULT)
     }
     setSelectedId(null)
-  }, [zoomedToDiff, doZoom])
+  }, [doZoom])
 
   // ── Render guards ─────────────────────────────────────────────────────────────
   if (loading) {
