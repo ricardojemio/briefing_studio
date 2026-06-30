@@ -18,7 +18,9 @@
       "Read(//Users/ricardojemio/.claude/**)",
       "Bash(npx tsc *)",
       "Bash(python3 -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\(p.get\\('scripts',{}\\)\\)\")",
-      "Bash(docker-compose exec *)"
+      "Bash(docker-compose exec *)",
+      "Bash(sudo chown -R 501:20 \"/Users/ricardojemio/.npm\")",
+      "Bash(docker-compose -f /Users/ricardojemio/Desktop/briefing_studio/docker-compose.yml exec frontend sh -c \"./node_modules/.bin/tsc --noEmit 2>&1 | grep 'ComparisonViewer'\")"
     ],
     "additionalDirectories": [
       "/tmp",

@@ -172,3 +172,44 @@ class TestComparator:
         finally:
             Path(orig).unlink(missing_ok=True)
             Path(rev).unlink(missing_ok=True)
+
+    def test_compliance_excludes_info_panel_text(self):
+        """
+        Text inside the V8 Artwork Information Panel (below the panel header)
+        must NOT be flagged as a compliance violation even when sub-6pt.
+        """
+        fd, path = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        try:
+            doc  = fitz.open()
+            page = doc.new_page(width=595.0, height=842.0)
+            # Regulatory text at top — large enough, should NOT trigger compliance
+            page.insert_text((72, 100), "Lot: A12345", fontsize=12, color=(0, 0, 0))
+            # Info panel header — marks the exclusion boundary
+            page.insert_text(
+                (72, 700), "Artwork Information Panel",
+                fontsize=8, color=(0, 0, 0),
+            )
+            # Spec text below the panel header — sub-6pt, should be EXCLUDED
+            page.insert_text(
+                (72, 720), "Body Text Size: 6pt",
+                fontsize=4, color=(0, 0, 0),
+            )
+            page.insert_text(
+                (72, 735), "Smallest Text Size: 4pt",
+                fontsize=4, color=(0, 0, 0),
+            )
+            doc.save(path)
+            doc.close()
+
+            result = _run(path, path)   # compare identical PDFs (no text diffs)
+            compliance = [
+                d for d in result["pages"][0]["differences"]
+                if d["type"] == "compliance"
+            ]
+            assert compliance == [], (
+                f"Info-panel spec text should not be flagged; got: {compliance}"
+            )
+            assert result["summary"]["compliance_flags"] == 0
+        finally:
+            Path(path).unlink(missing_ok=True)

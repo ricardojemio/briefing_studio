@@ -109,6 +109,39 @@ def _font_italic(flags: int) -> bool:
     return bool(flags & (1 << 1))
 
 
+_SPEC_PATTERNS = [
+    r'^Body Text Size',
+    r'^Smallest Text Size',
+    r'^Material Spec',
+    r'^Technical Drawing',
+    r'^Studio Location',
+    r'^Manufacturing Site',
+    r'^Approving Market',
+    r'^Component No',
+    r'^AWP No',
+]
+
+def _is_regulatory_text(text: str) -> bool:
+    t = text.strip()
+    if not t: return False
+    if re.match(r'^\d+%$', t): return False
+    if re.match(r'^\d+(\.\d+)?$', t): return False
+    if len(t) <= 2: return False
+    if not re.search(r'[a-zA-ZÀ-ÿ]', t): return False
+    if any(re.match(p, t) for p in _SPEC_PATTERNS): return False
+    return True
+
+
+def _bbox_overlap_ratio(a: tuple, b: tuple) -> float:
+    """Fraction of bbox *a* that is covered by bbox *b*."""
+    ix0 = max(a[0], b[0]); iy0 = max(a[1], b[1])
+    ix1 = min(a[2], b[2]); iy1 = min(a[3], b[3])
+    if ix1 <= ix0 or iy1 <= iy0: return 0.0
+    overlap = (ix1 - ix0) * (iy1 - iy0)
+    area_a  = (a[2] - a[0]) * (a[3] - a[1])
+    return overlap / area_a if area_a > 0 else 0.0
+
+
 # ── Public API ────────────────────────────────────────────────────────────────────
 
 def compare_artworks(
@@ -329,8 +362,31 @@ def compare_artworks(
                 summary["code_changes"] += 1
 
         # ── 4. Compliance: minimum font size in revised PDF ───────────────────
+        # Detect the Artwork Information Panel top boundary so its spec text
+        # (Body Text Size, colour swatches, etc.) is excluded from compliance.
+        info_panel_y: float | None = None
+        _PANEL_KEYWORDS = (
+            "Artwork Information Panel",
+            "Studio Location",
+            "Total Number of Colours",
+            "Total Special Finishes",
+        )
+        for _blk in page_rev.get_text("dict")["blocks"]:
+            if _blk.get("type") != 0:
+                continue
+            _blk_text = " ".join(
+                sp["text"]
+                for ln in _blk["lines"]
+                for sp in ln["spans"]
+            )
+            if any(kw in _blk_text for kw in _PANEL_KEYWORDS):
+                info_panel_y = float(_blk["bbox"][1])
+                break
+
         for s in _spans_from_page(page_rev):
-            if 0.0 < s["size"] < MIN_FONT_PT:
+            if info_panel_y is not None and s["bbox"][1] >= info_panel_y - 10:
+                continue
+            if 0.0 < s["size"] < MIN_FONT_PT and _is_regulatory_text(s["text"]):
                 differences.append({
                     "id":            _next_id(counter),
                     "type":          "compliance",
@@ -344,6 +400,25 @@ def compare_artworks(
                     ),
                 })
                 summary["compliance_flags"] += 1
+
+        # ── 4b. Suppress font_size/font_style shadowed by text_changed ───────
+        text_changed_bboxes = [
+            tuple(d["bbox"]) for d in differences if d["type"] == "text_changed"
+        ]
+        if text_changed_bboxes:
+            kept: list[dict] = []
+            suppressed = 0
+            for d in differences:
+                if d["type"] in ("font_size", "font_style"):
+                    if any(
+                        _bbox_overlap_ratio(tuple(d["bbox"]), tc) > 0.5
+                        for tc in text_changed_bboxes
+                    ):
+                        suppressed += 1
+                        continue
+                kept.append(d)
+            differences = kept
+            summary["text_changes"] -= suppressed
 
         # ── 5. Visual pixel diff ──────────────────────────────────────────────
         img_orig_bgr = _render_page_bgr(page_orig, dpi)

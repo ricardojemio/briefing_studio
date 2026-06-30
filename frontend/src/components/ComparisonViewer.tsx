@@ -31,6 +31,14 @@ const SEV_COLOR: Record<DiffSeverity, string> = {
   low:    '#2D6BE4',
 }
 
+const GROUP_COLOR: Record<string, string> = {
+  Compliance:  '#D63C3C',
+  Codes:       '#D63C3C',
+  Text:        '#F59E0B',
+  Visual:      '#2D6BE4',
+  Dimensional: '#7C3AED',
+}
+
 const TYPE_LABEL: Partial<Record<DiffType, string>> = {
   text_changed:  'Text Changed',
   text_added:    'Text Added',
@@ -103,41 +111,64 @@ function DiffHighlights({
   rotation,
   selectedId,
   onSelect,
+  onDoubleSelect,
 }: {
-  diffs:       DiffEntry[]
-  pageSizePts: [number, number]
-  rotation:    number
-  selectedId:  string | null
-  onSelect:    (id: string) => void
+  diffs:           DiffEntry[]
+  pageSizePts:     [number, number]
+  rotation:        number
+  selectedId:      string | null
+  onSelect:        (id: string) => void
+  onDoubleSelect?: (id: string, r: DisplayRect) => void
 }) {
   return (
     <>
       {diffs.map(d => {
-        const r = transformBbox(d.bbox, rotation, pageSizePts)
+        const r          = transformBbox(d.bbox, rotation, pageSizePts)
         const isSelected = selectedId === d.id
-        const color      = SEV_COLOR[d.severity]
+        const color      = GROUP_COLOR[TYPE_GROUP[d.type] ?? 'Text']
+        const arrowLeft  = r.left + r.width > 0.80
         return (
           <div
             key={d.id}
             title={d.description}
-            onClick={() => onSelect(d.id)}
+            onClick={e => { e.stopPropagation(); onSelect(d.id) }}
+            onDoubleClick={e => { e.stopPropagation(); onDoubleSelect?.(d.id, r) }}
             style={{
-              position: 'absolute',
-              left:   `${r.left   * 100}%`,
-              top:    `${r.top    * 100}%`,
-              width:  `${r.width  * 100}%`,
-              height: `${r.height * 100}%`,
+              position:  'absolute',
+              left:      `${r.left   * 100}%`,
+              top:       `${r.top    * 100}%`,
+              width:     `${r.width  * 100}%`,
+              height:    `${r.height * 100}%`,
               minWidth:  4,
               minHeight: 4,
-              background: isSelected ? `${color}40` : `${color}28`,
-              border: `${isSelected ? 2 : 1}px solid ${color}${isSelected ? 'DD' : '88'}`,
+              background: isSelected ? `${color}40` : 'rgba(255,255,255,0.08)',
+              border:     isSelected ? `2px solid ${color}DD` : '1px solid rgba(255,255,255,0.25)',
               borderRadius: 2,
               cursor: 'pointer',
               boxSizing: 'border-box',
               transition: 'background 0.12s, border-color 0.12s',
               zIndex: isSelected ? 2 : 1,
             }}
-          />
+          >
+            {isSelected && (
+              <span style={{
+                position:      'absolute',
+                top:           '50%',
+                ...(arrowLeft
+                  ? { right: 'calc(100% + 6px)' }
+                  : { left:  'calc(100% + 6px)' }),
+                fontSize:      24,
+                color,
+                filter:        'drop-shadow(0 0 6px currentColor)',
+                animation:     'starPulse 1.4s ease-in-out infinite',
+                pointerEvents: 'none',
+                lineHeight:    1,
+                userSelect:    'none',
+              }}>
+                ✦
+              </span>
+            )}
+          </div>
         )
       })}
     </>
@@ -156,16 +187,20 @@ function PagePanel({
   onSelect,
   scrollRef,
   onScroll,
+  onDoubleSelect,
+  onBackgroundClick,
 }: {
-  imgUrl:     string | null
-  label:      string
-  page:       PageComparison
-  zoom:       number
-  rotation:   number
-  selectedId: string | null
-  onSelect:   (id: string) => void
-  scrollRef:  React.RefObject<HTMLDivElement>
-  onScroll:   () => void
+  imgUrl:             string | null
+  label:              string
+  page:               PageComparison
+  zoom:               number
+  rotation:           number
+  selectedId:         string | null
+  onSelect:           (id: string) => void
+  scrollRef:          React.RefObject<HTMLDivElement>
+  onScroll:           () => void
+  onDoubleSelect?:    (id: string, r: DisplayRect) => void
+  onBackgroundClick?: () => void
 }) {
   const [W, H]    = page.page_size_pts
   const isSwapped = rotation === 90 || rotation === 270
@@ -188,6 +223,7 @@ function PagePanel({
       <div
         ref={scrollRef}
         onScroll={onScroll}
+        onClick={onBackgroundClick}
         style={{ flex: 1, overflow: 'auto', background: '#090B10' }}
       >
         <div style={{ padding: 16 }}>
@@ -223,6 +259,7 @@ function PagePanel({
                 rotation={rotation}
                 selectedId={selectedId}
                 onSelect={onSelect}
+                onDoubleSelect={onDoubleSelect}
               />
             </div>
           ) : (
@@ -440,7 +477,7 @@ function DiffListPanel({
 
             {grouped[groupName].map(d => {
               const isSelected   = selectedId === d.id
-              const color        = SEV_COLOR[d.severity]
+              const color        = GROUP_COLOR[TYPE_GROUP[d.type] ?? 'Text']
               const review       = reviews[d.id]
               const isSub        = submitting.has(d.id)
               const isEditing    = editing?.diffId === d.id
@@ -934,6 +971,9 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     () => localStorage.getItem('bs_reviewer_email') ?? ''
   )
 
+  // Double-click zoom-to-diff state
+  const [zoomedToDiff, setZoomedToDiff] = useState(false)
+
   // Scroll refs — shared between both panels for sync
   const leftRef  = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
@@ -941,6 +981,10 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // Captured scroll-centre fraction for zoom preservation
   const scrollFracRef = useRef<number>(0.5)
+
+  // Ref to current rotation for scroll-to-diff effect (avoids stale closure)
+  const rotationRef = useRef(rotation)
+  useEffect(() => { rotationRef.current = rotation }, [rotation])
 
   // ── Synchronized scrolling ────────────────────────────────────────────────────
   const syncScroll = useCallback((source: 'left' | 'right') => {
@@ -1013,6 +1057,45 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // ── Rotation ──────────────────────────────────────────────────────────────────
   const rotate = useCallback(() => setRotation(r => (r + 90) % 360), [])
+
+  // ── Inject arrowPulse keyframes once at mount ─────────────────────────────────
+  useEffect(() => {
+    const id = 'cv-keyframes'
+    if (!document.getElementById(id)) {
+      const style = document.createElement('style')
+      style.id = id
+      style.textContent = `@keyframes starPulse {
+        0%   { transform: translateY(-50%) scale(1.0) rotate(0deg);   opacity: 1;   }
+        25%  { transform: translateY(-50%) scale(1.4) rotate(45deg);  opacity: 0.8; }
+        50%  { transform: translateY(-50%) scale(1.0) rotate(90deg);  opacity: 1;   }
+        75%  { transform: translateY(-50%) scale(1.3) rotate(135deg); opacity: 0.8; }
+        100% { transform: translateY(-50%) scale(1.0) rotate(180deg); opacity: 1;   }
+      }`
+      document.head.appendChild(style)
+    }
+  }, [])
+
+  // ── Scroll both panels to centre the selected diff ────────────────────────────
+  useEffect(() => {
+    if (!selectedId || !activeRec?.result) return
+    const pg   = activeRec.result.pages[currentPage]
+    const diff = pg?.differences.find(d => d.id === selectedId)
+    if (!diff) return
+    const r = transformBbox(
+      diff.bbox as [number, number, number, number],
+      rotationRef.current,
+      pg.page_size_pts,
+    )
+    requestAnimationFrame(() => {
+      for (const ref of [leftRef, rightRef]) {
+        const el = ref.current
+        if (!el) continue
+        const pageH    = el.scrollHeight - 32
+        const centrePx = 16 + (r.top + r.height / 2) * pageH
+        el.scrollTo({ top: centrePx - el.clientHeight / 2, behavior: 'smooth' })
+      }
+    })
+  }, [selectedId, currentPage])
 
   // ── Data loading ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1095,6 +1178,44 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setReviews({})
     setReviewSummary(null)
   }
+
+  // ── Double-click: zoom to diff region ────────────────────────────────────────
+  const handleDoubleSelect = useCallback((diffId: string, r: DisplayRect) => {
+    console.log('double click', diffId)
+    if (selectedId === diffId && zoomedToDiff) {
+      setZoomedToDiff(false)
+      doZoom(ZOOM_DEFAULT)
+      return
+    }
+    setSelectedId(diffId)
+    const el = leftRef.current
+    if (!el) return
+    const viewportH        = el.clientHeight
+    const pageHeightAt100  = el.scrollHeight / (zoom / 100)
+    const targetZoom       = (0.6 * viewportH) / (r.height * pageHeightAt100) * 100
+    const clamped          = Math.min(300, Math.max(150, targetZoom))
+    const snapped          = ZOOM_STEPS.reduce((prev, curr) =>
+      Math.abs(curr - clamped) < Math.abs(prev - clamped) ? curr : prev)
+    doZoom(snapped)
+    setZoomedToDiff(true)
+    setTimeout(() => {
+      for (const ref of [leftRef, rightRef]) {
+        const panel = ref.current
+        if (!panel) continue
+        const pageH    = panel.scrollHeight - 32
+        const centrePx = 16 + (r.top + r.height / 2) * pageH
+        panel.scrollTop = centrePx - panel.clientHeight / 2
+      }
+    }, 50)
+  }, [selectedId, zoomedToDiff, zoom, doZoom])
+
+  const handleBackgroundClick = useCallback(() => {
+    if (zoomedToDiff) {
+      setZoomedToDiff(false)
+      doZoom(ZOOM_DEFAULT)
+    }
+    setSelectedId(null)
+  }, [zoomedToDiff, doZoom])
 
   // ── Render guards ─────────────────────────────────────────────────────────────
   if (loading) {
@@ -1182,7 +1303,19 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
       />
 
       {/* ── Body: side-by-side panels + diff list ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+
+        {zoomedToDiff && (
+          <div style={{
+            position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 10, pointerEvents: 'none',
+            background: `${T.accent}CC`, color: '#fff',
+            fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
+            letterSpacing: '0.06em',
+          }}>
+            Zoomed to diff — double-click to reset
+          </div>
+        )}
 
         <PagePanel
           imgUrl={page.original_render_url}
@@ -1194,6 +1327,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={leftRef}
           onScroll={() => syncScroll('left')}
+          onDoubleSelect={handleDoubleSelect}
+          onBackgroundClick={handleBackgroundClick}
         />
 
         <div style={{ width: 1, background: T.border, flexShrink: 0 }} />
@@ -1208,6 +1343,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={rightRef}
           onScroll={() => syncScroll('right')}
+          onDoubleSelect={handleDoubleSelect}
+          onBackgroundClick={handleBackgroundClick}
         />
 
         <DiffListPanel
