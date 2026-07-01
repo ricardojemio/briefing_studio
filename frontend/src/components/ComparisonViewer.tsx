@@ -388,7 +388,6 @@ function DiffListPanel({
   page,
   selectedId,
   onSelect,
-  onMagnifyDiff,
   magnifierActive,
   reviews,
   submitting,
@@ -398,7 +397,6 @@ function DiffListPanel({
   page:             PageComparison
   selectedId:       string | null
   onSelect:         (id: string) => void
-  onMagnifyDiff:    (diffId: string, bbox: [number,number,number,number], pageSizePts: [number,number]) => void
   magnifierActive:  boolean
   reviews:          Record<string, DifferenceReview>
   submitting:       Set<string>
@@ -509,7 +507,6 @@ function DiffListPanel({
                     onClick={e => {
                       e.stopPropagation()
                       onSelect(d.id)
-                      if (magnifierActive) onMagnifyDiff(d.id, d.bbox as [number,number,number,number], page.page_size_pts)
                     }}
                     style={{ cursor: 'pointer' }}
                     onMouseEnter={e => {
@@ -1032,8 +1029,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // Captured scroll-centre fraction for zoom preservation
   const scrollFracRef = useRef<number>(0.5)
-  // Set by handleMagnifyDiff; useLayoutEffect skips when non-null (magnifier takes priority)
-  const magnifyScrollFracRef = useRef<number | null>(null)
 
   // Ref to current rotation for scroll-to-diff effect (avoids stale closure)
   const rotationRef = useRef(rotation)
@@ -1054,21 +1049,16 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // ── Zoom with scroll-centre preservation ──────────────────────────────────────
   const doZoom = useCallback((newZoom: number) => {
-    // Skip capture when magnifier is about to handle scroll via setTimeout
-    if (magnifyScrollFracRef.current === null) {
-      const el = leftRef.current
-      if (el && el.scrollHeight > el.clientHeight) {
-        const centre = el.scrollTop + el.clientHeight / 2
-        scrollFracRef.current = centre / el.scrollHeight
-      }
+    const el = leftRef.current
+    if (el && el.scrollHeight > el.clientHeight) {
+      const centre = el.scrollTop + el.clientHeight / 2
+      scrollFracRef.current = centre / el.scrollHeight
     }
     setZoom(newZoom)
   }, [])
 
   // After zoom DOM update, restore fractional scroll centre.
-  // Skipped when magnifier has a pending scroll (setTimeout handles it instead).
   useLayoutEffect(() => {
-    if (magnifyScrollFracRef.current !== null) return
     const frac = scrollFracRef.current
     for (const ref of [leftRef, rightRef]) {
       const el = ref.current
@@ -1238,44 +1228,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setMagnifierActive(false)
   }
 
-  // ── Magnifier: zoom to diff region from sidebar click ─────────────────────────
-  const handleMagnifyDiff = useCallback((
-    diffId: string,
-    bbox: [number, number, number, number],
-    pageSizePts: [number, number],
-  ) => {
-    const r = transformBbox(bbox, rotation, pageSizePts)
-    const frac = r.top + r.height / 2
-
-    const panel = leftRef.current
-    if (!panel) return
-    const viewportH       = panel.clientHeight
-    const pageHeightAt100 = panel.scrollHeight / (zoom / 100)
-    const targetZoom = Math.min(300, Math.max(150,
-      Math.round((0.5 * viewportH) / (r.height * pageHeightAt100) * 100)
-    ))
-    const snapped = ZOOM_STEPS.reduce((prev, curr) =>
-      Math.abs(curr - targetZoom) < Math.abs(prev - targetZoom) ? curr : prev)
-
-    magnifyScrollFracRef.current = frac
-    setSelectedId(diffId)
-    doZoom(snapped)
-
-    setTimeout(() => {
-      if (magnifyScrollFracRef.current === null) return
-      const f = magnifyScrollFracRef.current
-      magnifyScrollFracRef.current = null
-      const PADDING = 16
-      for (const ref of [leftRef, rightRef]) {
-        const el = ref.current
-        if (!el) continue
-        const imageHeight = el.scrollHeight - PADDING * 2
-        const centre = PADDING + f * imageHeight
-        el.scrollTop = Math.max(0, centre - el.clientHeight / 2)
-      }
-    }, 200)
-  }, [zoom, rotation, doZoom])
-
   const handleToggleMagnifier = useCallback(() => {
     setMagnifierActive(v => !v)
   }, [])
@@ -1402,7 +1354,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           page={page}
           selectedId={selectedId}
           onSelect={setSelectedId}
-          onMagnifyDiff={handleMagnifyDiff}
           magnifierActive={magnifierActive}
           reviews={reviews}
           submitting={submitting}
