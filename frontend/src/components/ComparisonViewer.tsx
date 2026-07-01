@@ -808,12 +808,13 @@ function SummaryBar({ rec, onNew }: { rec: ComparisonRecord; onNew: () => void }
 // ── View-controls toolbar ─────────────────────────────────────────────────────────
 
 function ToolbarBtn({
-  onClick, disabled, title, active, children,
+  onClick, disabled, title, active, solidActive, children,
 }: {
   onClick: () => void
   disabled?: boolean
   title?: string
   active?: boolean
+  solidActive?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -822,24 +823,24 @@ function ToolbarBtn({
       disabled={disabled}
       title={title}
       style={{
-        background: active ? `${T.accent}20` : 'none',
-        border: active ? `1px solid ${T.accent}60` : `1px solid transparent`,
-        color: disabled ? T.textMuted : active ? T.accent : T.textSecond,
+        background: solidActive ? T.accent : active ? `${T.accent}20` : 'none',
+        border: solidActive ? `2px solid ${T.accent}` : active ? `1px solid ${T.accent}60` : `1px solid transparent`,
+        color: disabled ? T.textMuted : (solidActive || active) ? (solidActive ? '#FFFFFF' : T.accent) : T.textSecond,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        padding: '4px 8px', borderRadius: 6,
+        padding: solidActive ? '3px 7px' : '4px 8px', borderRadius: 6,
         fontSize: 11, fontWeight: 600,
         display: 'flex', alignItems: 'center', gap: 3,
         transition: 'color 0.12s, background 0.12s',
         opacity: disabled ? 0.4 : 1,
       }}
       onMouseEnter={e => {
-        if (!disabled && !active) {
+        if (!disabled && !active && !solidActive) {
           e.currentTarget.style.color      = T.textPrimary
           e.currentTarget.style.background = T.bgElevated
         }
       }}
       onMouseLeave={e => {
-        if (!disabled && !active) {
+        if (!disabled && !active && !solidActive) {
           e.currentTarget.style.color      = T.textSecond
           e.currentTarget.style.background = 'none'
         }
@@ -939,10 +940,10 @@ function ViewToolbar({
 
       <ToolbarBtn
         onClick={onToggleMagnifier}
-        active={magnifierActive}
+        solidActive={magnifierActive}
         title={magnifierActive
-          ? 'Magnifier active — click a diff in the sidebar to zoom to it (click again to toggle off)'
-          : 'Magnifier — click a diff in the sidebar to zoom to it'}
+          ? 'Magnifier ON — click a difference to zoom (click again to disable)'
+          : 'Magnifier — activate then click a difference to zoom to it'}
       >
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
           <circle cx="4.5" cy="4.5" r="3"/>
@@ -951,6 +952,12 @@ function ViewToolbar({
           <line x1="4.5" y1="3" x2="4.5" y2="6"/>
         </svg>
         Magnify
+        {magnifierActive && (
+          <span style={{
+            fontSize: 8, fontWeight: 800, padding: '1px 4px', borderRadius: 3,
+            background: 'rgba(255,255,255,0.25)', lineHeight: 1.4,
+          }}>ON</span>
+        )}
       </ToolbarBtn>
 
       <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
@@ -1228,11 +1235,13 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     const targetZoom = Math.min(300, Math.max(150, Math.round(Math.min(zoomByH, zoomByW))))
     const snapped = ZOOM_STEPS.reduce((prev, curr) =>
       Math.abs(curr - targetZoom) < Math.abs(prev - targetZoom) ? curr : prev)
-    scrollFracRef.current = r.top < 0.1
+    const frac = r.top < 0.1
       ? 0.05
       : r.top + r.height > 0.9
         ? 0.95
         : r.top + r.height / 2
+    console.log('MAGNIFY DIFF:', diffId, 'frac:', frac, 'zoom:', snapped)
+    scrollFracRef.current = frac
     doZoom(snapped)
   }, [zoom, doZoom])
 
