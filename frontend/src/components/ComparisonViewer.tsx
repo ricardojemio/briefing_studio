@@ -1054,10 +1054,13 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // ── Zoom with scroll-centre preservation ──────────────────────────────────────
   const doZoom = useCallback((newZoom: number) => {
-    const el = leftRef.current
-    if (el && el.scrollHeight > el.clientHeight) {
-      const centre = el.scrollTop + el.clientHeight / 2
-      scrollFracRef.current = centre / el.scrollHeight
+    // Skip capture when magnifier is about to handle scroll via setTimeout
+    if (magnifyScrollFracRef.current === null) {
+      const el = leftRef.current
+      if (el && el.scrollHeight > el.clientHeight) {
+        const centre = el.scrollTop + el.clientHeight / 2
+        scrollFracRef.current = centre / el.scrollHeight
+      }
     }
     setZoom(newZoom)
   }, [])
