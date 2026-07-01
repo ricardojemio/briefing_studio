@@ -172,6 +172,64 @@ function DiffHighlights({
   )
 }
 
+// ── Magnifier lens ────────────────────────────────────────────────────────────────
+
+function MagnifierLens({
+  imgUrl,
+  clientX,
+  clientY,
+  fracX,
+  fracY,
+  pageSizePts,
+  size = 180,
+  scale = 3,
+}: {
+  imgUrl:      string
+  clientX:     number
+  clientY:     number
+  fracX:       number
+  fracY:       number
+  pageSizePts: [number, number]
+  size?:       number
+  scale?:      number
+}) {
+  const [W, H] = pageSizePts
+  const ar = H / W  // page aspect ratio — needed to correct the Y offset for non-square pages
+
+  return (
+    <div style={{
+      position:      'fixed',
+      left:          clientX,
+      top:           clientY,
+      width:         size,
+      height:        size,
+      borderRadius:  '50%',
+      border:        '3px solid #2D6BE4',
+      boxShadow:     '0 4px 20px rgba(0,0,0,0.8)',
+      overflow:      'hidden',
+      pointerEvents: 'none',
+      zIndex:        50,
+      transform:     'translate(20px, -90px)',
+    }}>
+      <img
+        src={imgUrl}
+        alt=""
+        draggable={false}
+        style={{
+          position:       'absolute',
+          width:          `${scale * 100}%`,
+          height:         'auto',
+          left:           `${50 - fracX * scale * 100}%`,
+          top:            `${50 - fracY * scale * ar * 100}%`,
+          imageRendering: 'pixelated',
+          userSelect:     'none',
+          pointerEvents:  'none',
+        }}
+      />
+    </div>
+  )
+}
+
 // ── Single page panel ─────────────────────────────────────────────────────────────
 
 function PagePanel({
@@ -185,6 +243,8 @@ function PagePanel({
   scrollRef,
   onScroll,
   magnifierActive,
+  onMouseMove,
+  onMouseLeave,
 }: {
   imgUrl:          string | null
   label:           string
@@ -196,6 +256,8 @@ function PagePanel({
   scrollRef:       React.RefObject<HTMLDivElement>
   onScroll:        () => void
   magnifierActive: boolean
+  onMouseMove?:    (state: { clientX: number; clientY: number; fracX: number; fracY: number }) => void
+  onMouseLeave?:   () => void
 }) {
   const [W, H]    = page.page_size_pts
   const isSwapped = rotation === 90 || rotation === 270
@@ -218,7 +280,24 @@ function PagePanel({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        style={{ flex: 1, overflow: 'auto', background: '#090B10', cursor: magnifierActive ? 'zoom-in' : 'default' }}
+        onMouseMove={e => {
+          if (!magnifierActive || !onMouseMove) return
+          const el = e.currentTarget
+          const rect = el.getBoundingClientRect()
+          const PADDING = 16
+          const absX = (e.clientX - rect.left) + el.scrollLeft - PADDING
+          const absY = (e.clientY - rect.top)  + el.scrollTop  - PADDING
+          const imageW = el.scrollWidth  - PADDING * 2
+          const imageH = el.scrollHeight - PADDING * 2
+          onMouseMove({
+            clientX: e.clientX,
+            clientY: e.clientY,
+            fracX: Math.max(0, Math.min(1, absX / imageW)),
+            fracY: Math.max(0, Math.min(1, absY / imageH)),
+          })
+        }}
+        onMouseLeave={() => { if (magnifierActive) onMouseLeave?.() }}
+        style={{ flex: 1, overflow: 'auto', background: '#090B10', cursor: magnifierActive ? 'none' : 'default' }}
       >
         <div style={{ padding: 16 }}>
           {imgUrl ? (
@@ -1019,8 +1098,11 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     () => localStorage.getItem('bs_reviewer_email') ?? ''
   )
 
-  // Magnifier toolbar button
+  // Magnifier toolbar button + lens state
   const [magnifierActive, setMagnifierActive] = useState(false)
+  const [lensState, setLensState] = useState<{
+    clientX: number; clientY: number; fracX: number; fracY: number; imgUrl: string
+  } | null>(null)
 
   // Scroll refs — shared between both panels for sync
   const leftRef  = useRef<HTMLDivElement>(null)
@@ -1226,10 +1308,12 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setReviews({})
     setReviewSummary(null)
     setMagnifierActive(false)
+    setLensState(null)
   }
 
   const handleToggleMagnifier = useCallback(() => {
     setMagnifierActive(v => !v)
+    setLensState(null)
   }, [])
 
   // ── Render guards ─────────────────────────────────────────────────────────────
@@ -1319,6 +1403,18 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
         onToggleMagnifier={handleToggleMagnifier}
       />
 
+      {/* ── Magnifier lens (fixed, follows cursor) ── */}
+      {magnifierActive && lensState && (
+        <MagnifierLens
+          imgUrl={lensState.imgUrl}
+          clientX={lensState.clientX}
+          clientY={lensState.clientY}
+          fracX={lensState.fracX}
+          fracY={lensState.fracY}
+          pageSizePts={page.page_size_pts}
+        />
+      )}
+
       {/* ── Body: side-by-side panels + diff list ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
@@ -1333,6 +1429,11 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           scrollRef={leftRef}
           onScroll={() => syncScroll('left')}
           magnifierActive={magnifierActive}
+          onMouseMove={state => {
+            if (page.original_render_url)
+              setLensState({ ...state, imgUrl: page.original_render_url })
+          }}
+          onMouseLeave={() => setLensState(null)}
         />
 
         <div style={{ width: 1, background: T.border, flexShrink: 0 }} />
@@ -1348,6 +1449,11 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           scrollRef={rightRef}
           onScroll={() => syncScroll('right')}
           magnifierActive={magnifierActive}
+          onMouseMove={state => {
+            if (page.revised_render_url)
+              setLensState({ ...state, imgUrl: page.revised_render_url })
+          }}
+          onMouseLeave={() => setLensState(null)}
         />
 
         <DiffListPanel
