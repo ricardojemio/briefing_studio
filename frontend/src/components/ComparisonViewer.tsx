@@ -111,14 +111,12 @@ function DiffHighlights({
   rotation,
   selectedId,
   onSelect,
-  onDoubleSelect,
 }: {
-  diffs:           DiffEntry[]
-  pageSizePts:     [number, number]
-  rotation:        number
-  selectedId:      string | null
-  onSelect:        (id: string) => void
-  onDoubleSelect?: (id: string, r: DisplayRect) => void
+  diffs:       DiffEntry[]
+  pageSizePts: [number, number]
+  rotation:    number
+  selectedId:  string | null
+  onSelect:    (id: string) => void
 }) {
   return (
     <>
@@ -132,7 +130,6 @@ function DiffHighlights({
             key={d.id}
             title={d.description}
             onClick={e => { e.stopPropagation(); onSelect(d.id) }}
-            onDoubleClick={e => { e.stopPropagation(); onDoubleSelect?.(d.id, r) }}
             style={{
               position:  'absolute',
               left:      `${r.left   * 100}%`,
@@ -187,20 +184,16 @@ function PagePanel({
   onSelect,
   scrollRef,
   onScroll,
-  onDoubleSelect,
-  onBackgroundClick,
 }: {
-  imgUrl:             string | null
-  label:              string
-  page:               PageComparison
-  zoom:               number
-  rotation:           number
-  selectedId:         string | null
-  onSelect:           (id: string) => void
-  scrollRef:          React.RefObject<HTMLDivElement>
-  onScroll:           () => void
-  onDoubleSelect?:    (id: string, r: DisplayRect) => void
-  onBackgroundClick?: () => void
+  imgUrl:     string | null
+  label:      string
+  page:       PageComparison
+  zoom:       number
+  rotation:   number
+  selectedId: string | null
+  onSelect:   (id: string) => void
+  scrollRef:  React.RefObject<HTMLDivElement>
+  onScroll:   () => void
 }) {
   const [W, H]    = page.page_size_pts
   const isSwapped = rotation === 90 || rotation === 270
@@ -223,7 +216,6 @@ function PagePanel({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        onClick={onBackgroundClick}
         style={{ flex: 1, overflow: 'auto', background: '#090B10' }}
       >
         <div style={{ padding: 16 }}>
@@ -259,7 +251,6 @@ function PagePanel({
                 rotation={rotation}
                 selectedId={selectedId}
                 onSelect={onSelect}
-                onDoubleSelect={onDoubleSelect}
               />
             </div>
           ) : (
@@ -395,22 +386,22 @@ function DiffListPanel({
   page,
   selectedId,
   onSelect,
-  onDiffDoubleClick,
+  onMagnifyDiff,
+  magnifierActive,
   reviews,
   submitting,
   onReview,
   reviewerEmailSet,
-  zoomedToDiff,
 }: {
-  page:               PageComparison
-  selectedId:         string | null
-  onSelect:           (id: string) => void
-  onDiffDoubleClick:  (diffId: string, bbox: [number,number,number,number], pageSizePts: [number,number]) => void
-  reviews:            Record<string, DifferenceReview>
-  submitting:         Set<string>
-  onReview:           (diffId: string, status: 'accepted' | 'rejected', comment: string) => void
-  reviewerEmailSet:   boolean
-  zoomedToDiff:       boolean
+  page:             PageComparison
+  selectedId:       string | null
+  onSelect:         (id: string) => void
+  onMagnifyDiff:    (diffId: string, bbox: [number,number,number,number], pageSizePts: [number,number]) => void
+  magnifierActive:  boolean
+  reviews:          Record<string, DifferenceReview>
+  submitting:       Set<string>
+  onReview:         (diffId: string, status: 'accepted' | 'rejected', comment: string) => void
+  reviewerEmailSet: boolean
 }) {
   const [editing, setEditing] = useState<{
     diffId:  string
@@ -418,21 +409,7 @@ function DiffListPanel({
     comment: string
   } | null>(null)
 
-  // Click disambiguation: track the pending single-click timer and which
-  // diff it belongs to so we can promote to double-click if the same item
-  // is clicked a second time within 300 ms.
-  const clickTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const clickTargetRef = useRef<string | null>(null)
-
-  // Reset editing and cancel any pending click timer on page navigation
-  useEffect(() => {
-    setEditing(null)
-    if (clickTimerRef.current) {
-      clearTimeout(clickTimerRef.current)
-      clickTimerRef.current  = null
-      clickTargetRef.current = null
-    }
-  }, [page])
+  useEffect(() => { setEditing(null) }, [page])
 
   // Sequential number across all diffs on this page (order = page.differences)
   const diffIndex = new Map(page.differences.map((d, i) => [d.id, i + 1]))
@@ -513,26 +490,11 @@ function DiffListPanel({
                     borderLeft:   `3px solid ${isSelected ? color : 'transparent'}`,
                   }}
                 >
-                  {/* Clickable content area — single vs double click disambiguation */}
                   <div
                     onClick={e => {
                       e.stopPropagation()
-                      if (clickTimerRef.current && clickTargetRef.current === d.id) {
-                        // Same item clicked within 300 ms → double-click
-                        clearTimeout(clickTimerRef.current)
-                        clickTimerRef.current  = null
-                        clickTargetRef.current = null
-                        onDiffDoubleClick(d.id, d.bbox as [number,number,number,number], page.page_size_pts)
-                      } else {
-                        // First click (or different item) — cancel any stale timer
-                        if (clickTimerRef.current) clearTimeout(clickTimerRef.current)
-                        clickTargetRef.current = d.id
-                        clickTimerRef.current  = setTimeout(() => {
-                          clickTimerRef.current  = null
-                          clickTargetRef.current = null
-                          onSelect(d.id)
-                        }, 300)
-                      }
+                      onSelect(d.id)
+                      if (magnifierActive) onMagnifyDiff(d.id, d.bbox as [number,number,number,number], page.page_size_pts)
                     }}
                     style={{ cursor: 'pointer' }}
                     onMouseEnter={e => {
@@ -549,14 +511,6 @@ function DiffListPanel({
                       }}>
                         Change {diffIndex.get(d.id)}
                       </span>
-                      {isSelected && zoomedToDiff && (
-                        <span
-                          title="Double-click to reset zoom"
-                          style={{ marginLeft: 'auto', fontSize: 10, color: T.accent, flexShrink: 0 }}
-                        >
-                          ↩
-                        </span>
-                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
                       <span style={{
@@ -902,12 +856,16 @@ function ViewToolbar({
   onZoom,
   onRotate,
   onFitWidth,
+  magnifierActive,
+  onToggleMagnifier,
 }: {
-  zoom:       number
-  rotation:   number
-  onZoom:     (z: number) => void
-  onRotate:   () => void
-  onFitWidth: () => void
+  zoom:              number
+  rotation:          number
+  onZoom:            (z: number) => void
+  onRotate:          () => void
+  onFitWidth:        () => void
+  magnifierActive:   boolean
+  onToggleMagnifier: () => void
 }) {
   const zoomIdx  = ZOOM_STEPS.indexOf(zoom)
   const canOut   = zoomIdx > 0
@@ -979,6 +937,24 @@ function ViewToolbar({
 
       <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
 
+      <ToolbarBtn
+        onClick={onToggleMagnifier}
+        active={magnifierActive}
+        title={magnifierActive
+          ? 'Magnifier active — click a diff in the sidebar to zoom to it (click again to toggle off)'
+          : 'Magnifier — click a diff in the sidebar to zoom to it'}
+      >
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
+          <circle cx="4.5" cy="4.5" r="3"/>
+          <line x1="7" y1="7" x2="10" y2="10"/>
+          <line x1="3" y1="4.5" x2="6" y2="4.5"/>
+          <line x1="4.5" y1="3" x2="4.5" y2="6"/>
+        </svg>
+        Magnify
+      </ToolbarBtn>
+
+      <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
+
       <ToolbarBtn onClick={onRotate} title="Rotate 90° clockwise">
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M2 5.5a3.5 3.5 0 107-0"/>
@@ -1024,11 +1000,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     () => localStorage.getItem('bs_reviewer_email') ?? ''
   )
 
-  // Double-click zoom-to-diff: ref for logic (avoids stale-closure race),
-  // state only for the UI badge / ↩ indicator.
-  const [zoomedToDiff, setZoomedToDiff] = useState(false)
-  const zoomedToDiffRef    = useRef(false)
-  const zoomedToDiffDiffId = useRef<string | null>(null)
+  // Magnifier toolbar button
+  const [magnifierActive, setMagnifierActive] = useState(false)
 
   // Scroll refs — shared between both panels for sync
   const leftRef  = useRef<HTMLDivElement>(null)
@@ -1037,13 +1010,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // Captured scroll-centre fraction for zoom preservation
   const scrollFracRef = useRef<number>(0.5)
-
-  // When a diff double-click zoom fires, store the target frac here so the
-  // layout effect below can scroll AFTER the DOM reflects the new zoom level.
-  const pendingScrollRef    = useRef<number | null>(null)
-  // scrollHeight of leftRef BEFORE the zoom change — used to detect when
-  // the DOM has reflowed to the new zoom level.
-  const preZoomScrollHeight = useRef<number>(0)
 
   // Ref to current rotation for scroll-to-diff effect (avoids stale closure)
   const rotationRef = useRef(rotation)
@@ -1072,55 +1038,14 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setZoom(newZoom)
   }, [])
 
-  // After zoom DOM update, restore fractional scroll centre (skipped when a
-  // diff zoom is pending — pendingScrollRef takes priority).
+  // After zoom DOM update, restore fractional scroll centre.
   useLayoutEffect(() => {
-    if (pendingScrollRef.current !== null) return
     const frac = scrollFracRef.current
     for (const ref of [leftRef, rightRef]) {
       const el = ref.current
       if (!el) continue
       el.scrollTop = Math.max(0, frac * el.scrollHeight - el.clientHeight / 2)
     }
-  }, [zoom])
-
-  // After a diff-zoom, scroll to the diff centre using the NEW scrollHeight.
-  // Poll each rAF until scrollHeight has grown past the pre-zoom value — this
-  // is the only reliable signal that the browser has finished reflowing the
-  // zoomed content. Falls back after 20 frames (~333 ms at 60 fps).
-  useLayoutEffect(() => {
-    if (pendingScrollRef.current === null) return
-    const frac  = pendingScrollRef.current
-    const preH  = preZoomScrollHeight.current
-    let attempts = 0
-
-    const tryScroll = () => {
-      attempts++
-      if (attempts > 20) {
-        pendingScrollRef.current = null
-        return
-      }
-      const el = leftRef.current
-      if (!el) { requestAnimationFrame(tryScroll); return }
-
-      // Keep waiting if scrollHeight hasn't grown beyond the pre-zoom value
-      // (1.05× threshold avoids false positives from minor sub-pixel changes).
-      if (preH > 0 && el.scrollHeight <= preH * 1.05) {
-        requestAnimationFrame(tryScroll)
-        return
-      }
-
-      pendingScrollRef.current = null
-      const PANEL_PADDING = 16
-      for (const ref of [leftRef, rightRef]) {
-        const panel = ref.current
-        if (!panel) continue
-        const imageHeight = panel.scrollHeight - PANEL_PADDING * 2
-        const centre      = PANEL_PADDING + frac * imageHeight
-        panel.scrollTop   = Math.max(0, centre - panel.clientHeight / 2)
-      }
-    }
-    requestAnimationFrame(tryScroll)
   }, [zoom])
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
@@ -1281,39 +1206,17 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setRotation(0)
     setReviews({})
     setReviewSummary(null)
-    zoomedToDiffRef.current    = false
-    zoomedToDiffDiffId.current = null
+    setMagnifierActive(false)
   }
 
-  // ── Double-click from sidebar: zoom to diff region ───────────────────────────
-  const handleDiffDoubleClick = useCallback((
+  // ── Magnifier: zoom to diff region from sidebar click ─────────────────────────
+  const handleMagnifyDiff = useCallback((
     diffId: string,
     bbox: [number, number, number, number],
     pageSizePts: [number, number],
   ) => {
-    const r = transformBbox(bbox, rotation, pageSizePts)
-    console.log('=== DIFF DOUBLE CLICK ===')
-    console.log('diffId:', diffId)
-    console.log('raw bbox:', bbox)
-    console.log('pageSizePts:', pageSizePts)
-    console.log('rotation:', rotation)
-    console.log('r (displayRect):', r)
-    console.log('r.top:', r.top, 'r.height:', r.height)
-    console.log('scroll frac:', r.top + r.height / 2)
-
-    if (zoomedToDiffRef.current && zoomedToDiffDiffId.current === diffId) {
-      zoomedToDiffRef.current    = false
-      zoomedToDiffDiffId.current = null
-      setZoomedToDiff(false)
-      doZoom(ZOOM_DEFAULT)
-      return
-    }
-
-    zoomedToDiffRef.current    = true
-    zoomedToDiffDiffId.current = diffId
+    const r = transformBbox(bbox, rotationRef.current, pageSizePts)
     setSelectedId(diffId)
-    setZoomedToDiff(true)
-
     const panel = leftRef.current
     if (!panel) return
     const viewportH       = panel.clientHeight
@@ -1325,44 +1228,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     const targetZoom = Math.min(300, Math.max(150, Math.round(Math.min(zoomByH, zoomByW))))
     const snapped = ZOOM_STEPS.reduce((prev, curr) =>
       Math.abs(curr - targetZoom) < Math.abs(prev - targetZoom) ? curr : prev)
-
-    // Capture scrollHeight NOW (before doZoom mutates state) so the polling
-    // loop knows when the DOM has reflowed to the new zoom level.
-    preZoomScrollHeight.current = panel.scrollHeight
-    pendingScrollRef.current = r.top < 0.1
-      ? 0.05
-      : r.top + r.height > 0.9
-        ? 0.95
-        : r.top + r.height / 2
-    doZoom(snapped)
-  }, [zoom, rotation, doZoom])
-
-  // Overlay double-click: receives pre-computed DisplayRect from DiffHighlights
-  const handleOverlayDoubleSelect = useCallback((diffId: string, r: DisplayRect) => {
-    if (zoomedToDiffRef.current && zoomedToDiffDiffId.current === diffId) {
-      zoomedToDiffRef.current    = false
-      zoomedToDiffDiffId.current = null
-      setZoomedToDiff(false)
-      doZoom(ZOOM_DEFAULT)
-      return
-    }
-    zoomedToDiffRef.current    = true
-    zoomedToDiffDiffId.current = diffId
-    setSelectedId(diffId)
-    setZoomedToDiff(true)
-    const panel = leftRef.current
-    if (!panel) return
-    const viewportH       = panel.clientHeight
-    const viewportW       = panel.clientWidth
-    const pageHeightAt100 = panel.scrollHeight / (zoom / 100)
-    const pageWidthAt100  = panel.scrollWidth  / (zoom / 100)
-    const zoomByH  = (0.5 * viewportH) / (r.height * pageHeightAt100) * 100
-    const zoomByW  = (0.7 * viewportW) / (r.width  * pageWidthAt100)  * 100
-    const targetZoom = Math.min(300, Math.max(150, Math.round(Math.min(zoomByH, zoomByW))))
-    const snapped = ZOOM_STEPS.reduce((prev, curr) =>
-      Math.abs(curr - targetZoom) < Math.abs(prev - targetZoom) ? curr : prev)
-    preZoomScrollHeight.current = panel.scrollHeight
-    pendingScrollRef.current = r.top < 0.1
+    scrollFracRef.current = r.top < 0.1
       ? 0.05
       : r.top + r.height > 0.9
         ? 0.95
@@ -1370,15 +1236,9 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     doZoom(snapped)
   }, [zoom, doZoom])
 
-  const handleBackgroundClick = useCallback(() => {
-    if (zoomedToDiffRef.current) {
-      zoomedToDiffRef.current    = false
-      zoomedToDiffDiffId.current = null
-      setZoomedToDiff(false)
-      doZoom(ZOOM_DEFAULT)
-    }
-    setSelectedId(null)
-  }, [doZoom])
+  const handleToggleMagnifier = useCallback(() => {
+    setMagnifierActive(v => !v)
+  }, [])
 
   // ── Render guards ─────────────────────────────────────────────────────────────
   if (loading) {
@@ -1463,22 +1323,12 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
         onZoom={doZoom}
         onRotate={rotate}
         onFitWidth={() => doZoom(ZOOM_DEFAULT)}
+        magnifierActive={magnifierActive}
+        onToggleMagnifier={handleToggleMagnifier}
       />
 
       {/* ── Body: side-by-side panels + diff list ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-
-        {zoomedToDiff && (
-          <div style={{
-            position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
-            zIndex: 10, pointerEvents: 'none',
-            background: `${T.accent}CC`, color: '#fff',
-            fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
-            letterSpacing: '0.06em',
-          }}>
-            Zoomed to diff — double-click to reset
-          </div>
-        )}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         <PagePanel
           imgUrl={page.original_render_url}
@@ -1490,8 +1340,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={leftRef}
           onScroll={() => syncScroll('left')}
-          onDoubleSelect={handleOverlayDoubleSelect}
-          onBackgroundClick={handleBackgroundClick}
         />
 
         <div style={{ width: 1, background: T.border, flexShrink: 0 }} />
@@ -1506,20 +1354,18 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={rightRef}
           onScroll={() => syncScroll('right')}
-          onDoubleSelect={handleOverlayDoubleSelect}
-          onBackgroundClick={handleBackgroundClick}
         />
 
         <DiffListPanel
           page={page}
           selectedId={selectedId}
           onSelect={setSelectedId}
-          onDiffDoubleClick={handleDiffDoubleClick}
+          onMagnifyDiff={handleMagnifyDiff}
+          magnifierActive={magnifierActive}
           reviews={reviews}
           submitting={submitting}
           onReview={handleReview}
           reviewerEmailSet={!!reviewerEmail.trim()}
-          zoomedToDiff={zoomedToDiff}
         />
       </div>
     </div>
