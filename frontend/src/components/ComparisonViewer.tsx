@@ -184,16 +184,18 @@ function PagePanel({
   onSelect,
   scrollRef,
   onScroll,
+  magnifierActive,
 }: {
-  imgUrl:     string | null
-  label:      string
-  page:       PageComparison
-  zoom:       number
-  rotation:   number
-  selectedId: string | null
-  onSelect:   (id: string) => void
-  scrollRef:  React.RefObject<HTMLDivElement>
-  onScroll:   () => void
+  imgUrl:          string | null
+  label:           string
+  page:            PageComparison
+  zoom:            number
+  rotation:        number
+  selectedId:      string | null
+  onSelect:        (id: string) => void
+  scrollRef:       React.RefObject<HTMLDivElement>
+  onScroll:        () => void
+  magnifierActive: boolean
 }) {
   const [W, H]    = page.page_size_pts
   const isSwapped = rotation === 90 || rotation === 270
@@ -216,7 +218,7 @@ function PagePanel({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        style={{ flex: 1, overflow: 'auto', background: '#090B10' }}
+        style={{ flex: 1, overflow: 'auto', background: '#090B10', cursor: magnifierActive ? 'zoom-in' : 'default' }}
       >
         <div style={{ padding: 16 }}>
           {imgUrl ? (
@@ -454,6 +456,19 @@ function DiffListPanel({
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
+        {magnifierActive && (
+          <div style={{
+            padding: '6px 14px',
+            background: `${T.warning}20`,
+            borderBottom: `1px solid ${T.warning}40`,
+            color: T.warning,
+            fontSize: 10, fontWeight: 700,
+            flexShrink: 0,
+          }}>
+            🔍 Click a difference to zoom to it
+          </div>
+        )}
+
         {totalCount === 0 && (
           <div style={{ padding: '32px 14px', textAlign: 'center', color: T.textMuted, fontSize: 12 }}>
             No differences on this page
@@ -1017,6 +1032,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // Captured scroll-centre fraction for zoom preservation
   const scrollFracRef = useRef<number>(0.5)
+  // Set by handleMagnifyDiff; useLayoutEffect skips when non-null (magnifier takes priority)
+  const magnifyScrollFracRef = useRef<number | null>(null)
 
   // Ref to current rotation for scroll-to-diff effect (avoids stale closure)
   const rotationRef = useRef(rotation)
@@ -1046,7 +1063,9 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
   }, [])
 
   // After zoom DOM update, restore fractional scroll centre.
+  // Skipped when magnifier has a pending scroll (setTimeout handles it instead).
   useLayoutEffect(() => {
+    if (magnifyScrollFracRef.current !== null) return
     const frac = scrollFracRef.current
     for (const ref of [leftRef, rightRef]) {
       const el = ref.current
@@ -1222,28 +1241,37 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     bbox: [number, number, number, number],
     pageSizePts: [number, number],
   ) => {
-    const r = transformBbox(bbox, rotationRef.current, pageSizePts)
-    setSelectedId(diffId)
+    const r = transformBbox(bbox, rotation, pageSizePts)
+    const frac = r.top + r.height / 2
+
     const panel = leftRef.current
     if (!panel) return
     const viewportH       = panel.clientHeight
-    const viewportW       = panel.clientWidth
     const pageHeightAt100 = panel.scrollHeight / (zoom / 100)
-    const pageWidthAt100  = panel.scrollWidth  / (zoom / 100)
-    const zoomByH  = (0.5 * viewportH) / (r.height * pageHeightAt100) * 100
-    const zoomByW  = (0.7 * viewportW) / (r.width  * pageWidthAt100)  * 100
-    const targetZoom = Math.min(300, Math.max(150, Math.round(Math.min(zoomByH, zoomByW))))
+    const targetZoom = Math.min(300, Math.max(150,
+      Math.round((0.5 * viewportH) / (r.height * pageHeightAt100) * 100)
+    ))
     const snapped = ZOOM_STEPS.reduce((prev, curr) =>
       Math.abs(curr - targetZoom) < Math.abs(prev - targetZoom) ? curr : prev)
-    const frac = r.top < 0.1
-      ? 0.05
-      : r.top + r.height > 0.9
-        ? 0.95
-        : r.top + r.height / 2
-    console.log('MAGNIFY DIFF:', diffId, 'frac:', frac, 'zoom:', snapped)
-    scrollFracRef.current = frac
+
+    magnifyScrollFracRef.current = frac
+    setSelectedId(diffId)
     doZoom(snapped)
-  }, [zoom, doZoom])
+
+    setTimeout(() => {
+      if (magnifyScrollFracRef.current === null) return
+      const f = magnifyScrollFracRef.current
+      magnifyScrollFracRef.current = null
+      const PADDING = 16
+      for (const ref of [leftRef, rightRef]) {
+        const el = ref.current
+        if (!el) continue
+        const imageHeight = el.scrollHeight - PADDING * 2
+        const centre = PADDING + f * imageHeight
+        el.scrollTop = Math.max(0, centre - el.clientHeight / 2)
+      }
+    }, 200)
+  }, [zoom, rotation, doZoom])
 
   const handleToggleMagnifier = useCallback(() => {
     setMagnifierActive(v => !v)
@@ -1349,6 +1377,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={leftRef}
           onScroll={() => syncScroll('left')}
+          magnifierActive={magnifierActive}
         />
 
         <div style={{ width: 1, background: T.border, flexShrink: 0 }} />
@@ -1363,6 +1392,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={rightRef}
           onScroll={() => syncScroll('right')}
+          magnifierActive={magnifierActive}
         />
 
         <DiffListPanel
