@@ -184,16 +184,20 @@ function PagePanel({
   onSelect,
   scrollRef,
   onScroll,
+  zoomMode,
+  onZoomClick,
 }: {
-  imgUrl:     string | null
-  label:      string
-  page:       PageComparison
-  zoom:       number
-  rotation:   number
-  selectedId: string | null
-  onSelect:   (id: string) => void
-  scrollRef:  React.RefObject<HTMLDivElement>
-  onScroll:   () => void
+  imgUrl:      string | null
+  label:       string
+  page:        PageComparison
+  zoom:        number
+  rotation:    number
+  selectedId:  string | null
+  onSelect:    (id: string) => void
+  scrollRef:   React.RefObject<HTMLDivElement>
+  onScroll:    () => void
+  zoomMode:    'select' | 'zoomin' | 'zoomout'
+  onZoomClick: (fracX: number, fracY: number) => void
 }) {
   const [W, H]    = page.page_size_pts
   const isSwapped = rotation === 90 || rotation === 270
@@ -216,7 +220,23 @@ function PagePanel({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        style={{ flex: 1, overflow: 'auto', background: '#090B10' }}
+        onClick={e => {
+          if (zoomMode === 'select') return
+          const scrollEl = e.currentTarget
+          const imgEl = scrollEl.querySelector('img')
+          if (!imgEl) return
+          const imgRect = imgEl.getBoundingClientRect()
+          onZoomClick(
+            Math.max(0, Math.min(1, (e.clientX - imgRect.left) / imgRect.width)),
+            Math.max(0, Math.min(1, (e.clientY - imgRect.top)  / imgRect.height)),
+          )
+        }}
+        style={{
+          flex: 1, overflow: 'auto', background: '#090B10',
+          cursor: zoomMode === 'zoomin'  ? 'zoom-in'
+                : zoomMode === 'zoomout' ? 'zoom-out'
+                : 'default',
+        }}
       >
         <div style={{ padding: 16 }}>
           {imgUrl ? (
@@ -853,20 +873,19 @@ function ViewToolbar({
   onZoom,
   onRotate,
   onFitWidth,
+  zoomMode,
+  onZoomModeToggle,
 }: {
-  zoom:       number
-  rotation:   number
-  onZoom:     (z: number) => void
-  onRotate:   () => void
-  onFitWidth: () => void
+  zoom:             number
+  rotation:         number
+  onZoom:           (z: number) => void
+  onRotate:         () => void
+  onFitWidth:       () => void
+  zoomMode:         'select' | 'zoomin' | 'zoomout'
+  onZoomModeToggle: (mode: 'zoomin' | 'zoomout') => void
 }) {
-  const zoomIdx  = ZOOM_STEPS.indexOf(zoom)
-  const canOut   = zoomIdx > 0
-  const canIn    = zoomIdx < ZOOM_STEPS.length - 1
-  const is100    = zoom === ZOOM_DEFAULT
-
-  const zoomOut = () => { if (canOut)  onZoom(ZOOM_STEPS[zoomIdx - 1]) }
-  const zoomIn  = () => { if (canIn)   onZoom(ZOOM_STEPS[zoomIdx + 1]) }
+  const zoomIdx = ZOOM_STEPS.indexOf(zoom)
+  const is100   = zoom === ZOOM_DEFAULT
 
   return (
     <div style={{
@@ -893,11 +912,16 @@ function ViewToolbar({
         {ZOOM_STEPS[0]}%
       </ToolbarBtn>
 
-      <ToolbarBtn onClick={zoomOut} disabled={!canOut} title="Zoom out (Ctrl+−)">
+      <ToolbarBtn
+        onClick={() => onZoomModeToggle('zoomin')}
+        active={zoomMode === 'zoomin'}
+        title={zoomMode === 'zoomin' ? 'Zoom in active — click again to deactivate' : 'Zoom in — click on PDF to zoom in (Ctrl+=)'}
+      >
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
-          <circle cx="5" cy="5" r="3.5"/>
-          <line x1="7.5" y1="7.5" x2="10" y2="10"/>
-          <line x1="3.5" y1="5" x2="6.5" y2="5"/>
+          <circle cx="4.5" cy="4.5" r="3"/>
+          <line x1="7" y1="7" x2="10" y2="10"/>
+          <line x1="3" y1="4.5" x2="6" y2="4.5"/>
+          <line x1="4.5" y1="3" x2="4.5" y2="6"/>
         </svg>
       </ToolbarBtn>
 
@@ -911,12 +935,15 @@ function ViewToolbar({
         {zoom}%
       </span>
 
-      <ToolbarBtn onClick={zoomIn} disabled={!canIn} title="Zoom in (Ctrl+=)">
+      <ToolbarBtn
+        onClick={() => onZoomModeToggle('zoomout')}
+        active={zoomMode === 'zoomout'}
+        title={zoomMode === 'zoomout' ? 'Zoom out active — click again to deactivate' : 'Zoom out — click on PDF to zoom out (Ctrl+−)'}
+      >
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
-          <circle cx="5" cy="5" r="3.5"/>
-          <line x1="7.5" y1="7.5" x2="10" y2="10"/>
-          <line x1="3.5" y1="5" x2="6.5" y2="5"/>
-          <line x1="5" y1="3.5" x2="5" y2="6.5"/>
+          <circle cx="4.5" cy="4.5" r="3"/>
+          <line x1="7" y1="7" x2="10" y2="10"/>
+          <line x1="3" y1="4.5" x2="6" y2="4.5"/>
         </svg>
       </ToolbarBtn>
 
@@ -975,6 +1002,9 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     () => localStorage.getItem('bs_reviewer_email') ?? ''
   )
 
+  // Zoom tool mode
+  const [zoomMode, setZoomMode] = useState<'select' | 'zoomin' | 'zoomout'>('select')
+
   // Scroll refs — shared between both panels for sync
   const leftRef  = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
@@ -982,6 +1012,9 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // Captured scroll-centre fraction for zoom preservation
   const scrollFracRef = useRef<number>(0.5)
+
+  // Click-point fraction for click-to-zoom centering (takes priority over scrollFracRef)
+  const clickFracRef = useRef<{ x: number; y: number } | null>(null)
 
   // Ref to current rotation for scroll-to-diff effect (avoids stale closure)
   const rotationRef = useRef(rotation)
@@ -1010,8 +1043,22 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setZoom(newZoom)
   }, [])
 
-  // After zoom DOM update, restore fractional scroll centre.
+  // After zoom DOM update — center on the clicked point, or restore fractional scroll centre.
   useLayoutEffect(() => {
+    if (clickFracRef.current) {
+      const { x, y } = clickFracRef.current
+      clickFracRef.current = null
+      for (const ref of [leftRef, rightRef]) {
+        const el = ref.current
+        if (!el) continue
+        const PADDING = 16
+        const imageH = el.scrollHeight - PADDING * 2
+        const imageW = el.scrollWidth  - PADDING * 2
+        el.scrollTop  = Math.max(0, PADDING + y * imageH - el.clientHeight  / 2)
+        el.scrollLeft = Math.max(0, PADDING + x * imageW - el.clientWidth   / 2)
+      }
+      return
+    }
     const frac = scrollFracRef.current
     for (const ref of [leftRef, rightRef]) {
       const el = ref.current
@@ -1058,6 +1105,26 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
   // ── Rotation ──────────────────────────────────────────────────────────────────
   const rotate = useCallback(() => setRotation(r => (r + 90) % 360), [])
+
+  // ── Zoom tool mode ────────────────────────────────────────────────────────────
+  const handleZoomModeToggle = useCallback((mode: 'zoomin' | 'zoomout') => {
+    setZoomMode(prev => prev === mode ? 'select' : mode)
+  }, [])
+
+  const handleZoomClick = useCallback((fracX: number, fracY: number) => {
+    setZoom(z => {
+      const newZoom = zoomMode === 'zoomin'
+        ? Math.min(400, z + 25)
+        : Math.max(25,  z - 25)
+      if (newZoom === z) return z
+      clickFracRef.current = { x: fracX, y: fracY }
+      // Capture current scroll centre as fallback (doZoom path not taken here)
+      const el = leftRef.current
+      if (el && el.scrollHeight > el.clientHeight)
+        scrollFracRef.current = (el.scrollTop + el.clientHeight / 2) / el.scrollHeight
+      return newZoom
+    })
+  }, [zoomMode])
 
   // ── Inject arrowPulse keyframes once at mount ─────────────────────────────────
   useEffect(() => {
@@ -1178,6 +1245,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setRotation(0)
     setReviews({})
     setReviewSummary(null)
+    setZoomMode('select')
   }
 
   // ── Render guards ─────────────────────────────────────────────────────────────
@@ -1263,6 +1331,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
         onZoom={doZoom}
         onRotate={rotate}
         onFitWidth={() => doZoom(ZOOM_DEFAULT)}
+        zoomMode={zoomMode}
+        onZoomModeToggle={handleZoomModeToggle}
       />
 
       {/* ── Body: side-by-side panels + diff list ── */}
@@ -1278,6 +1348,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={leftRef}
           onScroll={() => syncScroll('left')}
+          zoomMode={zoomMode}
+          onZoomClick={handleZoomClick}
         />
 
         <div style={{ width: 1, background: T.border, flexShrink: 0 }} />
@@ -1292,6 +1364,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={rightRef}
           onScroll={() => syncScroll('right')}
+          zoomMode={zoomMode}
+          onZoomClick={handleZoomClick}
         />
 
         <DiffListPanel
