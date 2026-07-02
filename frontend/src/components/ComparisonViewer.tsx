@@ -172,139 +172,6 @@ function DiffHighlights({
   )
 }
 
-// ── Loupe rect overlay (draggable selection box on the PDF image) ─────────────────
-
-function LoupeRect({
-  loupeRect,
-  onMoveDelta,
-}: {
-  loupeRect:   { x: number; y: number; w: number; h: number }
-  onMoveDelta: (dx: number, dy: number) => void
-}) {
-  return (
-    <div
-      style={{
-        position:  'absolute',
-        left:      `${loupeRect.x * 100}%`,
-        top:       `${loupeRect.y * 100}%`,
-        width:     `${loupeRect.w * 100}%`,
-        height:    `${loupeRect.h * 100}%`,
-        border:    '2px solid #2D6BE4',
-        cursor:    'move',
-        background:'rgba(45, 107, 228, 0.1)',
-        boxSizing: 'border-box',
-        zIndex:    3,
-      }}
-      onMouseDown={e => {
-        e.preventDefault()
-        e.stopPropagation()
-        const container = (e.currentTarget as HTMLDivElement).parentElement!
-        const cRect = container.getBoundingClientRect()
-        let lastX = e.clientX
-        let lastY = e.clientY
-        const onMove = (me: MouseEvent) => {
-          const dx = (me.clientX - lastX) / cRect.width
-          const dy = (me.clientY - lastY) / cRect.height
-          lastX = me.clientX
-          lastY = me.clientY
-          onMoveDelta(dx, dy)
-        }
-        const onUp = () => {
-          document.removeEventListener('mousemove', onMove)
-          document.removeEventListener('mouseup', onUp)
-        }
-        document.addEventListener('mousemove', onMove)
-        document.addEventListener('mouseup', onUp)
-      }}
-    />
-  )
-}
-
-// ── Loupe panel (zoomed strip below the PDF panels) ───────────────────────────────
-
-function LoupePanel({
-  page,
-  loupeRect,
-  loupeMagnification,
-  onChangeMagnification,
-}: {
-  page:                  PageComparison
-  loupeRect:             { x: number; y: number; w: number; h: number }
-  loupeMagnification:    number
-  onChangeMagnification: (fn: (m: number) => number) => void
-}) {
-  const btnStyle: React.CSSProperties = {
-    width: 28, height: 28,
-    background: T.bgElevated,
-    border: `1px solid ${T.border}`,
-    borderRadius: 6,
-    color: T.textPrimary,
-    cursor: 'pointer',
-    fontSize: 16, fontWeight: 700,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  }
-
-  return (
-    <div style={{
-      height: 200, display: 'flex', flexShrink: 0,
-      borderTop: '2px solid #2D6BE4',
-      background: '#090B10',
-    }}>
-      {(['ORIGINAL', 'REVISED'] as const).map((label, i) => {
-        const url = i === 0 ? page.original_render_url : page.revised_render_url
-        return (
-          <div key={label} style={{
-            flex: 1, overflow: 'hidden', position: 'relative',
-            borderRight: i === 0 ? `1px solid ${T.border}` : 'none',
-          }}>
-            <div style={{
-              position: 'absolute', top: 4, left: 8,
-              fontSize: 9, color: T.textMuted, fontWeight: 700,
-              textTransform: 'uppercase', letterSpacing: '0.1em',
-              zIndex: 1, pointerEvents: 'none',
-            }}>
-              {label}
-            </div>
-            {url && (
-              <img
-                src={url}
-                alt=""
-                draggable={false}
-                style={{
-                  position:       'absolute',
-                  width:          `${loupeMagnification / loupeRect.w * 100}%`,
-                  height:         'auto',
-                  left:           `${-(loupeRect.x / loupeRect.w) * 100 * loupeMagnification + 50}%`,
-                  top:            0,
-                  imageRendering: 'pixelated',
-                  userSelect:     'none',
-                  pointerEvents:  'none',
-                }}
-              />
-            )}
-          </div>
-        )
-      })}
-
-      <div style={{
-        width: 80, flexShrink: 0,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: 8,
-        borderLeft: `1px solid ${T.border}`, padding: 8,
-      }}>
-        <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Zoom
-        </span>
-        <button onClick={() => onChangeMagnification(m => Math.min(8, m + 1))} style={btnStyle}>+</button>
-        <span style={{ fontSize: 14, color: T.textPrimary, fontWeight: 700 }}>
-          {loupeMagnification}×
-        </span>
-        <button onClick={() => onChangeMagnification(m => Math.max(2, m - 1))} style={btnStyle}>−</button>
-      </div>
-    </div>
-  )
-}
-
 // ── Single page panel ─────────────────────────────────────────────────────────────
 
 function PagePanel({
@@ -317,24 +184,16 @@ function PagePanel({
   onSelect,
   scrollRef,
   onScroll,
-  magnifierActive,
-  loupeRect,
-  onMoveLoupeRect,
-  onPlaceLoupe,
 }: {
-  imgUrl:          string | null
-  label:           string
-  page:            PageComparison
-  zoom:            number
-  rotation:        number
-  selectedId:      string | null
-  onSelect:        (id: string) => void
-  scrollRef:       React.RefObject<HTMLDivElement>
-  onScroll:        () => void
-  magnifierActive: boolean
-  loupeRect:       { x: number; y: number; w: number; h: number } | null
-  onMoveLoupeRect: (dx: number, dy: number) => void
-  onPlaceLoupe:    (fracX: number, fracY: number) => void
+  imgUrl:     string | null
+  label:      string
+  page:       PageComparison
+  zoom:       number
+  rotation:   number
+  selectedId: string | null
+  onSelect:   (id: string) => void
+  scrollRef:  React.RefObject<HTMLDivElement>
+  onScroll:   () => void
 }) {
   const [W, H]    = page.page_size_pts
   const isSwapped = rotation === 90 || rotation === 270
@@ -357,7 +216,7 @@ function PagePanel({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        style={{ flex: 1, overflow: 'auto', background: '#090B10', cursor: magnifierActive ? 'crosshair' : 'default' }}
+        style={{ flex: 1, overflow: 'auto', background: '#090B10' }}
       >
         <div style={{ padding: 16 }}>
           {imgUrl ? (
@@ -370,13 +229,6 @@ function PagePanel({
                 overflow:    'hidden',
                 margin:      '0 auto',
               }}
-              onClick={magnifierActive ? e => {
-                const rect = e.currentTarget.getBoundingClientRect()
-                onPlaceLoupe(
-                  (e.clientX - rect.left) / rect.width,
-                  (e.clientY - rect.top)  / rect.height,
-                )
-              } : undefined}
             >
               <div style={{
                 position:        'absolute',
@@ -402,13 +254,6 @@ function PagePanel({
                 selectedId={selectedId}
                 onSelect={onSelect}
               />
-
-              {magnifierActive && loupeRect && (
-                <LoupeRect
-                  loupeRect={loupeRect}
-                  onMoveDelta={onMoveLoupeRect}
-                />
-              )}
             </div>
           ) : (
             <div style={{
@@ -543,7 +388,6 @@ function DiffListPanel({
   page,
   selectedId,
   onSelect,
-  magnifierActive,
   reviews,
   submitting,
   onReview,
@@ -552,7 +396,6 @@ function DiffListPanel({
   page:             PageComparison
   selectedId:       string | null
   onSelect:         (id: string) => void
-  magnifierActive:  boolean
   reviews:          Record<string, DifferenceReview>
   submitting:       Set<string>
   onReview:         (diffId: string, status: 'accepted' | 'rejected', comment: string) => void
@@ -609,19 +452,6 @@ function DiffListPanel({
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {magnifierActive && (
-          <div style={{
-            padding: '6px 14px',
-            background: `${T.warning}20`,
-            borderBottom: `1px solid ${T.warning}40`,
-            color: T.warning,
-            fontSize: 10, fontWeight: 700,
-            flexShrink: 0,
-          }}>
-            🔍 Click a difference to zoom to it
-          </div>
-        )}
-
         {totalCount === 0 && (
           <div style={{ padding: '32px 14px', textAlign: 'center', color: T.textMuted, fontSize: 12 }}>
             No differences on this page
@@ -975,14 +805,13 @@ function SummaryBar({ rec, onNew }: { rec: ComparisonRecord; onNew: () => void }
 // ── View-controls toolbar ─────────────────────────────────────────────────────────
 
 function ToolbarBtn({
-  onClick, disabled, title, active, solidActive, children,
+  onClick, disabled, title, active, children,
 }: {
-  onClick: () => void
+  onClick:   () => void
   disabled?: boolean
-  title?: string
-  active?: boolean
-  solidActive?: boolean
-  children: React.ReactNode
+  title?:    string
+  active?:   boolean
+  children:  React.ReactNode
 }) {
   return (
     <button
@@ -990,24 +819,24 @@ function ToolbarBtn({
       disabled={disabled}
       title={title}
       style={{
-        background: solidActive ? T.accent : active ? `${T.accent}20` : 'none',
-        border: solidActive ? `2px solid ${T.accent}` : active ? `1px solid ${T.accent}60` : `1px solid transparent`,
-        color: disabled ? T.textMuted : (solidActive || active) ? (solidActive ? '#FFFFFF' : T.accent) : T.textSecond,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        padding: solidActive ? '3px 7px' : '4px 8px', borderRadius: 6,
+        background: active ? `${T.accent}20` : 'none',
+        border:     active ? `1px solid ${T.accent}60` : `1px solid transparent`,
+        color:      disabled ? T.textMuted : active ? T.accent : T.textSecond,
+        cursor:     disabled ? 'not-allowed' : 'pointer',
+        padding:    '4px 8px', borderRadius: 6,
         fontSize: 11, fontWeight: 600,
         display: 'flex', alignItems: 'center', gap: 3,
         transition: 'color 0.12s, background 0.12s',
         opacity: disabled ? 0.4 : 1,
       }}
       onMouseEnter={e => {
-        if (!disabled && !active && !solidActive) {
+        if (!disabled && !active) {
           e.currentTarget.style.color      = T.textPrimary
           e.currentTarget.style.background = T.bgElevated
         }
       }}
       onMouseLeave={e => {
-        if (!disabled && !active && !solidActive) {
+        if (!disabled && !active) {
           e.currentTarget.style.color      = T.textSecond
           e.currentTarget.style.background = 'none'
         }
@@ -1024,16 +853,12 @@ function ViewToolbar({
   onZoom,
   onRotate,
   onFitWidth,
-  magnifierActive,
-  onToggleMagnifier,
 }: {
-  zoom:              number
-  rotation:          number
-  onZoom:            (z: number) => void
-  onRotate:          () => void
-  onFitWidth:        () => void
-  magnifierActive:   boolean
-  onToggleMagnifier: () => void
+  zoom:       number
+  rotation:   number
+  onZoom:     (z: number) => void
+  onRotate:   () => void
+  onFitWidth: () => void
 }) {
   const zoomIdx  = ZOOM_STEPS.indexOf(zoom)
   const canOut   = zoomIdx > 0
@@ -1105,30 +930,6 @@ function ViewToolbar({
 
       <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
 
-      <ToolbarBtn
-        onClick={onToggleMagnifier}
-        solidActive={magnifierActive}
-        title={magnifierActive
-          ? 'Magnifier ON — click a difference to zoom (click again to disable)'
-          : 'Magnifier — activate then click a difference to zoom to it'}
-      >
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
-          <circle cx="4.5" cy="4.5" r="3"/>
-          <line x1="7" y1="7" x2="10" y2="10"/>
-          <line x1="3" y1="4.5" x2="6" y2="4.5"/>
-          <line x1="4.5" y1="3" x2="4.5" y2="6"/>
-        </svg>
-        Magnify
-        {magnifierActive && (
-          <span style={{
-            fontSize: 8, fontWeight: 800, padding: '1px 4px', borderRadius: 3,
-            background: 'rgba(255,255,255,0.25)', lineHeight: 1.4,
-          }}>ON</span>
-        )}
-      </ToolbarBtn>
-
-      <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
-
       <ToolbarBtn onClick={onRotate} title="Rotate 90° clockwise">
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M2 5.5a3.5 3.5 0 107-0"/>
@@ -1173,11 +974,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
   const [reviewerEmail, setReviewerEmail] = useState(
     () => localStorage.getItem('bs_reviewer_email') ?? ''
   )
-
-  // Magnifier / loupe tool state
-  const [magnifierActive, setMagnifierActive]   = useState(false)
-  const [loupeRect, setLoupeRect]               = useState<{ x: number; y: number; w: number; h: number } | null>(null)
-  const [loupeMagnification, setLoupeMagnification] = useState(4)
 
   // Scroll refs — shared between both panels for sync
   const leftRef  = useRef<HTMLDivElement>(null)
@@ -1382,34 +1178,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setRotation(0)
     setReviews({})
     setReviewSummary(null)
-    setMagnifierActive(false)
-    setLoupeRect(null)
-    setLoupeMagnification(4)
   }
-
-  const handleToggleMagnifier = useCallback(() => {
-    setMagnifierActive(v => !v)
-    setLoupeRect(null)
-  }, [])
-
-  const moveLoupeRect = useCallback((dx: number, dy: number) => {
-    setLoupeRect(r => {
-      if (!r) return r
-      const x = Math.max(0, Math.min(1 - r.w, r.x + dx))
-      const y = Math.max(0, Math.min(1 - r.h, r.y + dy))
-      return { ...r, x, y }
-    })
-  }, [])
-
-  const placeLoupeRect = useCallback((fracX: number, fracY: number) => {
-    const W = 0.15, H = 0.08
-    setLoupeRect({
-      x: Math.max(0, Math.min(1 - W, fracX - W / 2)),
-      y: Math.max(0, Math.min(1 - H, fracY - H / 2)),
-      w: W,
-      h: H,
-    })
-  }, [])
 
   // ── Render guards ─────────────────────────────────────────────────────────────
   if (loading) {
@@ -1494,8 +1263,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
         onZoom={doZoom}
         onRotate={rotate}
         onFitWidth={() => doZoom(ZOOM_DEFAULT)}
-        magnifierActive={magnifierActive}
-        onToggleMagnifier={handleToggleMagnifier}
       />
 
       {/* ── Body: side-by-side panels + diff list ── */}
@@ -1511,10 +1278,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={leftRef}
           onScroll={() => syncScroll('left')}
-          magnifierActive={magnifierActive}
-          loupeRect={loupeRect}
-          onMoveLoupeRect={moveLoupeRect}
-          onPlaceLoupe={placeLoupeRect}
         />
 
         <div style={{ width: 1, background: T.border, flexShrink: 0 }} />
@@ -1529,33 +1292,18 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           onSelect={setSelectedId}
           scrollRef={rightRef}
           onScroll={() => syncScroll('right')}
-          magnifierActive={magnifierActive}
-          loupeRect={loupeRect}
-          onMoveLoupeRect={moveLoupeRect}
-          onPlaceLoupe={placeLoupeRect}
         />
 
         <DiffListPanel
           page={page}
           selectedId={selectedId}
           onSelect={setSelectedId}
-          magnifierActive={magnifierActive}
           reviews={reviews}
           submitting={submitting}
           onReview={handleReview}
           reviewerEmailSet={!!reviewerEmail.trim()}
         />
       </div>
-
-      {/* ── Loupe panel (zoomed strip, shown when magnifier active + rect placed) ── */}
-      {magnifierActive && loupeRect && (
-        <LoupePanel
-          page={page}
-          loupeRect={loupeRect}
-          loupeMagnification={loupeMagnification}
-          onChangeMagnification={setLoupeMagnification}
-        />
-      )}
     </div>
   )
 }
