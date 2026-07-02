@@ -172,60 +172,135 @@ function DiffHighlights({
   )
 }
 
-// ── Magnifier lens ────────────────────────────────────────────────────────────────
+// ── Loupe rect overlay (draggable selection box on the PDF image) ─────────────────
 
-function MagnifierLens({
-  imgUrl,
-  clientX,
-  clientY,
-  fracX,
-  fracY,
-  pageSizePts,
-  size = 180,
-  scale = 3,
+function LoupeRect({
+  loupeRect,
+  onMoveDelta,
 }: {
-  imgUrl:      string
-  clientX:     number
-  clientY:     number
-  fracX:       number
-  fracY:       number
-  pageSizePts: [number, number]
-  size?:       number
-  scale?:      number
+  loupeRect:   { x: number; y: number; w: number; h: number }
+  onMoveDelta: (dx: number, dy: number) => void
 }) {
-  const [W, H] = pageSizePts
-  const ar = H / W  // page aspect ratio — needed to correct the Y offset for non-square pages
+  return (
+    <div
+      style={{
+        position:  'absolute',
+        left:      `${loupeRect.x * 100}%`,
+        top:       `${loupeRect.y * 100}%`,
+        width:     `${loupeRect.w * 100}%`,
+        height:    `${loupeRect.h * 100}%`,
+        border:    '2px solid #2D6BE4',
+        cursor:    'move',
+        background:'rgba(45, 107, 228, 0.1)',
+        boxSizing: 'border-box',
+        zIndex:    3,
+      }}
+      onMouseDown={e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const container = (e.currentTarget as HTMLDivElement).parentElement!
+        const cRect = container.getBoundingClientRect()
+        let lastX = e.clientX
+        let lastY = e.clientY
+        const onMove = (me: MouseEvent) => {
+          const dx = (me.clientX - lastX) / cRect.width
+          const dy = (me.clientY - lastY) / cRect.height
+          lastX = me.clientX
+          lastY = me.clientY
+          onMoveDelta(dx, dy)
+        }
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove)
+          document.removeEventListener('mouseup', onUp)
+        }
+        document.addEventListener('mousemove', onMove)
+        document.addEventListener('mouseup', onUp)
+      }}
+    />
+  )
+}
+
+// ── Loupe panel (zoomed strip below the PDF panels) ───────────────────────────────
+
+function LoupePanel({
+  page,
+  loupeRect,
+  loupeMagnification,
+  onChangeMagnification,
+}: {
+  page:                  PageComparison
+  loupeRect:             { x: number; y: number; w: number; h: number }
+  loupeMagnification:    number
+  onChangeMagnification: (fn: (m: number) => number) => void
+}) {
+  const btnStyle: React.CSSProperties = {
+    width: 28, height: 28,
+    background: T.bgElevated,
+    border: `1px solid ${T.border}`,
+    borderRadius: 6,
+    color: T.textPrimary,
+    cursor: 'pointer',
+    fontSize: 16, fontWeight: 700,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  }
 
   return (
     <div style={{
-      position:      'fixed',
-      left:          clientX,
-      top:           clientY,
-      width:         size,
-      height:        size,
-      borderRadius:  '50%',
-      border:        '3px solid #2D6BE4',
-      boxShadow:     '0 4px 20px rgba(0,0,0,0.8)',
-      overflow:      'hidden',
-      pointerEvents: 'none',
-      zIndex:        50,
-      transform:     'translate(20px, -90px)',
+      height: 200, display: 'flex', flexShrink: 0,
+      borderTop: '2px solid #2D6BE4',
+      background: '#090B10',
     }}>
-      <img
-        src={imgUrl}
-        alt=""
-        draggable={false}
-        style={{
-          position:       'absolute',
-          width:          `${scale * 100}%`,
-          height:         'auto',
-          left:           `${50 - fracX * scale * 100}%`,
-          top:            `${50 - fracY * scale * ar * 100}%`,
-          imageRendering: 'pixelated',
-          userSelect:     'none',
-          pointerEvents:  'none',
-        }}
-      />
+      {(['ORIGINAL', 'REVISED'] as const).map((label, i) => {
+        const url = i === 0 ? page.original_render_url : page.revised_render_url
+        return (
+          <div key={label} style={{
+            flex: 1, overflow: 'hidden', position: 'relative',
+            borderRight: i === 0 ? `1px solid ${T.border}` : 'none',
+          }}>
+            <div style={{
+              position: 'absolute', top: 4, left: 8,
+              fontSize: 9, color: T.textMuted, fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.1em',
+              zIndex: 1, pointerEvents: 'none',
+            }}>
+              {label}
+            </div>
+            {url && (
+              <img
+                src={url}
+                alt=""
+                draggable={false}
+                style={{
+                  position:       'absolute',
+                  width:          `${loupeMagnification / loupeRect.w * 100}%`,
+                  height:         'auto',
+                  left:           `${-(loupeRect.x / loupeRect.w) * 100 * loupeMagnification + 50}%`,
+                  top:            0,
+                  imageRendering: 'pixelated',
+                  userSelect:     'none',
+                  pointerEvents:  'none',
+                }}
+              />
+            )}
+          </div>
+        )
+      })}
+
+      <div style={{
+        width: 80, flexShrink: 0,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 8,
+        borderLeft: `1px solid ${T.border}`, padding: 8,
+      }}>
+        <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Zoom
+        </span>
+        <button onClick={() => onChangeMagnification(m => Math.min(8, m + 1))} style={btnStyle}>+</button>
+        <span style={{ fontSize: 14, color: T.textPrimary, fontWeight: 700 }}>
+          {loupeMagnification}×
+        </span>
+        <button onClick={() => onChangeMagnification(m => Math.max(2, m - 1))} style={btnStyle}>−</button>
+      </div>
     </div>
   )
 }
@@ -243,8 +318,9 @@ function PagePanel({
   scrollRef,
   onScroll,
   magnifierActive,
-  onMouseMove,
-  onMouseLeave,
+  loupeRect,
+  onMoveLoupeRect,
+  onPlaceLoupe,
 }: {
   imgUrl:          string | null
   label:           string
@@ -256,8 +332,9 @@ function PagePanel({
   scrollRef:       React.RefObject<HTMLDivElement>
   onScroll:        () => void
   magnifierActive: boolean
-  onMouseMove?:    (state: { clientX: number; clientY: number; fracX: number; fracY: number }) => void
-  onMouseLeave?:   () => void
+  loupeRect:       { x: number; y: number; w: number; h: number } | null
+  onMoveLoupeRect: (dx: number, dy: number) => void
+  onPlaceLoupe:    (fracX: number, fracY: number) => void
 }) {
   const [W, H]    = page.page_size_pts
   const isSwapped = rotation === 90 || rotation === 270
@@ -280,35 +357,27 @@ function PagePanel({
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        onMouseMove={e => {
-          if (!magnifierActive || !onMouseMove) return
-          const el = e.currentTarget
-          const rect = el.getBoundingClientRect()
-          const PADDING = 16
-          const absX = (e.clientX - rect.left) + el.scrollLeft - PADDING
-          const absY = (e.clientY - rect.top)  + el.scrollTop  - PADDING
-          const imageW = el.scrollWidth  - PADDING * 2
-          const imageH = el.scrollHeight - PADDING * 2
-          onMouseMove({
-            clientX: e.clientX,
-            clientY: e.clientY,
-            fracX: Math.max(0, Math.min(1, absX / imageW)),
-            fracY: Math.max(0, Math.min(1, absY / imageH)),
-          })
-        }}
-        onMouseLeave={() => { if (magnifierActive) onMouseLeave?.() }}
-        style={{ flex: 1, overflow: 'auto', background: '#090B10', cursor: magnifierActive ? 'none' : 'default' }}
+        style={{ flex: 1, overflow: 'auto', background: '#090B10', cursor: magnifierActive ? 'crosshair' : 'default' }}
       >
         <div style={{ padding: 16 }}>
           {imgUrl ? (
-            <div style={{
-              position:    'relative',
-              width:       `${zoom}%`,
-              minWidth:    120,
-              aspectRatio: displayAR,
-              overflow:    'hidden',
-              margin:      '0 auto',
-            }}>
+            <div
+              style={{
+                position:    'relative',
+                width:       `${zoom}%`,
+                minWidth:    120,
+                aspectRatio: displayAR,
+                overflow:    'hidden',
+                margin:      '0 auto',
+              }}
+              onClick={magnifierActive ? e => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                onPlaceLoupe(
+                  (e.clientX - rect.left) / rect.width,
+                  (e.clientY - rect.top)  / rect.height,
+                )
+              } : undefined}
+            >
               <div style={{
                 position:        'absolute',
                 top:             '50%',
@@ -333,6 +402,13 @@ function PagePanel({
                 selectedId={selectedId}
                 onSelect={onSelect}
               />
+
+              {magnifierActive && loupeRect && (
+                <LoupeRect
+                  loupeRect={loupeRect}
+                  onMoveDelta={onMoveLoupeRect}
+                />
+              )}
             </div>
           ) : (
             <div style={{
@@ -1098,11 +1174,10 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     () => localStorage.getItem('bs_reviewer_email') ?? ''
   )
 
-  // Magnifier toolbar button + lens state
-  const [magnifierActive, setMagnifierActive] = useState(false)
-  const [lensState, setLensState] = useState<{
-    clientX: number; clientY: number; fracX: number; fracY: number; imgUrl: string
-  } | null>(null)
+  // Magnifier / loupe tool state
+  const [magnifierActive, setMagnifierActive]   = useState(false)
+  const [loupeRect, setLoupeRect]               = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  const [loupeMagnification, setLoupeMagnification] = useState(4)
 
   // Scroll refs — shared between both panels for sync
   const leftRef  = useRef<HTMLDivElement>(null)
@@ -1308,12 +1383,32 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     setReviews({})
     setReviewSummary(null)
     setMagnifierActive(false)
-    setLensState(null)
+    setLoupeRect(null)
+    setLoupeMagnification(4)
   }
 
   const handleToggleMagnifier = useCallback(() => {
     setMagnifierActive(v => !v)
-    setLensState(null)
+    setLoupeRect(null)
+  }, [])
+
+  const moveLoupeRect = useCallback((dx: number, dy: number) => {
+    setLoupeRect(r => {
+      if (!r) return r
+      const x = Math.max(0, Math.min(1 - r.w, r.x + dx))
+      const y = Math.max(0, Math.min(1 - r.h, r.y + dy))
+      return { ...r, x, y }
+    })
+  }, [])
+
+  const placeLoupeRect = useCallback((fracX: number, fracY: number) => {
+    const W = 0.15, H = 0.08
+    setLoupeRect({
+      x: Math.max(0, Math.min(1 - W, fracX - W / 2)),
+      y: Math.max(0, Math.min(1 - H, fracY - H / 2)),
+      w: W,
+      h: H,
+    })
   }, [])
 
   // ── Render guards ─────────────────────────────────────────────────────────────
@@ -1403,18 +1498,6 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
         onToggleMagnifier={handleToggleMagnifier}
       />
 
-      {/* ── Magnifier lens (fixed, follows cursor) ── */}
-      {magnifierActive && lensState && (
-        <MagnifierLens
-          imgUrl={lensState.imgUrl}
-          clientX={lensState.clientX}
-          clientY={lensState.clientY}
-          fracX={lensState.fracX}
-          fracY={lensState.fracY}
-          pageSizePts={page.page_size_pts}
-        />
-      )}
-
       {/* ── Body: side-by-side panels + diff list ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
@@ -1429,11 +1512,9 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           scrollRef={leftRef}
           onScroll={() => syncScroll('left')}
           magnifierActive={magnifierActive}
-          onMouseMove={state => {
-            if (page.original_render_url)
-              setLensState({ ...state, imgUrl: page.original_render_url })
-          }}
-          onMouseLeave={() => setLensState(null)}
+          loupeRect={loupeRect}
+          onMoveLoupeRect={moveLoupeRect}
+          onPlaceLoupe={placeLoupeRect}
         />
 
         <div style={{ width: 1, background: T.border, flexShrink: 0 }} />
@@ -1449,11 +1530,9 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           scrollRef={rightRef}
           onScroll={() => syncScroll('right')}
           magnifierActive={magnifierActive}
-          onMouseMove={state => {
-            if (page.revised_render_url)
-              setLensState({ ...state, imgUrl: page.revised_render_url })
-          }}
-          onMouseLeave={() => setLensState(null)}
+          loupeRect={loupeRect}
+          onMoveLoupeRect={moveLoupeRect}
+          onPlaceLoupe={placeLoupeRect}
         />
 
         <DiffListPanel
@@ -1467,6 +1546,16 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           reviewerEmailSet={!!reviewerEmail.trim()}
         />
       </div>
+
+      {/* ── Loupe panel (zoomed strip, shown when magnifier active + rect placed) ── */}
+      {magnifierActive && loupeRect && (
+        <LoupePanel
+          page={page}
+          loupeRect={loupeRect}
+          loupeMagnification={loupeMagnification}
+          onChangeMagnification={setLoupeMagnification}
+        />
+      )}
     </div>
   )
 }
