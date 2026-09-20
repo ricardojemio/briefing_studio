@@ -1,0 +1,309 @@
+{
+  "pairs": {
+    "pair1_dose_text_change": {
+      "description": "Alteração de dose (texto puro)",
+      "metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "false_negatives": [],
+      "false_positives": []
+    },
+    "pair2_font_changes": {
+      "description": "Mudança de negrito e tamanho de fonte",
+      "metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 2,
+        "fp": 0,
+        "fn": 0
+      },
+      "false_negatives": [],
+      "false_positives": []
+    },
+    "pair3_visual_image_move": {
+      "description": "Selo/logo movido e redimensionado (visual puro)",
+      "metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 2,
+        "fp": 0,
+        "fn": 0
+      },
+      "false_negatives": [],
+      "false_positives": []
+    },
+    "pair4_text_add_remove": {
+      "description": "Texto alterado, removido e adicionado",
+      "metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      },
+      "false_negatives": [],
+      "false_positives": []
+    },
+    "pair5_combined": {
+      "description": "Texto + fonte + visual combinados",
+      "metrics": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      },
+      "false_negatives": [],
+      "false_positives": []
+    }
+  },
+  "by_type": {
+    "font_size": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0
+    },
+    "font_style": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "text_added": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "text_changed": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0
+    },
+    "text_removed": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "visual": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0
+    }
+  },
+  "overall": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "tp": 12,
+    "fp": 0,
+    "fn": 0
+  },
+  "alignment": [
+    {
+      "pair": "pair1_dose_text_change",
+      "page": 1,
+      "method": "orb_homography",
+      "keypoints_orig": 4410,
+      "keypoints_rev": 4436,
+      "good_matches": 4053,
+      "inliers": 4028
+    },
+    {
+      "pair": "pair1_dose_text_change",
+      "page": 2,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4941,
+      "inliers": 4941
+    },
+    {
+      "pair": "pair1_dose_text_change",
+      "page": 3,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4931,
+      "inliers": 4931
+    },
+    {
+      "pair": "pair1_dose_text_change",
+      "page": 4,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4976,
+      "inliers": 4976
+    },
+    {
+      "pair": "pair2_font_changes",
+      "page": 1,
+      "method": "orb_homography",
+      "keypoints_orig": 4410,
+      "keypoints_rev": 4410,
+      "good_matches": 4394,
+      "inliers": 4394
+    },
+    {
+      "pair": "pair2_font_changes",
+      "page": 2,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5002,
+      "good_matches": 4590,
+      "inliers": 4548
+    },
+    {
+      "pair": "pair2_font_changes",
+      "page": 3,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4931,
+      "inliers": 4931
+    },
+    {
+      "pair": "pair2_font_changes",
+      "page": 4,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4976,
+      "inliers": 4976
+    },
+    {
+      "pair": "pair3_visual_image_move",
+      "page": 1,
+      "method": "orb_homography",
+      "keypoints_orig": 4410,
+      "keypoints_rev": 4410,
+      "good_matches": 4394,
+      "inliers": 4394
+    },
+    {
+      "pair": "pair3_visual_image_move",
+      "page": 2,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4941,
+      "inliers": 4941
+    },
+    {
+      "pair": "pair3_visual_image_move",
+      "page": 3,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4931,
+      "inliers": 4931
+    },
+    {
+      "pair": "pair3_visual_image_move",
+      "page": 4,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4873,
+      "inliers": 4852
+    },
+    {
+      "pair": "pair4_text_add_remove",
+      "page": 1,
+      "method": "orb_homography",
+      "keypoints_orig": 4410,
+      "keypoints_rev": 4410,
+      "good_matches": 4394,
+      "inliers": 4394
+    },
+    {
+      "pair": "pair4_text_add_remove",
+      "page": 2,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5001,
+      "good_matches": 4846,
+      "inliers": 4838
+    },
+    {
+      "pair": "pair4_text_add_remove",
+      "page": 3,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4931,
+      "inliers": 4931
+    },
+    {
+      "pair": "pair4_text_add_remove",
+      "page": 4,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4976,
+      "inliers": 4976
+    },
+    {
+      "pair": "pair5_combined",
+      "page": 1,
+      "method": "orb_homography",
+      "keypoints_orig": 4410,
+      "keypoints_rev": 4436,
+      "good_matches": 4053,
+      "inliers": 4028
+    },
+    {
+      "pair": "pair5_combined",
+      "page": 2,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5001,
+      "good_matches": 4742,
+      "inliers": 4726
+    },
+    {
+      "pair": "pair5_combined",
+      "page": 3,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4931,
+      "inliers": 4931
+    },
+    {
+      "pair": "pair5_combined",
+      "page": 4,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4873,
+      "inliers": 4852
+    }
+  ]
+}
