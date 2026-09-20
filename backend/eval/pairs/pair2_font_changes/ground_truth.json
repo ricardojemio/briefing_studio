@@ -1,0 +1,31 @@
+{
+  "pair_id": "pair2_font_changes",
+  "description": "Mudança de negrito e tamanho de fonte",
+  "seed_pdf": "Bulário Eletrônico ANVISA — Sonridor Dor e Febre 750 mg (domínio público)",
+  "original_pdf": "pairs/pair2_font_changes/A.pdf",
+  "revised_pdf": "pairs/pair2_font_changes/B.pdf",
+  "expected_differences": [
+    {
+      "type": "font_style",
+      "page": 2,
+      "bbox": [
+        85.08,
+        206.4,
+        323.18,
+        217.43
+      ],
+      "description": "Título de seção deixou de ser negrito"
+    },
+    {
+      "type": "font_size",
+      "page": 2,
+      "bbox": [
+        85.07,
+        228.84,
+        154.97,
+        239.87
+      ],
+      "description": "Título 'COMPOSIÇÃO' aumentado de 10pt para 14pt"
+    }
+  ]
+}

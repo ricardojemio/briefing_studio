@@ -1,0 +1,20 @@
+{
+  "pair_id": "pair1_dose_text_change",
+  "description": "Alteração de dose (texto puro)",
+  "seed_pdf": "Bulário Eletrônico ANVISA — Sonridor Dor e Febre 750 mg (domínio público)",
+  "original_pdf": "pairs/pair1_dose_text_change/A.pdf",
+  "revised_pdf": "pairs/pair1_dose_text_change/B.pdf",
+  "expected_differences": [
+    {
+      "type": "text_changed",
+      "page": 1,
+      "bbox": [
+        248.64,
+        483.59,
+        346.56,
+        496.88
+      ],
+      "description": "Dose alterada de 750 mg para 500 mg na capa"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "pair_id": "pair3_visual_image_move",
+  "description": "Selo/logo movido e redimensionado (visual puro)",
+  "seed_pdf": "Bulário Eletrônico ANVISA — Sonridor Dor e Febre 750 mg (domínio público)",
+  "original_pdf": "pairs/pair3_visual_image_move/A.pdf",
+  "revised_pdf": "pairs/pair3_visual_image_move/B.pdf",
+  "expected_differences": [
+    {
+      "type": "visual",
+      "page": 4,
+      "bbox": [
+        85.05,
+        369.13,
+        118.8,
+        397.63
+      ],
+      "description": "Selo/logo removido da posição original"
+    },
+    {
+      "type": "visual",
+      "page": 4,
+      "bbox": [
+        380.0,
+        420.0,
+        434.0,
+        465.6
+      ],
+      "description": "Selo/logo reaparece deslocado e redimensionado"
+    }
+  ]
+}

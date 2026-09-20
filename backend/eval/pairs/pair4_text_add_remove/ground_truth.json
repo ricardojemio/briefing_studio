@@ -1,0 +1,42 @@
+{
+  "pair_id": "pair4_text_add_remove",
+  "description": "Texto alterado, removido e adicionado",
+  "seed_pdf": "Bulário Eletrônico ANVISA — Sonridor Dor e Febre 750 mg (domínio público)",
+  "original_pdf": "pairs/pair4_text_add_remove/A.pdf",
+  "revised_pdf": "pairs/pair4_text_add_remove/B.pdf",
+  "expected_differences": [
+    {
+      "type": "text_changed",
+      "page": 2,
+      "bbox": [
+        85.08,
+        161.4,
+        346.77,
+        172.43
+      ],
+      "description": "Dose alterada de 750 mg para 500 mg nas apresentações"
+    },
+    {
+      "type": "text_removed",
+      "page": 2,
+      "bbox": [
+        85.08,
+        183.84,
+        136.97,
+        194.87
+      ],
+      "description": "Aviso 'USO ORAL' removido"
+    },
+    {
+      "type": "text_added",
+      "page": 2,
+      "bbox": [
+        85.0,
+        789.47,
+        295.52,
+        802.81
+      ],
+      "description": "Frase de contraindicação adicionada sem previsão no original"
+    }
+  ]
+}
