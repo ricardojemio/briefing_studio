@@ -2,8 +2,9 @@
 backend/engines/pdf_comparator.py
 
 Automated pharmaceutical artwork comparison engine.
-Detects text, code (EAN/PharmaCode), visual, and dimensional differences
-between two PDF files.
+Detects text, code (EAN, via digit-pattern matching on extracted text —
+not real barcode decoding), visual, and dimensional differences between
+two PDF files.
 
 DO NOT MODIFY: pdf_draft_engine.py, raster_engine_v3.py, draft_engine.py, detector.py
 """
@@ -24,7 +25,10 @@ import numpy as np
 PT_TO_MM = 0.352778          # 1 PDF point = 0.352778 mm
 
 EAN_RE          = re.compile(r'\b(\d{8}|\d{13})\b')
-PHARMACODE_RE   = re.compile(r'\b(\d{3,7})\b')
+# NOTE: PharmaCode detection is out of scope for the comparison core — a
+# previous unused PHARMACODE_RE regex was removed rather than left dead.
+# Real PharmaCode support needs barcode decoding (e.g. pyzbar), not a
+# digit-count regex over extracted text.
 
 MIN_FONT_PT          = 6.0   # compliance: text below this is flagged
 TEXT_PROXIMITY_PT    = 5.0   # spans within this distance are candidate matches
