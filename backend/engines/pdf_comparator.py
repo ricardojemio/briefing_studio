@@ -3,8 +3,8 @@ backend/engines/pdf_comparator.py
 
 Automated pharmaceutical artwork comparison engine.
 Detects text, code (EAN, via digit-pattern matching on extracted text —
-not real barcode decoding), visual, and dimensional differences between
-two PDF files.
+not real barcode decoding), visual (ORB + homography registration ahead
+of pixel diffing), and dimensional differences between two PDF files.
 
 DO NOT MODIFY: pdf_draft_engine.py, raster_engine_v3.py, draft_engine.py, detector.py
 """
@@ -38,6 +38,14 @@ DIM_DELTA_MM         = 0.5   # page size change threshold in mm
 VISUAL_THRESHOLD     = 30    # pixel intensity diff (0–255)
 VISUAL_MIN_AREA_PX2  = 100   # min contour area (px²) to report as visual diff
 VISUAL_DILATE_PX     = 5     # dilation kernel size for merging nearby diff pixels
+
+# ── Image registration (ORB + homography) ──────────────────────────────────────────
+# ORB is used instead of SIFT/SURF because it is patent-free and ships in the
+# opencv-python-headless "main" module (no opencv-contrib dependency needed).
+ORB_N_FEATURES           = 5000
+ORB_MIN_MATCHES          = 15   # below this, alignment is considered unreliable
+ORB_LOWE_RATIO           = 0.75
+ORB_RANSAC_REPROJ_THRESH = 5.0  # px, at the comparison DPI
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────────
@@ -134,6 +142,78 @@ def _is_regulatory_text(text: str) -> bool:
     if not re.search(r'[a-zA-ZÀ-ÿ]', t): return False
     if any(re.match(p, t) for p in _SPEC_PATTERNS): return False
     return True
+
+
+def _fallback_resize(img_orig_bgr: np.ndarray, img_rev_bgr: np.ndarray) -> np.ndarray:
+    """Naive resize to the original's shape. Used only when feature-based
+    registration cannot find a reliable homography."""
+    if img_orig_bgr.shape == img_rev_bgr.shape:
+        return img_rev_bgr
+    return cv2.resize(
+        img_rev_bgr,
+        (img_orig_bgr.shape[1], img_orig_bgr.shape[0]),
+        interpolation=cv2.INTER_LINEAR,
+    )
+
+
+def _align_revised_to_original(
+    img_orig_bgr: np.ndarray, img_rev_bgr: np.ndarray
+) -> tuple[np.ndarray, dict]:
+    """
+    Register the revised page raster onto the original's pixel grid using
+    ORB feature matching + a RANSAC-estimated homography, so that downstream
+    pixel-diffing reflects genuine content changes rather than scan/print
+    registration drift (translation, rotation, small scale differences).
+
+    Falls back to a plain resize (previous behaviour) when there aren't
+    enough reliable feature correspondences to trust a homography — e.g.
+    near-blank pages, or pages so different that ORB can't find a
+    consistent geometric transform.
+
+    Returns (aligned_rev_bgr, info) where info documents which path was
+    taken, for observability/debugging.
+    """
+    info = {"method": "resize_fallback", "keypoints_orig": 0, "keypoints_rev": 0,
+            "good_matches": 0, "inliers": 0}
+
+    gray_orig = cv2.cvtColor(img_orig_bgr, cv2.COLOR_BGR2GRAY)
+    gray_rev  = cv2.cvtColor(img_rev_bgr,  cv2.COLOR_BGR2GRAY)
+
+    orb = cv2.ORB_create(nfeatures=ORB_N_FEATURES)
+    kp_o, des_o = orb.detectAndCompute(gray_orig, None)
+    kp_r, des_r = orb.detectAndCompute(gray_rev, None)
+    info["keypoints_orig"] = len(kp_o) if kp_o else 0
+    info["keypoints_rev"]  = len(kp_r) if kp_r else 0
+
+    if des_o is None or des_r is None or len(kp_o) < ORB_MIN_MATCHES or len(kp_r) < ORB_MIN_MATCHES:
+        return _fallback_resize(img_orig_bgr, img_rev_bgr), info
+
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING)
+    raw_matches = bf.knnMatch(des_r, des_o, k=2)
+    good = [m for m, n in raw_matches if len(raw_matches) and m.distance < ORB_LOWE_RATIO * n.distance]
+    info["good_matches"] = len(good)
+
+    if len(good) < ORB_MIN_MATCHES:
+        return _fallback_resize(img_orig_bgr, img_rev_bgr), info
+
+    src_pts = np.float32([kp_r[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+    dst_pts = np.float32([kp_o[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+
+    H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, ORB_RANSAC_REPROJ_THRESH)
+    inliers = int(mask.sum()) if mask is not None else 0
+    info["inliers"] = inliers
+
+    if H is None or inliers < ORB_MIN_MATCHES:
+        return _fallback_resize(img_orig_bgr, img_rev_bgr), info
+
+    h, w = img_orig_bgr.shape[:2]
+    aligned = cv2.warpPerspective(
+        img_rev_bgr, H, (w, h),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255),
+    )
+    info["method"] = "orb_homography"
+    return aligned, info
 
 
 def _bbox_overlap_ratio(a: tuple, b: tuple) -> float:
@@ -424,16 +504,11 @@ def compare_artworks(
             differences = kept
             summary["text_changes"] -= suppressed
 
-        # ── 5. Visual pixel diff ──────────────────────────────────────────────
-        img_orig_bgr = _render_page_bgr(page_orig, dpi)
-        img_rev_bgr  = _render_page_bgr(page_rev,  dpi)
+        # ── 5. Visual pixel diff (with geometric registration) ────────────────
+        img_orig_bgr     = _render_page_bgr(page_orig, dpi)
+        img_rev_bgr_raw  = _render_page_bgr(page_rev,  dpi)
 
-        if img_orig_bgr.shape != img_rev_bgr.shape:
-            img_rev_bgr = cv2.resize(
-                img_rev_bgr,
-                (img_orig_bgr.shape[1], img_orig_bgr.shape[0]),
-                interpolation=cv2.INTER_LINEAR,
-            )
+        img_rev_bgr, align_info = _align_revised_to_original(img_orig_bgr, img_rev_bgr_raw)
 
         diff_abs = cv2.absdiff(img_orig_bgr, img_rev_bgr)
         gray     = cv2.cvtColor(diff_abs, cv2.COLOR_BGR2GRAY)
@@ -504,6 +579,7 @@ def compare_artworks(
             "original_render_url": f"/previews/{_pf}_orig.png",
             "revised_render_url":  f"/previews/{_pf}_rev.png",
             "diff_render_url":     f"/previews/{_pf}_diff.png",
+            "alignment":         align_info,
         })
 
     # Extra pages in revised (added pages)
