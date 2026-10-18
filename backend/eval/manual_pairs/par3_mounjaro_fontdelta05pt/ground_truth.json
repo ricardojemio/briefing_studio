@@ -1,0 +1,19 @@
+{
+  "pair_id": "par3_mounjaro_fontdelta05pt",
+  "description": "Delta de fonte no limiar: label em negrito \"Pancreatite (...) aguda:\" de 12,0pt para 11,5pt, página 2",
+  "source": "Fornecido pelo usuário. A = 18078505_Mounjaro.pdf (bula pública ANVISA). B = mesma bula com o tamanho de fonte do label editado via redact+insert_text na mesma origem (x,y).",
+  "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+  "technical_note": "Este é o par que expôs e serviu para corrigir a cascata de falsos positivos no pareamento de spans (ver backend/eval/investigations/cascade_span_reordering_fontdelta05pt/). O delta de fonte (0.5pt) é exatamente igual a TEXT_SIZE_DELTA_PT, cuja comparação é estrita (>), então não dispara o tipo font_size por definição da constante — a única diferença genuína detectável é o efeito visual (glifos levemente menores).",
+  "original_pdf": "manual_pairs/par3_mounjaro_fontdelta05pt/A.pdf",
+  "revised_pdf": "manual_pairs/par3_mounjaro_fontdelta05pt/B.pdf",
+  "expected_differences": [
+    {
+      "type": "visual",
+      "page": 2,
+      "bbox": [72.0, 141.5, 300.4, 154.8],
+      "description": "Label 'Pancreatite (inflamação do pâncreas) aguda:' reduzido de 12.0pt para 11.5pt (edição real do usuário, não sintética)",
+      "original_text": "",
+      "revised_text": ""
+    }
+  ]
+}

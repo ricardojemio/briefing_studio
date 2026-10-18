@@ -14,7 +14,9 @@
         346.56,
         496.88
       ],
-      "description": "Dose alterada de 750 mg para 500 mg na capa"
+      "description": "Dose alterada de 750 mg para 500 mg na capa",
+      "original_text": "paracetamol 750 mg",
+      "revised_text": "paracetamol 500 mg"
     },
     {
       "type": "font_size",
@@ -25,7 +27,9 @@
         154.97,
         239.87
       ],
-      "description": "Título 'COMPOSIÇÃO' aumentado de 10pt para 14pt"
+      "description": "Título 'COMPOSIÇÃO' aumentado de 10pt para 14pt",
+      "original_text": "10.0pt",
+      "revised_text": "14.0pt"
     },
     {
       "type": "visual",
@@ -36,7 +40,9 @@
         118.8,
         397.63
       ],
-      "description": "Selo/logo removido da posição original"
+      "description": "Selo/logo removido da posição original",
+      "original_text": "",
+      "revised_text": ""
     },
     {
       "type": "visual",
@@ -47,7 +53,9 @@
         434.0,
         465.6
       ],
-      "description": "Selo/logo reaparece deslocado e redimensionado"
+      "description": "Selo/logo reaparece deslocado e redimensionado",
+      "original_text": "",
+      "revised_text": ""
     }
   ]
 }

@@ -1,0 +1,19 @@
+{
+  "pair_id": "par2_mounjaro_dose_17mg",
+  "description": "Dose sutil (1 caractere): \"15 mg\" -> \"17 mg\", página 4",
+  "source": "Fornecido pelo usuário. A = 18078505_Mounjaro.pdf (bula pública ANVISA). B = mesma bula com a dose editada via patch pontual no PDF.",
+  "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+  "technical_note": "O caractere inserido ('7') fica em um bloco de texto separado do span original no PDF revisado — o comparador reporta como text_changed (com 'MOUNJARO é 1  mg...', espaço duplo onde o '5' foi apagado) + text_added solto ('7'), em vez de um único text_changed limpo. Ver backend/eval/investigations/ para a investigação da causa raiz. O original_text/revised_text abaixo é o edit semântico real (750->755... 15->17), não o que o sistema hoje reporta — é exatamente essa diferença que a métrica estrita do harness deve capturar como FP+FN.",
+  "original_pdf": "manual_pairs/par2_mounjaro_dose_17mg/A.pdf",
+  "revised_pdf": "manual_pairs/par2_mounjaro_dose_17mg/B.pdf",
+  "expected_differences": [
+    {
+      "type": "text_changed",
+      "page": 4,
+      "bbox": [72.0, 196.7, 287.7, 210.0],
+      "description": "Dose máxima alterada de 15 mg para 17 mg (edição real do usuário, não sintética)",
+      "original_text": "MOUNJARO é 15 mg uma vez por semana.",
+      "revised_text": "MOUNJARO é 17 mg uma vez por semana."
+    }
+  ]
+}

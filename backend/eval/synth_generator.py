@@ -119,8 +119,15 @@ def _rect_list(r: fitz.Rect) -> list:
     return [round(r.x0, 2), round(r.y0, 2), round(r.x1, 2), round(r.y1, 2)]
 
 
-def _gt(type_: str, page_1idx: int, rect: fitz.Rect, description: str) -> dict:
-    return {"type": type_, "page": page_1idx, "bbox": _rect_list(rect), "description": description}
+def _gt(type_: str, page_1idx: int, rect: fitz.Rect, description: str,
+        original_text: str = "", revised_text: str = "") -> dict:
+    """original_text/revised_text follow compare_artworks()'s own output
+    convention per type (actual text for text_changed/removed/added, the
+    "<N.N>pt" string for font_size, "bold"/"regular"/"italic"/"bold italic"
+    for font_style, empty for visual/dimensional) so the harness's strict
+    metric can check reported content, not just type+bbox."""
+    return {"type": type_, "page": page_1idx, "bbox": _rect_list(rect), "description": description,
+            "original_text": original_text, "revised_text": revised_text}
 
 
 # ── Pair definitions ─────────────────────────────────────────────────────────────
@@ -131,7 +138,8 @@ def build_pair_1(doc: fitz.Document) -> list[dict]:
     """Dose changed on the cover page: pure text_changed."""
     page = doc[0]
     rect = replace_text(page, "paracetamol 750 mg", "paracetamol 500 mg")
-    return [_gt("text_changed", 1, rect, "Dose alterada de 750 mg para 500 mg na capa")]
+    return [_gt("text_changed", 1, rect, "Dose alterada de 750 mg para 500 mg na capa",
+                "paracetamol 750 mg", "paracetamol 500 mg")]
 
 
 def build_pair_2(doc: fitz.Document) -> list[dict]:
@@ -141,8 +149,8 @@ def build_pair_2(doc: fitz.Document) -> list[dict]:
                        "USO ADULTO E PEDIÁTRICO ACIMA DE 12 ANOS", bold=False)
     r2 = replace_text(page, "COMPOSIÇÃO", "COMPOSIÇÃO", fontsize=14.0)
     return [
-        _gt("font_style", 2, r1, "Título de seção deixou de ser negrito"),
-        _gt("font_size", 2, r2, "Título 'COMPOSIÇÃO' aumentado de 10pt para 14pt"),
+        _gt("font_style", 2, r1, "Título de seção deixou de ser negrito", "bold", "regular"),
+        _gt("font_size", 2, r2, "Título 'COMPOSIÇÃO' aumentado de 10pt para 14pt", "10.0pt", "14.0pt"),
     ]
 
 
@@ -167,9 +175,12 @@ def build_pair_4(doc: fitz.Document) -> list[dict]:
     r2 = remove_text(page, "USO ORAL")
     r3 = add_text(page, "Contraindicado para gestantes no primeiro trimestre.", (85, 800))
     return [
-        _gt("text_changed", 2, r1, "Dose alterada de 750 mg para 500 mg nas apresentações"),
-        _gt("text_removed", 2, r2, "Aviso 'USO ORAL' removido"),
-        _gt("text_added", 2, r3, "Frase de contraindicação adicionada sem previsão no original"),
+        _gt("text_changed", 2, r1, "Dose alterada de 750 mg para 500 mg nas apresentações",
+            "Comprimidos de 750 mg: embalagens com 20 e 50 comprimidos.",
+            "Comprimidos de 500 mg: embalagens com 20 e 50 comprimidos."),
+        _gt("text_removed", 2, r2, "Aviso 'USO ORAL' removido", "USO ORAL", ""),
+        _gt("text_added", 2, r3, "Frase de contraindicação adicionada sem previsão no original",
+            "", "Contraindicado para gestantes no primeiro trimestre."),
     ]
 
 
@@ -178,11 +189,12 @@ def build_pair_5(doc: fitz.Document) -> list[dict]:
     gt = []
     p0 = doc[0]
     r0 = replace_text(p0, "paracetamol 750 mg", "paracetamol 500 mg")
-    gt.append(_gt("text_changed", 1, r0, "Dose alterada de 750 mg para 500 mg na capa"))
+    gt.append(_gt("text_changed", 1, r0, "Dose alterada de 750 mg para 500 mg na capa",
+                   "paracetamol 750 mg", "paracetamol 500 mg"))
 
     p1 = doc[1]
     r1 = replace_text(p1, "COMPOSIÇÃO", "COMPOSIÇÃO", fontsize=14.0)
-    gt.append(_gt("font_size", 2, r1, "Título 'COMPOSIÇÃO' aumentado de 10pt para 14pt"))
+    gt.append(_gt("font_size", 2, r1, "Título 'COMPOSIÇÃO' aumentado de 10pt para 14pt", "10.0pt", "14.0pt"))
 
     p3 = doc[3]
     old_rect, new_rect = move_page_image(p3, fitz.Rect(380, 420, 434, 465.6))

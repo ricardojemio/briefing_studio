@@ -1,0 +1,9 @@
+{
+  "ground_truth_status": "PROVISÓRIO — todos os ground_truth.json desta pasta foram reconstruídos por inspeção dos PDFs (bbox/texto extraídos via _spans_from_page), não fornecidos pelo usuário. Substituir pelos gabaritos originais do usuário quando disponíveis; em caso de divergência, os do usuário prevalecem.",
+  "pairs": [
+    "par1_sonridor_dose_755mg",
+    "par2_mounjaro_dose_17mg",
+    "par3_mounjaro_fontdelta05pt",
+    "par4_mounjaro_multilinha"
+  ]
+}

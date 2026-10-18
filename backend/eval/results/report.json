@@ -2,7 +2,141 @@
   "pairs": {
     "pair1_dose_text_change": {
       "description": "Alteração de dose (texto puro)",
+      "ground_truth_status": "fornecido/gerado — não provisório",
       "metrics": {
+        "lenient": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        }
+      },
+      "false_negatives": [],
+      "false_positives": [],
+      "text_mismatches": []
+    },
+    "pair2_font_changes": {
+      "description": "Mudança de negrito e tamanho de fonte",
+      "ground_truth_status": "fornecido/gerado — não provisório",
+      "metrics": {
+        "lenient": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        }
+      },
+      "false_negatives": [],
+      "false_positives": [],
+      "text_mismatches": []
+    },
+    "pair3_visual_image_move": {
+      "description": "Selo/logo movido e redimensionado (visual puro)",
+      "ground_truth_status": "fornecido/gerado — não provisório",
+      "metrics": {
+        "lenient": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        }
+      },
+      "false_negatives": [],
+      "false_positives": [],
+      "text_mismatches": []
+    },
+    "pair4_text_add_remove": {
+      "description": "Texto alterado, removido e adicionado",
+      "ground_truth_status": "fornecido/gerado — não provisório",
+      "metrics": {
+        "lenient": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 3,
+          "fp": 0,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 3,
+          "fp": 0,
+          "fn": 0
+        }
+      },
+      "false_negatives": [],
+      "false_positives": [],
+      "text_mismatches": []
+    },
+    "pair5_combined": {
+      "description": "Texto + fonte + visual combinados",
+      "ground_truth_status": "fornecido/gerado — não provisório",
+      "metrics": {
+        "lenient": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 4,
+          "fp": 0,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 4,
+          "fp": 0,
+          "fn": 0
+        }
+      },
+      "false_negatives": [],
+      "false_positives": [],
+      "text_mismatches": []
+    }
+  },
+  "by_type": {
+    "lenient": {
+      "font_size": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 2,
+        "fp": 0,
+        "fn": 0
+      },
+      "font_style": {
         "precision": 1.0,
         "recall": 1.0,
         "f1": 1.0,
@@ -10,38 +144,15 @@
         "fp": 0,
         "fn": 0
       },
-      "false_negatives": [],
-      "false_positives": []
-    },
-    "pair2_font_changes": {
-      "description": "Mudança de negrito e tamanho de fonte",
-      "metrics": {
+      "text_added": {
         "precision": 1.0,
         "recall": 1.0,
         "f1": 1.0,
-        "tp": 2,
+        "tp": 1,
         "fp": 0,
         "fn": 0
       },
-      "false_negatives": [],
-      "false_positives": []
-    },
-    "pair3_visual_image_move": {
-      "description": "Selo/logo movido e redimensionado (visual puro)",
-      "metrics": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "tp": 2,
-        "fp": 0,
-        "fn": 0
-      },
-      "false_negatives": [],
-      "false_positives": []
-    },
-    "pair4_text_add_remove": {
-      "description": "Texto alterado, removido e adicionado",
-      "metrics": {
+      "text_changed": {
         "precision": 1.0,
         "recall": 1.0,
         "f1": 1.0,
@@ -49,80 +160,91 @@
         "fp": 0,
         "fn": 0
       },
-      "false_negatives": [],
-      "false_positives": []
-    },
-    "pair5_combined": {
-      "description": "Texto + fonte + visual combinados",
-      "metrics": {
+      "text_removed": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "visual": {
         "precision": 1.0,
         "recall": 1.0,
         "f1": 1.0,
         "tp": 4,
         "fp": 0,
         "fn": 0
+      }
+    },
+    "strict": {
+      "font_size": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 2,
+        "fp": 0,
+        "fn": 0
       },
-      "false_negatives": [],
-      "false_positives": []
-    }
-  },
-  "by_type": {
-    "font_size": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
-      "tp": 2,
-      "fp": 0,
-      "fn": 0
-    },
-    "font_style": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
-      "tp": 1,
-      "fp": 0,
-      "fn": 0
-    },
-    "text_added": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
-      "tp": 1,
-      "fp": 0,
-      "fn": 0
-    },
-    "text_changed": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
-      "tp": 3,
-      "fp": 0,
-      "fn": 0
-    },
-    "text_removed": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
-      "tp": 1,
-      "fp": 0,
-      "fn": 0
-    },
-    "visual": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
-      "tp": 4,
-      "fp": 0,
-      "fn": 0
+      "font_style": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "text_added": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "text_changed": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      },
+      "text_removed": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      }
     }
   },
   "overall": {
-    "precision": 1.0,
-    "recall": 1.0,
-    "f1": 1.0,
-    "tp": 12,
-    "fp": 0,
-    "fn": 0
+    "lenient": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 12,
+      "fp": 0,
+      "fn": 0
+    },
+    "strict": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 12,
+      "fp": 0,
+      "fn": 0
+    }
   },
   "alignment": [
     {

@@ -1,0 +1,18 @@
+{
+  "pair_id": "par1_sonridor_dose_755mg",
+  "description": "Dose sutil (1 caractere): \"750 mg\" -> \"755 mg\", página 1",
+  "source": "Fornecido pelo usuário (não gerado por synth_generator.py). A = bula pública ANVISA Sonridor Dor e Febre 750mg (backend/eval/seed/). B = mesma bula com a dose editada via patch pontual no PDF (não redação+reinserção da linha inteira).",
+  "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+  "original_pdf": "manual_pairs/par1_sonridor_dose_755mg/A.pdf",
+  "revised_pdf": "manual_pairs/par1_sonridor_dose_755mg/B.pdf",
+  "expected_differences": [
+    {
+      "type": "text_changed",
+      "page": 1,
+      "bbox": [248.6, 483.6, 349.6, 496.9],
+      "description": "Dose alterada de 750 mg para 755 mg na capa (edição real do usuário, não sintética)",
+      "original_text": "paracetamol 750 mg",
+      "revised_text": "paracetamol 755 mg"
+    }
+  ]
+}

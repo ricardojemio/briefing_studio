@@ -14,7 +14,9 @@
         346.77,
         172.43
       ],
-      "description": "Dose alterada de 750 mg para 500 mg nas apresentações"
+      "description": "Dose alterada de 750 mg para 500 mg nas apresentações",
+      "original_text": "Comprimidos de 750 mg: embalagens com 20 e 50 comprimidos.",
+      "revised_text": "Comprimidos de 500 mg: embalagens com 20 e 50 comprimidos."
     },
     {
       "type": "text_removed",
@@ -25,7 +27,9 @@
         136.97,
         194.87
       ],
-      "description": "Aviso 'USO ORAL' removido"
+      "description": "Aviso 'USO ORAL' removido",
+      "original_text": "USO ORAL",
+      "revised_text": ""
     },
     {
       "type": "text_added",
@@ -36,7 +40,9 @@
         295.52,
         802.81
       ],
-      "description": "Frase de contraindicação adicionada sem previsão no original"
+      "description": "Frase de contraindicação adicionada sem previsão no original",
+      "original_text": "",
+      "revised_text": "Contraindicado para gestantes no primeiro trimestre."
     }
   ]
 }

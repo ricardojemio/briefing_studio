@@ -14,7 +14,9 @@
         323.18,
         217.43
       ],
-      "description": "Título de seção deixou de ser negrito"
+      "description": "Título de seção deixou de ser negrito",
+      "original_text": "bold",
+      "revised_text": "regular"
     },
     {
       "type": "font_size",
@@ -25,7 +27,9 @@
         154.97,
         239.87
       ],
-      "description": "Título 'COMPOSIÇÃO' aumentado de 10pt para 14pt"
+      "description": "Título 'COMPOSIÇÃO' aumentado de 10pt para 14pt",
+      "original_text": "10.0pt",
+      "revised_text": "14.0pt"
     }
   ]
 }

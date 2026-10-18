@@ -1,0 +1,531 @@
+{
+  "pairs": {
+    "par1_sonridor_dose_755mg": {
+      "description": "Dose sutil (1 caractere): \"750 mg\" -> \"755 mg\", página 1",
+      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+      "metrics": {
+        "lenient": {
+          "precision": 0.333,
+          "recall": 1.0,
+          "f1": 0.5,
+          "tp": 1,
+          "fp": 2,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 3,
+          "fn": 1
+        }
+      },
+      "false_negatives": [],
+      "false_positives": [
+        {
+          "type": "text_added",
+          "page": 1,
+          "bbox": [
+            328.199951171875,
+            483.58660888671875,
+            349.55999755859375,
+            496.87567138671875
+          ],
+          "original_text": "",
+          "revised_text": "mg",
+          "description": "Text added: 'mg'"
+        },
+        {
+          "type": "text_added",
+          "page": 1,
+          "bbox": [
+            310.199951171875,
+            481.64398193359375,
+            328.199951171875,
+            497.6519775390625
+          ],
+          "original_text": "",
+          "revised_text": "755",
+          "description": "Text added: '755'"
+        }
+      ],
+      "text_mismatches": [
+        {
+          "expected": {
+            "type": "text_changed",
+            "page": 1,
+            "bbox": [
+              248.6,
+              483.6,
+              349.6,
+              496.9
+            ],
+            "description": "Dose alterada de 750 mg para 755 mg na capa (edição real do usuário, não sintética)",
+            "original_text": "paracetamol 750 mg",
+            "revised_text": "paracetamol 755 mg"
+          },
+          "detected": {
+            "type": "text_changed",
+            "page": 1,
+            "bbox": [
+              248.6400146484375,
+              483.58660888671875,
+              349.55999755859375,
+              496.87567138671875
+            ],
+            "original_text": "paracetamol 750 mg",
+            "revised_text": "paracetamol",
+            "description": "Text changed: 'paracetamol 750 mg' → 'paracetamol'"
+          }
+        }
+      ]
+    },
+    "par2_mounjaro_dose_17mg": {
+      "description": "Dose sutil (1 caractere): \"15 mg\" -> \"17 mg\", página 4",
+      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+      "metrics": {
+        "lenient": {
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.667,
+          "tp": 1,
+          "fp": 1,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 2,
+          "fn": 1
+        }
+      },
+      "false_negatives": [],
+      "false_positives": [
+        {
+          "type": "text_added",
+          "page": 4,
+          "bbox": [
+            155.89199829101562,
+            194.74400329589844,
+            161.89199829101562,
+            210.7519989013672
+          ],
+          "original_text": "",
+          "revised_text": "7",
+          "description": "Text added: '7'"
+        }
+      ],
+      "text_mismatches": [
+        {
+          "expected": {
+            "type": "text_changed",
+            "page": 4,
+            "bbox": [
+              72.0,
+              196.7,
+              287.7,
+              210.0
+            ],
+            "description": "Dose máxima alterada de 15 mg para 17 mg (edição real do usuário, não sintética)",
+            "original_text": "MOUNJARO é 15 mg uma vez por semana.",
+            "revised_text": "MOUNJARO é 17 mg uma vez por semana."
+          },
+          "detected": {
+            "type": "text_changed",
+            "page": 4,
+            "bbox": [
+              72.02400207519531,
+              196.6866455078125,
+              287.69000244140625,
+              209.9757080078125
+            ],
+            "original_text": "MOUNJARO é 15 mg uma vez por semana.",
+            "revised_text": "MOUNJARO é 1  mg uma vez por semana.",
+            "description": "Text changed: 'MOUNJARO é 15 mg uma vez por semana.' → 'MOUNJARO é 1  mg uma vez por semana.'"
+          }
+        }
+      ]
+    },
+    "par3_mounjaro_fontdelta05pt": {
+      "description": "Delta de fonte no limiar: label em negrito \"Pancreatite (...) aguda:\" de 12,0pt para 11,5pt, página 2",
+      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+      "metrics": {
+        "lenient": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        }
+      },
+      "false_negatives": [],
+      "false_positives": [],
+      "text_mismatches": []
+    },
+    "par4_mounjaro_multilinha": {
+      "description": "Texto em frase multilinha (1 caractere): \"farmacêutico\" -> \"farmacêutica\", dentro de uma frase em negrito que se estende por duas linhas físicas (hifenização \"cirurgião-dentista\"), página 4",
+      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+      "metrics": {
+        "lenient": {
+          "precision": 0.333,
+          "recall": 1.0,
+          "f1": 0.5,
+          "tp": 1,
+          "fp": 2,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 3,
+          "fn": 1
+        }
+      },
+      "false_negatives": [],
+      "false_positives": [
+        {
+          "type": "text_added",
+          "page": 4,
+          "bbox": [
+            371.6759948730469,
+            610.7666625976562,
+            540.1361083984375,
+            624.0557250976562
+          ],
+          "original_text": "",
+          "revised_text": "ou de seu médico ou cirurgião-",
+          "description": "Text added: 'ou de seu médico ou cirurgião-'"
+        },
+        {
+          "type": "text_added",
+          "page": 4,
+          "bbox": [
+            304.3919982910156,
+            608.9320068359375,
+            371.70001220703125,
+            625.552001953125
+          ],
+          "original_text": "",
+          "revised_text": "farmacêutica",
+          "description": "Text added: 'farmacêutica'"
+        }
+      ],
+      "text_mismatches": [
+        {
+          "expected": {
+            "type": "text_changed",
+            "page": 4,
+            "bbox": [
+              72.0,
+              610.8,
+              540.1,
+              624.1
+            ],
+            "description": "'farmacêutico' alterado para 'farmacêutica' na primeira linha física da frase (edição real do usuário, não sintética)",
+            "original_text": "Em caso de dúvidas, procure orientação do farmacêutico ou de seu médico ou cirurgião-",
+            "revised_text": "Em caso de dúvidas, procure orientação do farmacêutica ou de seu médico ou cirurgião-"
+          },
+          "detected": {
+            "type": "text_changed",
+            "page": 4,
+            "bbox": [
+              72.02400207519531,
+              610.7666625976562,
+              540.1361083984375,
+              624.0557250976562
+            ],
+            "original_text": "Em caso de dúvidas, procure orientação do farmacêutico ou de seu médico ou cirurgião-",
+            "revised_text": "Em caso de dúvidas, procure orientação do",
+            "description": "Text changed: 'Em caso de dúvidas, procure orientação do farmacêutico ou de seu médico ou cirurgião-' → 'Em caso de dúvidas, procure orientação do'"
+          }
+        }
+      ]
+    }
+  },
+  "by_type": {
+    "lenient": {
+      "text_added": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 5,
+        "fn": 0
+      },
+      "text_changed": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      },
+      "visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "strict": {
+      "text_added": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 5,
+        "fn": 0
+      },
+      "text_changed": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 3,
+        "fn": 3
+      },
+      "visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      }
+    }
+  },
+  "overall": {
+    "lenient": {
+      "precision": 0.444,
+      "recall": 1.0,
+      "f1": 0.615,
+      "tp": 4,
+      "fp": 5,
+      "fn": 0
+    },
+    "strict": {
+      "precision": 0.111,
+      "recall": 0.25,
+      "f1": 0.154,
+      "tp": 1,
+      "fp": 8,
+      "fn": 3
+    }
+  },
+  "alignment": [
+    {
+      "pair": "par1_sonridor_dose_755mg",
+      "page": 1,
+      "method": "orb_homography",
+      "keypoints_orig": 4410,
+      "keypoints_rev": 4398,
+      "good_matches": 4256,
+      "inliers": 4254
+    },
+    {
+      "pair": "par1_sonridor_dose_755mg",
+      "page": 2,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4941,
+      "inliers": 4941
+    },
+    {
+      "pair": "par1_sonridor_dose_755mg",
+      "page": 3,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4931,
+      "inliers": 4931
+    },
+    {
+      "pair": "par1_sonridor_dose_755mg",
+      "page": 4,
+      "method": "orb_homography",
+      "keypoints_orig": 5000,
+      "keypoints_rev": 5000,
+      "good_matches": 4976,
+      "inliers": 4976
+    },
+    {
+      "pair": "par2_mounjaro_dose_17mg",
+      "page": 1,
+      "method": "orb_homography",
+      "keypoints_orig": 5002,
+      "keypoints_rev": 5002,
+      "good_matches": 4839,
+      "inliers": 4839
+    },
+    {
+      "pair": "par2_mounjaro_dose_17mg",
+      "page": 2,
+      "method": "orb_homography",
+      "keypoints_orig": 5033,
+      "keypoints_rev": 5033,
+      "good_matches": 4863,
+      "inliers": 4863
+    },
+    {
+      "pair": "par2_mounjaro_dose_17mg",
+      "page": 3,
+      "method": "orb_homography",
+      "keypoints_orig": 5012,
+      "keypoints_rev": 5012,
+      "good_matches": 4880,
+      "inliers": 4880
+    },
+    {
+      "pair": "par2_mounjaro_dose_17mg",
+      "page": 4,
+      "method": "orb_homography",
+      "keypoints_orig": 5011,
+      "keypoints_rev": 5012,
+      "good_matches": 4780,
+      "inliers": 4779
+    },
+    {
+      "pair": "par2_mounjaro_dose_17mg",
+      "page": 5,
+      "method": "orb_homography",
+      "keypoints_orig": 5008,
+      "keypoints_rev": 5008,
+      "good_matches": 4801,
+      "inliers": 4801
+    },
+    {
+      "pair": "par2_mounjaro_dose_17mg",
+      "page": 6,
+      "method": "orb_homography",
+      "keypoints_orig": 5002,
+      "keypoints_rev": 5002,
+      "good_matches": 4962,
+      "inliers": 4962
+    },
+    {
+      "pair": "par3_mounjaro_fontdelta05pt",
+      "page": 1,
+      "method": "orb_homography",
+      "keypoints_orig": 5002,
+      "keypoints_rev": 5002,
+      "good_matches": 4839,
+      "inliers": 4839
+    },
+    {
+      "pair": "par3_mounjaro_fontdelta05pt",
+      "page": 2,
+      "method": "orb_homography",
+      "keypoints_orig": 5033,
+      "keypoints_rev": 5028,
+      "good_matches": 4640,
+      "inliers": 4624
+    },
+    {
+      "pair": "par3_mounjaro_fontdelta05pt",
+      "page": 3,
+      "method": "orb_homography",
+      "keypoints_orig": 5012,
+      "keypoints_rev": 5012,
+      "good_matches": 4880,
+      "inliers": 4880
+    },
+    {
+      "pair": "par3_mounjaro_fontdelta05pt",
+      "page": 4,
+      "method": "orb_homography",
+      "keypoints_orig": 5011,
+      "keypoints_rev": 5011,
+      "good_matches": 4802,
+      "inliers": 4802
+    },
+    {
+      "pair": "par3_mounjaro_fontdelta05pt",
+      "page": 5,
+      "method": "orb_homography",
+      "keypoints_orig": 5008,
+      "keypoints_rev": 5008,
+      "good_matches": 4801,
+      "inliers": 4801
+    },
+    {
+      "pair": "par3_mounjaro_fontdelta05pt",
+      "page": 6,
+      "method": "orb_homography",
+      "keypoints_orig": 5002,
+      "keypoints_rev": 5002,
+      "good_matches": 4962,
+      "inliers": 4962
+    },
+    {
+      "pair": "par4_mounjaro_multilinha",
+      "page": 1,
+      "method": "orb_homography",
+      "keypoints_orig": 5002,
+      "keypoints_rev": 5002,
+      "good_matches": 4839,
+      "inliers": 4839
+    },
+    {
+      "pair": "par4_mounjaro_multilinha",
+      "page": 2,
+      "method": "orb_homography",
+      "keypoints_orig": 5033,
+      "keypoints_rev": 5033,
+      "good_matches": 4863,
+      "inliers": 4863
+    },
+    {
+      "pair": "par4_mounjaro_multilinha",
+      "page": 3,
+      "method": "orb_homography",
+      "keypoints_orig": 5012,
+      "keypoints_rev": 5012,
+      "good_matches": 4880,
+      "inliers": 4880
+    },
+    {
+      "pair": "par4_mounjaro_multilinha",
+      "page": 4,
+      "method": "orb_homography",
+      "keypoints_orig": 5011,
+      "keypoints_rev": 5010,
+      "good_matches": 4729,
+      "inliers": 4720
+    },
+    {
+      "pair": "par4_mounjaro_multilinha",
+      "page": 5,
+      "method": "orb_homography",
+      "keypoints_orig": 5008,
+      "keypoints_rev": 5008,
+      "good_matches": 4801,
+      "inliers": 4801
+    },
+    {
+      "pair": "par4_mounjaro_multilinha",
+      "page": 6,
+      "method": "orb_homography",
+      "keypoints_orig": 5002,
+      "keypoints_rev": 5002,
+      "good_matches": 4962,
+      "inliers": 4962
+    }
+  ]
+}

@@ -14,7 +14,9 @@
         346.56,
         496.88
       ],
-      "description": "Dose alterada de 750 mg para 500 mg na capa"
+      "description": "Dose alterada de 750 mg para 500 mg na capa",
+      "original_text": "paracetamol 750 mg",
+      "revised_text": "paracetamol 500 mg"
     }
   ]
 }

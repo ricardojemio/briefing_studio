@@ -14,7 +14,9 @@
         118.8,
         397.63
       ],
-      "description": "Selo/logo removido da posição original"
+      "description": "Selo/logo removido da posição original",
+      "original_text": "",
+      "revised_text": ""
     },
     {
       "type": "visual",
@@ -25,7 +27,9 @@
         434.0,
         465.6
       ],
-      "description": "Selo/logo reaparece deslocado e redimensionado"
+      "description": "Selo/logo reaparece deslocado e redimensionado",
+      "original_text": "",
+      "revised_text": ""
     }
   ]
 }
