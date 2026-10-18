@@ -290,15 +290,182 @@ class TestComparator:
             )
 
             # The one real edit must be reported correctly, not swallowed
-            # by a cascade elsewhere.
+            # by a cascade elsewhere — and at word granularity ('10mg:' ->
+            # '12mg:'), not the whole surrounding line, now that text
+            # content is diffed at the word level (see
+            # engines/pdf_comparator.py's _diff_line_words).
             label_diffs = [
                 d for d in text_diffs
-                if d["original_text"] == "Dose: 10mg:" and d["revised_text"] == "Dose: 12mg:"
+                if d["original_text"] == "10mg:" and d["revised_text"] == "12mg:"
             ]
             assert len(label_diffs) == 1, (
-                f"Expected exactly one correct text_changed for the edited label; "
+                f"Expected exactly one correct text_changed for the edited word; "
                 f"got text diffs: {[(d['type'], d['original_text'], d['revised_text']) for d in text_diffs]}"
             )
+        finally:
+            Path(path).unlink(missing_ok=True)
+            Path(rev_path).unlink(missing_ok=True)
+
+    def test_substring_redaction_fragments_span_but_diff_stays_minimal(self):
+        """
+        Regression for the fragmentation documented in
+        backend/eval/manual_pairs/par1_sonridor_dose_755mg/: redacting only
+        a substring ("750") within a longer line ("paracetamol 750 mg")
+        splits the line into multiple spans in the revised PDF (confirmed
+        below) — e.g. "paracetamol" / "755 mg" as two separate spans,
+        neither of which is "paracetamol 750 mg" nor "paracetamol 755 mg".
+        Word-level diffing must still report just the one word that
+        changed, not leak the untouched "paracetamol"/"mg" as spurious
+        diffs, and not depend on how the span happened to split.
+        """
+        fd, path = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        try:
+            doc  = fitz.open()
+            page = doc.new_page(width=595.0, height=842.0)
+            page.insert_text((72, 100), "paracetamol 750 mg", fontsize=12, color=(0, 0, 0))
+            doc.save(path)
+            doc.close()
+
+            doc = fitz.open(path)
+            page = doc[0]
+            rect = page.search_for("750")[0]
+            page.add_redact_annot(rect, fill=(1, 1, 1))
+            page.apply_redactions()
+            page.insert_text((rect.x0, rect.y1 - 2.4), "755", fontsize=12, color=(0, 0, 0))
+            fd2, rev_path = tempfile.mkstemp(suffix=".pdf")
+            os.close(fd2)
+            doc.save(rev_path)
+            doc.close()
+
+            # Sanity check: confirm the span actually fragmented (not a no-op test).
+            doc_b = fitz.open(rev_path)
+            span_texts_b = [
+                sp.get("text", "").strip()
+                for block in doc_b[0].get_text("dict")["blocks"] if block.get("type") == 0
+                for line in block["lines"] for sp in line["spans"] if sp.get("text", "").strip()
+            ]
+            doc_b.close()
+            assert "paracetamol 755 mg" not in span_texts_b, (
+                f"Expected the revised line to be split into multiple spans, not one "
+                f"clean span — got {span_texts_b}; redaction technique no longer fragments."
+            )
+
+            result = _run(path, rev_path)
+            diffs = result["pages"][0]["differences"]
+            text_diffs = [d for d in diffs if d["type"] in ("text_changed", "text_removed", "text_added")]
+
+            assert len(text_diffs) == 1, (
+                f"Expected exactly one minimal diff for the dose change; got: "
+                f"{[(d['type'], d['original_text'], d['revised_text']) for d in text_diffs]}"
+            )
+            d = text_diffs[0]
+            assert d["type"] == "text_changed"
+            assert d["original_text"] == "750"
+            assert d["revised_text"] == "755"
+        finally:
+            Path(path).unlink(missing_ok=True)
+            Path(rev_path).unlink(missing_ok=True)
+
+    def test_deleted_character_with_orphan_insertion_stays_minimal(self):
+        """
+        Regression for the fragmentation documented in
+        backend/eval/manual_pairs/par2_mounjaro_dose_17mg/: deleting one
+        digit ("5" out of "15") leaves the surrounding sentence as a single
+        span with a gap, while the newly inserted digit ("7") lands as its
+        own disjoint span positioned at zero gap from where the deleted
+        digit was — reconstructing "17" requires recognizing that
+        zero-gap adjacency, not just concatenating spans with a space.
+        """
+        fd, path = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        try:
+            doc  = fitz.open()
+            page = doc.new_page(width=595.0, height=842.0)
+            page.insert_text((72, 100), "MOUNJARO maximum dose is 15 mg weekly.", fontsize=12, color=(0, 0, 0))
+            doc.save(path)
+            doc.close()
+
+            doc = fitz.open(path)
+            page = doc[0]
+            rect = page.search_for("15 mg")[0]
+            page.add_redact_annot(rect, fill=(1, 1, 1))
+            page.apply_redactions()
+            page.insert_text((rect.x0, rect.y1 - 2.4), "1  mg", fontsize=12, color=(0, 0, 0))
+            # Insert the replacement digit flush against the end of "1" —
+            # the exact zero-gap adjacency observed in the real par2 pair.
+            one_end_x = next(w[2] for w in page.get_text("words") if w[4] == "1")
+            page.insert_text((one_end_x, rect.y1 - 2.4), "7", fontsize=12, color=(0, 0, 0))
+            fd2, rev_path = tempfile.mkstemp(suffix=".pdf")
+            os.close(fd2)
+            doc.save(rev_path)
+            doc.close()
+
+            result = _run(path, rev_path)
+            diffs = result["pages"][0]["differences"]
+            text_diffs = [d for d in diffs if d["type"] in ("text_changed", "text_removed", "text_added")]
+
+            assert len(text_diffs) == 1, (
+                f"Expected exactly one minimal diff for the dose change; got: "
+                f"{[(d['type'], d['original_text'], d['revised_text']) for d in text_diffs]}"
+            )
+            d = text_diffs[0]
+            assert d["type"] == "text_changed"
+            assert d["original_text"] == "15"
+            assert d["revised_text"] == "17", (
+                f"Expected the orphan '7' to merge with '1' into '17' (zero-gap adjacency); "
+                f"got {d['revised_text']!r} — spacing reconstruction regressed."
+            )
+        finally:
+            Path(path).unlink(missing_ok=True)
+            Path(rev_path).unlink(missing_ok=True)
+
+    def test_hyphenated_multiline_edit_isolates_first_line_only(self):
+        """
+        Regression for the fragmentation documented in
+        backend/eval/manual_pairs/par4_mounjaro_multilinha/: editing one
+        word within the first of two physically-wrapped, hyphenated lines
+        ("...ou cirurgião-" / "dentista.") must report only that word's
+        change, and must not touch or report anything for the second
+        (untouched) physical line.
+        """
+        fd, path = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        try:
+            doc  = fitz.open()
+            page = doc.new_page(width=595.0, height=842.0)
+            page.insert_text((72, 100), "Em caso de duvidas, procure orientacao do farmaceutico ou cirurgiao-",
+                              fontsize=12, fontname="Times-Bold", color=(0, 0, 0))
+            page.insert_text((72, 120), "dentista.", fontsize=12, fontname="Times-Bold", color=(0, 0, 0))
+            doc.save(path)
+            doc.close()
+
+            doc = fitz.open(path)
+            page = doc[0]
+            rect = page.search_for("farmaceutico")[0]
+            page.add_redact_annot(rect, fill=(1, 1, 1))
+            page.apply_redactions()
+            page.insert_text((rect.x0, rect.y1 - 2.4), "farmaceutica", fontsize=12, fontname="Times-Bold", color=(0, 0, 0))
+            fd2, rev_path = tempfile.mkstemp(suffix=".pdf")
+            os.close(fd2)
+            doc.save(rev_path)
+            doc.close()
+
+            result = _run(path, rev_path)
+            diffs = result["pages"][0]["differences"]
+            text_diffs = [d for d in diffs if d["type"] in ("text_changed", "text_removed", "text_added")]
+
+            assert len(text_diffs) == 1, (
+                f"Expected exactly one minimal diff for the word change; got: "
+                f"{[(d['type'], d['original_text'], d['revised_text']) for d in text_diffs]}"
+            )
+            d = text_diffs[0]
+            assert d["type"] == "text_changed"
+            assert d["original_text"] == "farmaceutico"
+            assert d["revised_text"] == "farmaceutica"
+
+            leaked = [dd for dd in text_diffs if "dentista" in dd["original_text"] or "dentista" in dd["revised_text"]]
+            assert leaked == [], f"Second (untouched) physical line leaked into diffs: {leaked}"
         finally:
             Path(path).unlink(missing_ok=True)
             Path(rev_path).unlink(missing_ok=True)

@@ -2,18 +2,18 @@
   "pair_id": "par4_mounjaro_multilinha",
   "description": "Texto em frase multilinha (1 caractere): \"farmacêutico\" -> \"farmacêutica\", dentro de uma frase em negrito que se estende por duas linhas físicas (hifenização \"cirurgião-dentista\"), página 4",
   "source": "Fornecido pelo usuário. A = 18078505_Mounjaro.pdf (bula pública ANVISA). B = mesma bula com a palavra editada via patch pontual no PDF, dentro da primeira das duas linhas físicas; a segunda linha não muda.",
-  "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
-  "technical_note": "Mesmo padrão de fragmentação de span observado em par1: o comparador reporta como text_changed (truncado, só 'Em caso de dúvidas, procure orientação do') + text_added('ou de seu médico ou cirurgião-') + text_added('farmacêutica'), em vez de um único text_changed limpo. O original_text/revised_text abaixo é o edit semântico real, não o que o sistema hoje reporta.",
+  "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via get_text('words'), não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+  "technical_note": "Antes de fix/line-level-text-diff, o comparador reportava text_changed truncado ('...orientação do') + 2 text_added órfãos ('ou de seu médico ou cirurgião-', 'farmacêutica'). Depois do fix, o diff por palavras isola exatamente a palavra trocada, na mesma linha física; a segunda linha ('dentista.') não é tocada. Ver backend/eval/investigations/ e o commit desta branch.",
   "original_pdf": "manual_pairs/par4_mounjaro_multilinha/A.pdf",
   "revised_pdf": "manual_pairs/par4_mounjaro_multilinha/B.pdf",
   "expected_differences": [
     {
       "type": "text_changed",
       "page": 4,
-      "bbox": [72.0, 610.8, 540.1, 624.1],
+      "bbox": [304.4, 608.9, 371.7, 625.6],
       "description": "'farmacêutico' alterado para 'farmacêutica' na primeira linha física da frase (edição real do usuário, não sintética)",
-      "original_text": "Em caso de dúvidas, procure orientação do farmacêutico ou de seu médico ou cirurgião-",
-      "revised_text": "Em caso de dúvidas, procure orientação do farmacêutica ou de seu médico ou cirurgião-"
+      "original_text": "farmacêutico",
+      "revised_text": "farmacêutica"
     }
   ]
 }
