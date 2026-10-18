@@ -226,6 +226,69 @@ def _bbox_overlap_ratio(a: tuple, b: tuple) -> float:
     return overlap / area_a if area_a > 0 else 0.0
 
 
+def _bbox_iou(a: tuple, b: tuple) -> float:
+    """Symmetric intersection-over-union of two (x0,y0,x1,y1) bboxes,
+    0.0 when they don't actually intersect (ignores any matching pad)."""
+    ix0 = max(a[0], b[0]); iy0 = max(a[1], b[1])
+    ix1 = min(a[2], b[2]); iy1 = min(a[3], b[3])
+    if ix1 <= ix0 or iy1 <= iy0:
+        return 0.0
+    inter   = (ix1 - ix0) * (iy1 - iy0)
+    area_a  = (a[2] - a[0]) * (a[3] - a[1])
+    area_b  = (b[2] - b[0]) * (b[3] - b[1])
+    union   = area_a + area_b - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _match_spans(
+    spans_orig: list[dict], spans_rev: list[dict]
+) -> tuple[set[int], set[int], dict[int, int]]:
+    """
+    Pair original and revised spans by best geometric overlap rather than
+    first-candidate-within-tolerance.
+
+    A pure "first span of spans_rev within TEXT_PROXIMITY_PT of spans_orig[i]"
+    match is vulnerable to a single out-of-order span stealing an unrelated
+    neighbour's slot: PyMuPDF appends a freshly redact()+insert_text()'d
+    block to the END of a page's text-extraction order, not its visual
+    position, so a single edited line can land far from its original index.
+    Once that line's true match is skipped over (it's scanned last), the
+    first-match-wins loop greedily latches onto whatever adjacent-but-wrong
+    span happens to fall within the proximity pad, and the mismatch cascades
+    span-by-span for the rest of the page.
+
+    Candidate pairs are still gated by _bboxes_overlap() — same tolerance,
+    same admitted pairs as before — but are assigned highest-IoU-first
+    instead of first-found. A span's true counterpart, wherever it landed in
+    the list, has near-total bbox overlap (IoU close to 1.0); a merely
+    tolerance-adjacent neighbour (e.g. the next word on the same line, or
+    the line below) has IoU 0 — they touch or sit within the pad, but don't
+    actually intersect — so it only gets picked if nothing better exists for
+    either span, which is exactly the unambiguous, single-candidate case the
+    original algorithm already handled correctly.
+    """
+    candidates: list[tuple[float, int, int]] = []
+    for i, so in enumerate(spans_orig):
+        for j, sr in enumerate(spans_rev):
+            if _bboxes_overlap(so["bbox"], sr["bbox"]):
+                candidates.append((_bbox_iou(so["bbox"], sr["bbox"]), i, j))
+
+    candidates.sort(key=lambda c: c[0], reverse=True)
+
+    matched_orig: set[int] = set()
+    matched_rev:  set[int] = set()
+    match_map:    dict[int, int] = {}
+
+    for _score, i, j in candidates:
+        if i in matched_orig or j in matched_rev:
+            continue
+        matched_orig.add(i)
+        matched_rev.add(j)
+        match_map[i] = j
+
+    return matched_orig, matched_rev, match_map
+
+
 # ── Public API ────────────────────────────────────────────────────────────────────
 
 def compare_artworks(
@@ -298,100 +361,93 @@ def compare_artworks(
         spans_orig = _spans_from_page(page_orig)
         spans_rev  = _spans_from_page(page_rev)
 
-        matched_orig: set[int] = set()
-        matched_rev:  set[int] = set()
+        matched_orig, matched_rev, match_map = _match_spans(spans_orig, spans_rev)
 
         for i, so in enumerate(spans_orig):
-            for j, sr in enumerate(spans_rev):
-                if j in matched_rev:
-                    continue
-                if not _bboxes_overlap(so["bbox"], sr["bbox"]):
-                    continue
+            j = match_map.get(i)
+            if j is None:
+                continue
+            sr = spans_rev[j]
 
-                matched_orig.add(i)
-                matched_rev.add(j)
+            # ── 2a. Text content change ───────────────────────────────────────
+            if so["text"] != sr["text"]:
+                # Promote to ean_changed if either span contains EAN
+                has_ean = bool(EAN_RE.search(so["text"])) or bool(EAN_RE.search(sr["text"]))
+                dtype    = "ean_changed" if has_ean else "text_changed"
+                cat_key  = "code_changes" if has_ean else "text_changes"
+                differences.append({
+                    "id":            _next_id(counter),
+                    "type":          dtype,
+                    "severity":      "high",
+                    "original_text": so["text"],
+                    "revised_text":  sr["text"],
+                    "bbox":          list(so["bbox"]),
+                    "page":          page_idx + 1,
+                    "description":   f"Text changed: '{so['text']}' → '{sr['text']}'",
+                })
+                summary[cat_key] += 1
 
-                # ── 2a. Text content change ───────────────────────────────────
-                if so["text"] != sr["text"]:
-                    # Promote to ean_changed if either span contains EAN
-                    has_ean = bool(EAN_RE.search(so["text"])) or bool(EAN_RE.search(sr["text"]))
-                    dtype    = "ean_changed" if has_ean else "text_changed"
-                    cat_key  = "code_changes" if has_ean else "text_changes"
-                    differences.append({
-                        "id":            _next_id(counter),
-                        "type":          dtype,
-                        "severity":      "high",
-                        "original_text": so["text"],
-                        "revised_text":  sr["text"],
-                        "bbox":          list(so["bbox"]),
-                        "page":          page_idx + 1,
-                        "description":   f"Text changed: '{so['text']}' → '{sr['text']}'",
-                    })
-                    summary[cat_key] += 1
+            # ── 2b. Font size change ──────────────────────────────────────────
+            if abs(so["size"] - sr["size"]) > TEXT_SIZE_DELTA_PT:
+                differences.append({
+                    "id":            _next_id(counter),
+                    "type":          "font_size",
+                    "severity":      "medium",
+                    "original_text": f"{so['size']:.1f}pt",
+                    "revised_text":  f"{sr['size']:.1f}pt",
+                    "bbox":          list(so["bbox"]),
+                    "page":          page_idx + 1,
+                    "description":   (
+                        f"Font size changed on '{so['text']}': "
+                        f"{so['size']:.1f}pt → {sr['size']:.1f}pt"
+                    ),
+                })
+                summary["text_changes"] += 1
 
-                # ── 2b. Font size change ──────────────────────────────────────
-                if abs(so["size"] - sr["size"]) > TEXT_SIZE_DELTA_PT:
-                    differences.append({
-                        "id":            _next_id(counter),
-                        "type":          "font_size",
-                        "severity":      "medium",
-                        "original_text": f"{so['size']:.1f}pt",
-                        "revised_text":  f"{sr['size']:.1f}pt",
-                        "bbox":          list(so["bbox"]),
-                        "page":          page_idx + 1,
-                        "description":   (
-                            f"Font size changed on '{so['text']}': "
-                            f"{so['size']:.1f}pt → {sr['size']:.1f}pt"
-                        ),
-                    })
-                    summary["text_changes"] += 1
+            # ── 2c. Font style change (bold / italic) ─────────────────────────
+            bold_o, bold_r = _font_bold(so["flags"]),   _font_bold(sr["flags"])
+            ital_o, ital_r = _font_italic(so["flags"]), _font_italic(sr["flags"])
+            if bold_o != bold_r or ital_o != ital_r:
+                def _style(bold: bool, ital: bool) -> str:
+                    parts = (["bold"] if bold else []) + (["italic"] if ital else [])
+                    return " ".join(parts) or "regular"
+                differences.append({
+                    "id":            _next_id(counter),
+                    "type":          "font_style",
+                    "severity":      "medium",
+                    "original_text": _style(bold_o, ital_o),
+                    "revised_text":  _style(bold_r, ital_r),
+                    "bbox":          list(so["bbox"]),
+                    "page":          page_idx + 1,
+                    "description":   (
+                        f"Font style changed on '{so['text']}': "
+                        f"{_style(bold_o, ital_o)} → {_style(bold_r, ital_r)}"
+                    ),
+                })
+                summary["text_changes"] += 1
 
-                # ── 2c. Font style change (bold / italic) ─────────────────────
-                bold_o, bold_r = _font_bold(so["flags"]),   _font_bold(sr["flags"])
-                ital_o, ital_r = _font_italic(so["flags"]), _font_italic(sr["flags"])
-                if bold_o != bold_r or ital_o != ital_r:
-                    def _style(bold: bool, ital: bool) -> str:
-                        parts = (["bold"] if bold else []) + (["italic"] if ital else [])
-                        return " ".join(parts) or "regular"
-                    differences.append({
-                        "id":            _next_id(counter),
-                        "type":          "font_style",
-                        "severity":      "medium",
-                        "original_text": _style(bold_o, ital_o),
-                        "revised_text":  _style(bold_r, ital_r),
-                        "bbox":          list(so["bbox"]),
-                        "page":          page_idx + 1,
-                        "description":   (
-                            f"Font style changed on '{so['text']}': "
-                            f"{_style(bold_o, ital_o)} → {_style(bold_r, ital_r)}"
-                        ),
-                    })
-                    summary["text_changes"] += 1
-
-                # ── 2d. Text colour change (Delta-E) ──────────────────────────
-                if so["color"] != sr["color"]:
-                    try:
-                        de = _delta_e(_color_to_lab(so["color"]), _color_to_lab(sr["color"]))
-                        if de > COLOR_DE_THRESHOLD:
-                            differences.append({
-                                "id":            _next_id(counter),
-                                "type":          "color",
-                                "severity":      "medium",
-                                "original_text": f"#{so['color']:06X}",
-                                "revised_text":  f"#{sr['color']:06X}",
-                                "bbox":          list(so["bbox"]),
-                                "page":          page_idx + 1,
-                                "description":   (
-                                    f"Text colour changed on '{so['text']}': "
-                                    f"#{so['color']:06X} → #{sr['color']:06X}"
-                                    f" (ΔE={de:.1f})"
-                                ),
-                            })
-                            summary["text_changes"] += 1
-                    except Exception:
-                        pass
-
-                break  # found the match for spans_orig[i]
+            # ── 2d. Text colour change (Delta-E) ───────────────────────────────
+            if so["color"] != sr["color"]:
+                try:
+                    de = _delta_e(_color_to_lab(so["color"]), _color_to_lab(sr["color"]))
+                    if de > COLOR_DE_THRESHOLD:
+                        differences.append({
+                            "id":            _next_id(counter),
+                            "type":          "color",
+                            "severity":      "medium",
+                            "original_text": f"#{so['color']:06X}",
+                            "revised_text":  f"#{sr['color']:06X}",
+                            "bbox":          list(so["bbox"]),
+                            "page":          page_idx + 1,
+                            "description":   (
+                                f"Text colour changed on '{so['text']}': "
+                                f"#{so['color']:06X} → #{sr['color']:06X}"
+                                f" (ΔE={de:.1f})"
+                            ),
+                        })
+                        summary["text_changes"] += 1
+                except Exception:
+                    pass
 
         # ── 2e. Unmatched original spans = text removed ───────────────────────
         for i, so in enumerate(spans_orig):

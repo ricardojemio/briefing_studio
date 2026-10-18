@@ -213,3 +213,92 @@ class TestComparator:
             assert result["summary"]["compliance_flags"] == 0
         finally:
             Path(path).unlink(missing_ok=True)
+
+    def test_reinserted_span_does_not_cascade_false_positives(self):
+        """
+        Regression test for the "fontdelta05pt" cascade bug.
+
+        page.add_redact_annot() + apply_redactions() + insert_text() — the
+        standard PyMuPDF technique for patching a single line of text in an
+        existing PDF — appends the reinserted span to the END of the page's
+        get_text() extraction order, not its visual position. The matching
+        loop used to take the *first* span of spans_rev within
+        TEXT_PROXIMITY_PT of each spans_orig[i] rather than the *best*
+        match; since the reinserted span was scanned last, an unrelated
+        adjacent span (same line, or the line below) was picked up first and
+        "stole" the match, and every subsequent span cascaded one slot out
+        of alignment for the rest of the page.
+
+        Here only line 1's label is edited (text content changes, not just
+        size, so a correct match must show the real old/new text). Lines 2
+        and 3 are untouched. Before the fix this produced spurious
+        text_changed/removed/added diffs whose old/new text came from lines
+        2 and 3 — content that was never touched.
+        """
+        fd, path = tempfile.mkstemp(suffix=".pdf")
+        os.close(fd)
+        try:
+            doc  = fitz.open()
+            page = doc.new_page(width=595.0, height=842.0)
+            page.insert_text((72, 100), "Dose: 10mg:", fontsize=12, fontname="Times-Bold", color=(0, 0, 0))
+            label_rect = page.search_for("Dose: 10mg:")[0]
+            page.insert_text((label_rect.x1, 100), " see table below", fontsize=12, color=(0, 0, 0))
+            page.insert_text((72, 120), "Second line of text unrelated to the edit.", fontsize=12, color=(0, 0, 0))
+            page.insert_text((72, 140), "Third line, also unrelated to the edit.", fontsize=12, color=(0, 0, 0))
+            doc.save(path)
+            doc.close()
+
+            doc = fitz.open(path)
+            page = doc[0]
+            rect = page.search_for("Dose: 10mg:")[0]
+            page.add_redact_annot(rect, fill=(1, 1, 1))
+            page.apply_redactions()
+            page.insert_text((rect.x0, rect.y1 - 2.4), "Dose: 12mg:", fontsize=12, fontname="Times-Bold", color=(0, 0, 0))
+            fd2, rev_path = tempfile.mkstemp(suffix=".pdf")
+            os.close(fd2)
+            doc.save(rev_path)
+            doc.close()
+
+            # Sanity check on the root cause itself: the reinserted span
+            # must land away from its original index for this test to be
+            # exercising the real bug, not a no-op.
+            doc_a = fitz.open(path)
+            doc_b = fitz.open(rev_path)
+            spans_a = _spans_from_page(doc_a[0])
+            spans_b = _spans_from_page(doc_b[0])
+            idx_a = next(i for i, s in enumerate(spans_a) if s["text"] == "Dose: 10mg:")
+            idx_b = next(i for i, s in enumerate(spans_b) if s["text"] == "Dose: 12mg:")
+            assert idx_b != idx_a, (
+                "Expected PyMuPDF to reorder the reinserted span (known redact+insert_text "
+                "side effect) — if this no longer reorders, the regression scenario changed."
+            )
+            doc_a.close()
+            doc_b.close()
+
+            result = _run(path, rev_path)
+            diffs = result["pages"][0]["differences"]
+
+            text_diffs = [d for d in diffs if d["type"] in ("text_changed", "text_removed", "text_added")]
+
+            untouched_markers = ["Second line", "Third line", "unrelated to the edit"]
+            leaked = [
+                d for d in text_diffs
+                if any(m in d["original_text"] or m in d["revised_text"] for m in untouched_markers)
+            ]
+            assert leaked == [], (
+                f"Untouched lines leaked into text diffs — cascade bug reintroduced: {leaked}"
+            )
+
+            # The one real edit must be reported correctly, not swallowed
+            # by a cascade elsewhere.
+            label_diffs = [
+                d for d in text_diffs
+                if d["original_text"] == "Dose: 10mg:" and d["revised_text"] == "Dose: 12mg:"
+            ]
+            assert len(label_diffs) == 1, (
+                f"Expected exactly one correct text_changed for the edited label; "
+                f"got text diffs: {[(d['type'], d['original_text'], d['revised_text']) for d in text_diffs]}"
+            )
+        finally:
+            Path(path).unlink(missing_ok=True)
+            Path(rev_path).unlink(missing_ok=True)
