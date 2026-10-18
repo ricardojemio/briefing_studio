@@ -38,6 +38,12 @@ const STATUS_LABEL: Record<string, string> = {
 
 type Tab = 'overview' | 'briefing' | 'comparison' | 'timeline'
 
+// 'briefing' (annotation-driven draft generation, built on raster_engine_v3 /
+// pdf_draft_engine) is out of scope for the comparison-focused product and
+// hidden from navigation below. The tab and its placeholder content are kept
+// in code, unreachable, so this is reversible without re-threading state.
+const VISIBLE_TABS: Tab[] = ['overview', 'comparison', 'timeline']
+
 interface Props {
   processId: string
   onBack:    () => void
@@ -45,7 +51,7 @@ interface Props {
 
 export default function ProcessDetailPage({ processId, onBack }: Props) {
   const [proc,    setProc]    = useState<ArtworkProcess | null>(null)
-  const [tab,     setTab]     = useState<Tab>('overview')
+  const [tab,     setTab]     = useState<Tab>('comparison')
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
   const [moving,  setMoving]  = useState(false)
@@ -215,7 +221,7 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
         background: T.bgSurface, flexShrink: 0,
         padding: '0 24px',
       }}>
-        {(['overview', 'briefing', 'comparison', 'timeline'] as Tab[]).map(t => (
+        {VISIBLE_TABS.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}

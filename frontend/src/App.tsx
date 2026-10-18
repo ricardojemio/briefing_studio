@@ -11,7 +11,11 @@ import type { Artwork } from './types'
 type View = 'dashboard' | 'studio' | 'processes' | 'process-new' | 'process-detail'
 
 export default function App() {
-  const [view,              setView]              = useState<View>('dashboard')
+  // ArtReview (PDF artwork version comparison) is the primary tool and the
+  // default landing view. The legacy Dashboard/Studio (annotation-driven
+  // draft generation) flow is kept intact in code but unlinked from
+  // navigation — out of scope for the comparison-focused product.
+  const [view,              setView]              = useState<View>('processes')
   const [artwork,           setArtwork]           = useState<Artwork | null>(null)
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null)
   const { setPage, setElements, setActions, setPagePreview } = useStore()
@@ -37,7 +41,6 @@ export default function App() {
   if (view === 'processes') {
     return (
       <ProcessListPage
-        onBack={() => setView('dashboard')}
         onNew={() => setView('process-new')}
         onSelect={(id) => { setSelectedProcessId(id); setView('process-detail') }}
       />

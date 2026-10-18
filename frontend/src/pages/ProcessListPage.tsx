@@ -47,7 +47,7 @@ const STATUS_LABELS: Record<ProcessStatus, string> = {
 interface Props {
   onNew:    () => void
   onSelect: (id: string) => void
-  onBack:   () => void
+  onBack?:  () => void
 }
 
 export default function ProcessListPage({ onNew, onSelect, onBack }: Props) {
@@ -102,16 +102,19 @@ export default function ProcessListPage({ onNew, onSelect, onBack }: Props) {
         justifyContent: 'space-between', flexShrink: 0, gap: 16,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={onBack} style={{
-            background: 'none', border: `1px solid ${T.border}`,
-            color: T.textSecond, cursor: 'pointer', padding: '5px 10px',
-            borderRadius: 6, fontSize: 13, transition: 'color 0.12s, border-color 0.12s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.color = T.textPrimary; e.currentTarget.style.borderColor = '#4A5070' }}
-            onMouseLeave={e => { e.currentTarget.style.color = T.textSecond;  e.currentTarget.style.borderColor = T.border }}
-          >←</button>
-
-          <div style={{ width: 1, height: 24, background: T.border }} />
+          {onBack && (
+            <>
+              <button onClick={onBack} style={{
+                background: 'none', border: `1px solid ${T.border}`,
+                color: T.textSecond, cursor: 'pointer', padding: '5px 10px',
+                borderRadius: 6, fontSize: 13, transition: 'color 0.12s, border-color 0.12s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.color = T.textPrimary; e.currentTarget.style.borderColor = '#4A5070' }}
+                onMouseLeave={e => { e.currentTarget.style.color = T.textSecond;  e.currentTarget.style.borderColor = T.border }}
+              >←</button>
+              <div style={{ width: 1, height: 24, background: T.border }} />
+            </>
+          )}
 
           {/* Logo mark */}
           <div style={{
@@ -131,7 +134,7 @@ export default function ProcessListPage({ onNew, onSelect, onBack }: Props) {
               ArtReview
             </div>
             <div style={{ color: T.textMuted, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              Artwork Lifecycle Management
+              PDF Artwork Version Comparison
             </div>
           </div>
         </div>

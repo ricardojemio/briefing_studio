@@ -205,7 +205,7 @@ export default function NewProcessPage({ onBack, onCreated }: Props) {
 
             {/* PDF upload */}
             <div style={{ marginTop: 14 }}>
-              <label style={labelSt}>Artwork PDF</label>
+              <label style={labelSt}>Original Artwork PDF (comparison baseline)</label>
               <input
                 ref={fileRef}
                 type="file"
