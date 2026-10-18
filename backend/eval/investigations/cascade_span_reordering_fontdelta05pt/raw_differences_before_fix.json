@@ -1,0 +1,752 @@
+[
+  {
+    "id": "diff_001",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Pancreatite (inflamação do pâncreas) aguda:",
+    "revised_text": "MOUNJARO não foi estudado em pacientes com",
+    "bbox": [
+      72.02400207519531,
+      141.48663330078125,
+      300.44610595703125,
+      154.77569580078125
+    ],
+    "page": 2,
+    "description": "Text changed: 'Pancreatite (inflamação do pâncreas) aguda:' → 'MOUNJARO não foi estudado em pacientes com'"
+  },
+  {
+    "id": "diff_003",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "MOUNJARO não foi estudado em pacientes com",
+    "revised_text": "histórico de inflamação no pâncreas e deve ser utilizado com cautela nesses pacientes. Converse",
+    "bbox": [
+      300.4100036621094,
+      141.48663330078125,
+      542.97802734375,
+      154.77569580078125
+    ],
+    "page": 2,
+    "description": "Text changed: 'MOUNJARO não foi estudado em pacientes com' → 'histórico de inflamação no pâncreas e deve ser utilizado com cautela nesses pacientes. Converse'"
+  },
+  {
+    "id": "diff_004",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "histórico de inflamação no pâncreas e deve ser utilizado com cautela nesses pacientes. Converse",
+    "revised_text": "com o seu médico para obter mais informações sobre os sintomas da pancreatite. Se você estiver",
+    "bbox": [
+      72.02400207519531,
+      155.28662109375,
+      543.06396484375,
+      168.57568359375
+    ],
+    "page": 2,
+    "description": "Text changed: 'histórico de inflamação no pâncreas e deve ser utilizado com cautela nesses pacientes. Converse' → 'com o seu médico para obter mais informações sobre os sintomas da pancreatite. Se você estiver'"
+  },
+  {
+    "id": "diff_005",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "com o seu médico para obter mais informações sobre os sintomas da pancreatite. Se você estiver",
+    "revised_text": "com suspeita de pancreatite e em tratamento com MOUNJARO, informe ao seu médico e",
+    "bbox": [
+      72.02400207519531,
+      169.086669921875,
+      543.0400390625,
+      182.375732421875
+    ],
+    "page": 2,
+    "description": "Text changed: 'com o seu médico para obter mais informações sobre os sintomas da pancreatite. Se você estiver' → 'com suspeita de pancreatite e em tratamento com MOUNJARO, informe ao seu médico e'"
+  },
+  {
+    "id": "diff_006",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "com suspeita de pancreatite e em tratamento com MOUNJARO, informe ao seu médico e",
+    "revised_text": "interrompa o tratamento. Se houver a confirmação de pancreatite, MOUNJARO não deverá ser",
+    "bbox": [
+      72.02400207519531,
+      182.88665771484375,
+      543.052001953125,
+      196.17572021484375
+    ],
+    "page": 2,
+    "description": "Text changed: 'com suspeita de pancreatite e em tratamento com MOUNJARO, informe ao seu médico e' → 'interrompa o tratamento. Se houver a confirmação de pancreatite, MOUNJARO não deverá ser'"
+  },
+  {
+    "id": "diff_007",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "interrompa o tratamento. Se houver a confirmação de pancreatite, MOUNJARO não deverá ser",
+    "revised_text": "reiniciado.",
+    "bbox": [
+      72.02400207519531,
+      196.6866455078125,
+      543.0999755859375,
+      209.9757080078125
+    ],
+    "page": 2,
+    "description": "Text changed: 'interrompa o tratamento. Se houver a confirmação de pancreatite, MOUNJARO não deverá ser' → 'reiniciado.'"
+  },
+  {
+    "id": "diff_008",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "reiniciado.",
+    "revised_text": "Hipoglicemia (nível de açúcar no sangue mais baixo que o normal):",
+    "bbox": [
+      72.02400207519531,
+      210.48663330078125,
+      126.0199966430664,
+      223.77569580078125
+    ],
+    "page": 2,
+    "description": "Text changed: 'reiniciado.' → 'Hipoglicemia (nível de açúcar no sangue mais baixo que o normal):'"
+  },
+  {
+    "id": "diff_010",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Hipoglicemia (nível de açúcar no sangue mais baixo que o normal):",
+    "revised_text": "pacientes em tratamento",
+    "bbox": [
+      72.02400207519531,
+      224.28662109375,
+      422.3500061035156,
+      237.57568359375
+    ],
+    "page": 2,
+    "description": "Text changed: 'Hipoglicemia (nível de açúcar no sangue mais baixo que o normal):' → 'pacientes em tratamento'"
+  },
+  {
+    "id": "diff_012",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "pacientes em tratamento",
+    "revised_text": "com MOUNJARO combinado a um secretagogo (medicamento que faz liberar insulina), por",
+    "bbox": [
+      422.7099914550781,
+      224.28662109375,
+      543.052001953125,
+      237.57568359375
+    ],
+    "page": 2,
+    "description": "Text changed: 'pacientes em tratamento' → 'com MOUNJARO combinado a um secretagogo (medicamento que faz liberar insulina), por'"
+  },
+  {
+    "id": "diff_013",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "com MOUNJARO combinado a um secretagogo (medicamento que faz liberar insulina), por",
+    "revised_text": "exemplo, sulfonilureia, ou à insulina podem apresentar um risco aumentado de hipoglicemia.",
+    "bbox": [
+      72.02400207519531,
+      238.11663818359375,
+      543.135986328125,
+      251.40570068359375
+    ],
+    "page": 2,
+    "description": "Text changed: 'com MOUNJARO combinado a um secretagogo (medicamento que faz liberar insulina), por' → 'exemplo, sulfonilureia, ou à insulina podem apresentar um risco aumentado de hipoglicemia.'"
+  },
+  {
+    "id": "diff_014",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "exemplo, sulfonilureia, ou à insulina podem apresentar um risco aumentado de hipoglicemia.",
+    "revised_text": "Informe ao seu médico se fizer uso de sulfonilureia ou insulina, pois o risco de hipoglicemia pode",
+    "bbox": [
+      72.02400207519531,
+      251.9166259765625,
+      542.9860229492188,
+      265.2056884765625
+    ],
+    "page": 2,
+    "description": "Text changed: 'exemplo, sulfonilureia, ou à insulina podem apresentar um risco aumentado de hipoglicemia.' → 'Informe ao seu médico se fizer uso de sulfonilureia ou insulina, pois o risco de hipoglicemia pode'"
+  },
+  {
+    "id": "diff_015",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Informe ao seu médico se fizer uso de sulfonilureia ou insulina, pois o risco de hipoglicemia pode",
+    "revised_text": "ser diminuído por meio da alteração da dose desses outros medicamentos.",
+    "bbox": [
+      72.02400207519531,
+      265.71661376953125,
+      543.0220336914062,
+      279.00567626953125
+    ],
+    "page": 2,
+    "description": "Text changed: 'Informe ao seu médico se fizer uso de sulfonilureia ou insulina, pois o risco de hipoglicemia pode' → 'ser diminuído por meio da alteração da dose desses outros medicamentos.'"
+  },
+  {
+    "id": "diff_016",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "ser diminuído por meio da alteração da dose desses outros medicamentos.",
+    "revised_text": "Reações de hipersensibilidade:",
+    "bbox": [
+      72.02400207519531,
+      279.5166320800781,
+      429.42999267578125,
+      292.8056945800781
+    ],
+    "page": 2,
+    "description": "Text changed: 'ser diminuído por meio da alteração da dose desses outros medicamentos.' → 'Reações de hipersensibilidade:'"
+  },
+  {
+    "id": "diff_018",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Reações de hipersensibilidade:",
+    "revised_text": "ao iniciar o tratamento com MOUNJARO você pode apresentar",
+    "bbox": [
+      72.02400207519531,
+      293.316650390625,
+      229.2860870361328,
+      306.605712890625
+    ],
+    "page": 2,
+    "description": "Text changed: 'Reações de hipersensibilidade:' → 'ao iniciar o tratamento com MOUNJARO você pode apresentar'"
+  },
+  {
+    "id": "diff_020",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "ao iniciar o tratamento com MOUNJARO você pode apresentar",
+    "revised_text": "reações de hipersensibilidade, como por exemplo urticária (vergões avermelhados na pele) e",
+    "bbox": [
+      229.25,
+      293.316650390625,
+      542.9860229492188,
+      306.605712890625
+    ],
+    "page": 2,
+    "description": "Text changed: 'ao iniciar o tratamento com MOUNJARO você pode apresentar' → 'reações de hipersensibilidade, como por exemplo urticária (vergões avermelhados na pele) e'"
+  },
+  {
+    "id": "diff_021",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "reações de hipersensibilidade, como por exemplo urticária (vergões avermelhados na pele) e",
+    "revised_text": "eczema (inflamação na pele). Caso ocorra uma reação de hipersensibilidade, interrompa o uso de",
+    "bbox": [
+      72.02400207519531,
+      307.11663818359375,
+      543.0999755859375,
+      320.40570068359375
+    ],
+    "page": 2,
+    "description": "Text changed: 'reações de hipersensibilidade, como por exemplo urticária (vergões avermelhados na pele) e' → 'eczema (inflamação na pele). Caso ocorra uma reação de hipersensibilidade, interrompa o uso de'"
+  },
+  {
+    "id": "diff_022",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "eczema (inflamação na pele). Caso ocorra uma reação de hipersensibilidade, interrompa o uso de",
+    "revised_text": "MOUNJARO e informe ao seu médico. Informe seu médico caso possua histórico de angioedema",
+    "bbox": [
+      72.02400207519531,
+      320.9166259765625,
+      543.0999755859375,
+      334.2056884765625
+    ],
+    "page": 2,
+    "description": "Text changed: 'eczema (inflamação na pele). Caso ocorra uma reação de hipersensibilidade, interrompa o uso de' → 'MOUNJARO e informe ao seu médico. Informe seu médico caso possua histórico de angioedema'"
+  },
+  {
+    "id": "diff_023",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "MOUNJARO e informe ao seu médico. Informe seu médico caso possua histórico de angioedema",
+    "revised_text": "(inchaço repentino sob a pele) e anafilaxia (reação alérgica grave) com o uso de outros",
+    "bbox": [
+      72.02400207519531,
+      334.7166442871094,
+      543.013916015625,
+      348.0057067871094
+    ],
+    "page": 2,
+    "description": "Text changed: 'MOUNJARO e informe ao seu médico. Informe seu médico caso possua histórico de angioedema' → '(inchaço repentino sob a pele) e anafilaxia (reação alérgica grave) com o uso de outros'"
+  },
+  {
+    "id": "diff_024",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "(inchaço repentino sob a pele) e anafilaxia (reação alérgica grave) com o uso de outros",
+    "revised_text": "medicamentos para diabetes.",
+    "bbox": [
+      72.02400207519531,
+      348.5166320800781,
+      543.0999755859375,
+      361.8056945800781
+    ],
+    "page": 2,
+    "description": "Text changed: '(inchaço repentino sob a pele) e anafilaxia (reação alérgica grave) com o uso de outros' → 'medicamentos para diabetes.'"
+  },
+  {
+    "id": "diff_025",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "medicamentos para diabetes.",
+    "revised_text": "Efeitos gastrointestinais:",
+    "bbox": [
+      72.02400207519531,
+      362.316650390625,
+      213.2899932861328,
+      375.605712890625
+    ],
+    "page": 2,
+    "description": "Text changed: 'medicamentos para diabetes.' → 'Efeitos gastrointestinais:'"
+  },
+  {
+    "id": "diff_027",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Efeitos gastrointestinais:",
+    "revised_text": "ao iniciar o tratamento com MOUNJARO você pode apresentar náusea",
+    "bbox": [
+      72.02400207519531,
+      376.11663818359375,
+      198.08609008789062,
+      389.40570068359375
+    ],
+    "page": 2,
+    "description": "Text changed: 'Efeitos gastrointestinais:' → 'ao iniciar o tratamento com MOUNJARO você pode apresentar náusea'"
+  },
+  {
+    "id": "diff_029",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "ao iniciar o tratamento com MOUNJARO você pode apresentar náusea",
+    "revised_text": "(enjoo), vômito e diarreia (ver seção 8. QUAIS OS MALES QUE ESTE MEDICAMENTO PODE",
+    "bbox": [
+      198.0500030517578,
+      376.11663818359375,
+      543.0760498046875,
+      389.40570068359375
+    ],
+    "page": 2,
+    "description": "Text changed: 'ao iniciar o tratamento com MOUNJARO você pode apresentar náusea' → '(enjoo), vômito e diarreia (ver seção 8. QUAIS OS MALES QUE ESTE MEDICAMENTO PODE'"
+  },
+  {
+    "id": "diff_030",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "(enjoo), vômito e diarreia (ver seção 8. QUAIS OS MALES QUE ESTE MEDICAMENTO PODE",
+    "revised_text": "ME CAUSAR?). Esses eventos podem levar à desidratação (perda de líquidos), o que pode",
+    "bbox": [
+      72.02400207519531,
+      389.9166259765625,
+      542.9779663085938,
+      403.2056884765625
+    ],
+    "page": 2,
+    "description": "Text changed: '(enjoo), vômito e diarreia (ver seção 8. QUAIS OS MALES QUE ESTE MEDICAMENTO PODE' → 'ME CAUSAR?). Esses eventos podem levar à desidratação (perda de líquidos), o que pode'"
+  },
+  {
+    "id": "diff_031",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "ME CAUSAR?). Esses eventos podem levar à desidratação (perda de líquidos), o que pode",
+    "revised_text": "diminuir a função renal. É importante aumentar a ingestão de líquidos para evitar a desidratação.",
+    "bbox": [
+      72.02400207519531,
+      403.73663330078125,
+      543.0880126953125,
+      417.02569580078125
+    ],
+    "page": 2,
+    "description": "Text changed: 'ME CAUSAR?). Esses eventos podem levar à desidratação (perda de líquidos), o que pode' → 'diminuir a função renal. É importante aumentar a ingestão de líquidos para evitar a desidratação.'"
+  },
+  {
+    "id": "diff_032",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "diminuir a função renal. É importante aumentar a ingestão de líquidos para evitar a desidratação.",
+    "revised_text": "Converse com seu médico.",
+    "bbox": [
+      72.02400207519531,
+      417.5366516113281,
+      542.7860107421875,
+      430.8257141113281
+    ],
+    "page": 2,
+    "description": "Text changed: 'diminuir a função renal. É importante aumentar a ingestão de líquidos para evitar a desidratação.' → 'Converse com seu médico.'"
+  },
+  {
+    "id": "diff_033",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Converse com seu médico.",
+    "revised_text": "Aspiração pulmonar:",
+    "bbox": [
+      72.02400207519531,
+      431.3366394042969,
+      204.41000366210938,
+      444.6257019042969
+    ],
+    "page": 2,
+    "description": "Text changed: 'Converse com seu médico.' → 'Aspiração pulmonar:'"
+  },
+  {
+    "id": "diff_035",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Aspiração pulmonar:",
+    "revised_text": "MOUNJARO retarda o esvaziamento do estômago. Foi reportada",
+    "bbox": [
+      72.02400207519531,
+      445.1366271972656,
+      186.22808837890625,
+      458.4256896972656
+    ],
+    "page": 2,
+    "description": "Text changed: 'Aspiração pulmonar:' → 'MOUNJARO retarda o esvaziamento do estômago. Foi reportada'"
+  },
+  {
+    "id": "diff_037",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "MOUNJARO retarda o esvaziamento do estômago. Foi reportada",
+    "revised_text": "aspiração pulmonar (broncoaspiração) em pacientes submetidos a anestesia geral ou sedação",
+    "bbox": [
+      186.25999450683594,
+      445.1366271972656,
+      543.0759887695312,
+      458.4256896972656
+    ],
+    "page": 2,
+    "description": "Text changed: 'MOUNJARO retarda o esvaziamento do estômago. Foi reportada' → 'aspiração pulmonar (broncoaspiração) em pacientes submetidos a anestesia geral ou sedação'"
+  },
+  {
+    "id": "diff_038",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "aspiração pulmonar (broncoaspiração) em pacientes submetidos a anestesia geral ou sedação",
+    "revised_text": "profunda e que fazem uso de medicamentos da mesma classe de MOUNJARO. Antes da realização",
+    "bbox": [
+      72.02400207519531,
+      458.9366455078125,
+      542.9059448242188,
+      472.2257080078125
+    ],
+    "page": 2,
+    "description": "Text changed: 'aspiração pulmonar (broncoaspiração) em pacientes submetidos a anestesia geral ou sedação' → 'profunda e que fazem uso de medicamentos da mesma classe de MOUNJARO. Antes da realização'"
+  },
+  {
+    "id": "diff_039",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "profunda e que fazem uso de medicamentos da mesma classe de MOUNJARO. Antes da realização",
+    "revised_text": "desses procedimentos, informe seu médico imediatamente sobre o uso desta classe de",
+    "bbox": [
+      72.02400207519531,
+      472.73663330078125,
+      543.0100708007812,
+      486.02569580078125
+    ],
+    "page": 2,
+    "description": "Text changed: 'profunda e que fazem uso de medicamentos da mesma classe de MOUNJARO. Antes da realização' → 'desses procedimentos, informe seu médico imediatamente sobre o uso desta classe de'"
+  },
+  {
+    "id": "diff_040",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "desses procedimentos, informe seu médico imediatamente sobre o uso desta classe de",
+    "revised_text": "medicamentos.",
+    "bbox": [
+      72.02400207519531,
+      486.5366516113281,
+      542.8560791015625,
+      499.8257141113281
+    ],
+    "page": 2,
+    "description": "Text changed: 'desses procedimentos, informe seu médico imediatamente sobre o uso desta classe de' → 'medicamentos.'"
+  },
+  {
+    "id": "diff_041",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "medicamentos.",
+    "revised_text": "Doença gastrointestinal grave:",
+    "bbox": [
+      72.02400207519531,
+      500.3366394042969,
+      147.3800048828125,
+      513.625732421875
+    ],
+    "page": 2,
+    "description": "Text changed: 'medicamentos.' → 'Doença gastrointestinal grave:'"
+  },
+  {
+    "id": "diff_043",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Doença gastrointestinal grave:",
+    "revised_text": "MOUNJARO não foi estudado em pacientes com doença",
+    "bbox": [
+      72.02400207519531,
+      514.1365966796875,
+      234.68609619140625,
+      527.4256591796875
+    ],
+    "page": 2,
+    "description": "Text changed: 'Doença gastrointestinal grave:' → 'MOUNJARO não foi estudado em pacientes com doença'"
+  },
+  {
+    "id": "diff_045",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "MOUNJARO não foi estudado em pacientes com doença",
+    "revised_text": "gastrointestinal grave (doença dos órgãos digestivos), incluindo gastroparesia (desordem que",
+    "bbox": [
+      234.77000427246094,
+      514.1365966796875,
+      542.9420166015625,
+      527.4256591796875
+    ],
+    "page": 2,
+    "description": "Text changed: 'MOUNJARO não foi estudado em pacientes com doença' → 'gastrointestinal grave (doença dos órgãos digestivos), incluindo gastroparesia (desordem que'"
+  },
+  {
+    "id": "diff_046",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "gastrointestinal grave (doença dos órgãos digestivos), incluindo gastroparesia (desordem que",
+    "revised_text": "atrasa o esvaziamento do estômago) grave. Foram reportados eventos relacionados com atraso no",
+    "bbox": [
+      72.02400207519531,
+      527.9366455078125,
+      543.0519409179688,
+      541.2257080078125
+    ],
+    "page": 2,
+    "description": "Text changed: 'gastrointestinal grave (doença dos órgãos digestivos), incluindo gastroparesia (desordem que' → 'atrasa o esvaziamento do estômago) grave. Foram reportados eventos relacionados com atraso no'"
+  },
+  {
+    "id": "diff_047",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "atrasa o esvaziamento do estômago) grave. Foram reportados eventos relacionados com atraso no",
+    "revised_text": "esvaziamento gástrico, incluindo gastroparesia grave. Caso tenha sintomas de doença",
+    "bbox": [
+      72.02400207519531,
+      541.7366333007812,
+      542.9539794921875,
+      555.0256958007812
+    ],
+    "page": 2,
+    "description": "Text changed: 'atrasa o esvaziamento do estômago) grave. Foram reportados eventos relacionados com atraso no' → 'esvaziamento gástrico, incluindo gastroparesia grave. Caso tenha sintomas de doença'"
+  },
+  {
+    "id": "diff_048",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "esvaziamento gástrico, incluindo gastroparesia grave. Caso tenha sintomas de doença",
+    "revised_text": "gastrointestinal grave informe ao seu médico, pois ele poderá modificar a sua dose ou descontinuar",
+    "bbox": [
+      72.02400207519531,
+      555.53662109375,
+      542.8080444335938,
+      568.82568359375
+    ],
+    "page": 2,
+    "description": "Text changed: 'esvaziamento gástrico, incluindo gastroparesia grave. Caso tenha sintomas de doença' → 'gastrointestinal grave informe ao seu médico, pois ele poderá modificar a sua dose ou descontinuar'"
+  },
+  {
+    "id": "diff_049",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "gastrointestinal grave informe ao seu médico, pois ele poderá modificar a sua dose ou descontinuar",
+    "revised_text": "o seu tratamento.",
+    "bbox": [
+      72.02400207519531,
+      569.336669921875,
+      543.0,
+      582.625732421875
+    ],
+    "page": 2,
+    "description": "Text changed: 'gastrointestinal grave informe ao seu médico, pois ele poderá modificar a sua dose ou descontinuar' → 'o seu tratamento.'"
+  },
+  {
+    "id": "diff_050",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "o seu tratamento.",
+    "revised_text": "Desnutrição:",
+    "bbox": [
+      72.02400207519531,
+      583.1666259765625,
+      157.33999633789062,
+      596.4556884765625
+    ],
+    "page": 2,
+    "description": "Text changed: 'o seu tratamento.' → 'Desnutrição:'"
+  },
+  {
+    "id": "diff_052",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Desnutrição:",
+    "revised_text": "foram reportados eventos relacionados à desnutrição (diminuição da absorção de",
+    "bbox": [
+      72.02400207519531,
+      596.9666748046875,
+      137.93609619140625,
+      610.2557373046875
+    ],
+    "page": 2,
+    "description": "Text changed: 'Desnutrição:' → 'foram reportados eventos relacionados à desnutrição (diminuição da absorção de'"
+  },
+  {
+    "id": "diff_054",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "foram reportados eventos relacionados à desnutrição (diminuição da absorção de",
+    "revised_text": "nutrientes), podendo ser graves. Informe ao seu médico caso apresente sintomas como: deficiência",
+    "bbox": [
+      137.89999389648438,
+      596.9666748046875,
+      542.8400268554688,
+      610.2557373046875
+    ],
+    "page": 2,
+    "description": "Text changed: 'foram reportados eventos relacionados à desnutrição (diminuição da absorção de' → 'nutrientes), podendo ser graves. Informe ao seu médico caso apresente sintomas como: deficiência'"
+  },
+  {
+    "id": "diff_055",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "nutrientes), podendo ser graves. Informe ao seu médico caso apresente sintomas como: deficiência",
+    "revised_text": "de vitaminas e minerais, deficiência de proteína, diminuição de peso corporal, entre outros. Seu",
+    "bbox": [
+      72.02400207519531,
+      610.7666625976562,
+      542.8800048828125,
+      624.0557250976562
+    ],
+    "page": 2,
+    "description": "Text changed: 'nutrientes), podendo ser graves. Informe ao seu médico caso apresente sintomas como: deficiência' → 'de vitaminas e minerais, deficiência de proteína, diminuição de peso corporal, entre outros. Seu'"
+  },
+  {
+    "id": "diff_056",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "de vitaminas e minerais, deficiência de proteína, diminuição de peso corporal, entre outros. Seu",
+    "revised_text": "médico poderá solicitar suplemento nutricional ou descontinuação do tratamento em casos graves",
+    "bbox": [
+      72.02400207519531,
+      624.566650390625,
+      543.0400390625,
+      637.855712890625
+    ],
+    "page": 2,
+    "description": "Text changed: 'de vitaminas e minerais, deficiência de proteína, diminuição de peso corporal, entre outros. Seu' → 'médico poderá solicitar suplemento nutricional ou descontinuação do tratamento em casos graves'"
+  },
+  {
+    "id": "diff_057",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "médico poderá solicitar suplemento nutricional ou descontinuação do tratamento em casos graves",
+    "revised_text": "ou persistentes.",
+    "bbox": [
+      72.02400207519531,
+      638.3666381835938,
+      542.9400634765625,
+      651.6557006835938
+    ],
+    "page": 2,
+    "description": "Text changed: 'médico poderá solicitar suplemento nutricional ou descontinuação do tratamento em casos graves' → 'ou persistentes.'"
+  },
+  {
+    "id": "diff_058",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "ou persistentes.",
+    "revised_text": "Retinopatia diabética (doença ocular diabética):",
+    "bbox": [
+      72.02400207519531,
+      652.1666259765625,
+      149.05999755859375,
+      665.4556884765625
+    ],
+    "page": 2,
+    "description": "Text changed: 'ou persistentes.' → 'Retinopatia diabética (doença ocular diabética):'"
+  },
+  {
+    "id": "diff_060",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "Retinopatia diabética (doença ocular diabética):",
+    "revised_text": "MOUNJARO não foi estudado em pacientes",
+    "bbox": [
+      72.02400207519531,
+      665.9666748046875,
+      319.8861083984375,
+      679.2557373046875
+    ],
+    "page": 2,
+    "description": "Text changed: 'Retinopatia diabética (doença ocular diabética):' → 'MOUNJARO não foi estudado em pacientes'"
+  },
+  {
+    "id": "diff_062",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "MOUNJARO não foi estudado em pacientes",
+    "revised_text": "com retinopatia diabética grave ou que estivessem em tratamento. Informe ao seu médico caso",
+    "bbox": [
+      319.8699951171875,
+      665.9666748046875,
+      543.0100708007812,
+      679.2557373046875
+    ],
+    "page": 2,
+    "description": "Text changed: 'MOUNJARO não foi estudado em pacientes' → 'com retinopatia diabética grave ou que estivessem em tratamento. Informe ao seu médico caso'"
+  },
+  {
+    "id": "diff_063",
+    "type": "text_changed",
+    "severity": "high",
+    "original_text": "com retinopatia diabética grave ou que estivessem em tratamento. Informe ao seu médico caso",
+    "revised_text": "tenha retinopatia diabética (doença ocular diabética).",
+    "bbox": [
+      72.02400207519531,
+      679.7666625976562,
+      542.9740600585938,
+      693.0557250976562
+    ],
+    "page": 2,
+    "description": "Text changed: 'com retinopatia diabética grave ou que estivessem em tratamento. Informe ao seu médico caso' → 'tenha retinopatia diabética (doença ocular diabética).'"
+  },
+  {
+    "id": "diff_064",
+    "type": "text_removed",
+    "severity": "high",
+    "original_text": "tenha retinopatia diabética (doença ocular diabética).",
+    "revised_text": "",
+    "bbox": [
+      72.02400207519531,
+      693.5626220703125,
+      328.989990234375,
+      706.8516845703125
+    ],
+    "page": 2,
+    "description": "Text removed: 'tenha retinopatia diabética (doença ocular diabética).'"
+  },
+  {
+    "id": "diff_065",
+    "type": "text_added",
+    "severity": "medium",
+    "original_text": "",
+    "revised_text": "Pancreatite (inflamação do pâncreas) aguda:",
+    "bbox": [
+      72.02400207519531,
+      140.1739959716797,
+      291.77752685546875,
+      156.1014862060547
+    ],
+    "page": 2,
+    "description": "Text added: 'Pancreatite (inflamação do pâncreas) aguda:'"
+  }
+]

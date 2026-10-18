@@ -1,0 +1,155 @@
+{
+  "spans_a": [
+    {
+      "text": "Label text here:",
+      "bbox": [
+        72.0,
+        87.47200012207031,
+        153.31201171875,
+        104.09200286865234
+      ]
+    },
+    {
+      "text": "continuation text on same line",
+      "bbox": [
+        153.31199645996094,
+        87.36399841308594,
+        300.9720153808594,
+        103.37200164794922
+      ]
+    },
+    {
+      "text": "Second line of text unrelated to the edit.",
+      "bbox": [
+        72.0,
+        107.36399841308594,
+        263.97601318359375,
+        123.37200164794922
+      ]
+    },
+    {
+      "text": "Third line, also unrelated to the edit.",
+      "bbox": [
+        72.0,
+        127.36399841308594,
+        246.64801025390625,
+        143.3719940185547
+      ]
+    }
+  ],
+  "spans_b": [
+    {
+      "text": "continuation text on same line",
+      "bbox": [
+        153.31199645996094,
+        87.36399841308594,
+        300.9720153808594,
+        103.37200164794922
+      ]
+    },
+    {
+      "text": "Second line of text unrelated to the edit.",
+      "bbox": [
+        72.0,
+        107.36399841308594,
+        263.97601318359375,
+        123.37200164794922
+      ]
+    },
+    {
+      "text": "Third line, also unrelated to the edit.",
+      "bbox": [
+        72.0,
+        127.36399841308594,
+        246.64801025390625,
+        143.3719940185547
+      ]
+    },
+    {
+      "text": "Label text here:",
+      "bbox": [
+        72.0,
+        89.78599548339844,
+        149.92401123046875,
+        105.71349334716797
+      ]
+    }
+  ],
+  "differences": [
+    {
+      "id": "diff_001",
+      "type": "text_changed",
+      "severity": "high",
+      "original_text": "Label text here:",
+      "revised_text": "continuation text on same line",
+      "bbox": [
+        72.0,
+        87.47200012207031,
+        153.31201171875,
+        104.09200286865234
+      ],
+      "page": 1,
+      "description": "Text changed: 'Label text here:' → 'continuation text on same line'"
+    },
+    {
+      "id": "diff_003",
+      "type": "text_changed",
+      "severity": "high",
+      "original_text": "continuation text on same line",
+      "revised_text": "Second line of text unrelated to the edit.",
+      "bbox": [
+        153.31199645996094,
+        87.36399841308594,
+        300.9720153808594,
+        103.37200164794922
+      ],
+      "page": 1,
+      "description": "Text changed: 'continuation text on same line' → 'Second line of text unrelated to the edit.'"
+    },
+    {
+      "id": "diff_004",
+      "type": "text_changed",
+      "severity": "high",
+      "original_text": "Second line of text unrelated to the edit.",
+      "revised_text": "Third line, also unrelated to the edit.",
+      "bbox": [
+        72.0,
+        107.36399841308594,
+        263.97601318359375,
+        123.37200164794922
+      ],
+      "page": 1,
+      "description": "Text changed: 'Second line of text unrelated to the edit.' → 'Third line, also unrelated to the edit.'"
+    },
+    {
+      "id": "diff_005",
+      "type": "text_removed",
+      "severity": "high",
+      "original_text": "Third line, also unrelated to the edit.",
+      "revised_text": "",
+      "bbox": [
+        72.0,
+        127.36399841308594,
+        246.64801025390625,
+        143.3719940185547
+      ],
+      "page": 1,
+      "description": "Text removed: 'Third line, also unrelated to the edit.'"
+    },
+    {
+      "id": "diff_006",
+      "type": "text_added",
+      "severity": "medium",
+      "original_text": "",
+      "revised_text": "Label text here:",
+      "bbox": [
+        72.0,
+        89.78599548339844,
+        149.92401123046875,
+        105.71349334716797
+      ],
+      "page": 1,
+      "description": "Text added: 'Label text here:'"
+    }
+  ]
+}

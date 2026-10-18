@@ -1,0 +1,607 @@
+[
+  {
+    "idx": 0,
+    "text": "Risco de tumores de células C da tireoide:",
+    "bbox": [
+      72.0,
+      72.5,
+      282.7,
+      85.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 1,
+    "text": "não se sabe se MOUNJARO causa tumores de células",
+    "bbox": [
+      282.6,
+      72.5,
+      543.0,
+      85.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 2,
+    "text": "C da tireoide em humanos. Converse com o seu médico para obt",
+    "bbox": [
+      72.0,
+      86.3,
+      542.8,
+      99.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 3,
+    "text": "sintomas de tumores da tireoide, como: massa no pescoço, dis",
+    "bbox": [
+      72.0,
+      100.1,
+      543.1,
+      113.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 4,
+    "text": "dispneia (falta de ar) e rouquidão persistente. Informe ao s",
+    "bbox": [
+      72.0,
+      113.9,
+      543.1,
+      127.2
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 5,
+    "text": "tireoide.",
+    "bbox": [
+      72.0,
+      127.7,
+      114.6,
+      141.0
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 6,
+    "text": "Pancreatite (inflamação do pâncreas) aguda:",
+    "bbox": [
+      72.0,
+      141.5,
+      300.4,
+      154.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 7,
+    "text": "MOUNJARO não foi estudado em pacientes com",
+    "bbox": [
+      300.4,
+      141.5,
+      543.0,
+      154.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 8,
+    "text": "histórico de inflamação no pâncreas e deve ser utilizado com",
+    "bbox": [
+      72.0,
+      155.3,
+      543.1,
+      168.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 9,
+    "text": "com o seu médico para obter mais informações sobre os sintom",
+    "bbox": [
+      72.0,
+      169.1,
+      543.0,
+      182.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 10,
+    "text": "com suspeita de pancreatite e em tratamento com MOUNJARO, in",
+    "bbox": [
+      72.0,
+      182.9,
+      543.1,
+      196.2
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 11,
+    "text": "interrompa o tratamento. Se houver a confirmação de pancreat",
+    "bbox": [
+      72.0,
+      196.7,
+      543.1,
+      210.0
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 12,
+    "text": "reiniciado.",
+    "bbox": [
+      72.0,
+      210.5,
+      126.0,
+      223.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 13,
+    "text": "Hipoglicemia (nível de açúcar no sangue mais baixo que o nor",
+    "bbox": [
+      72.0,
+      224.3,
+      422.4,
+      237.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 14,
+    "text": "pacientes em tratamento",
+    "bbox": [
+      422.7,
+      224.3,
+      543.1,
+      237.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 15,
+    "text": "com MOUNJARO combinado a um secretagogo (medicamento que faz",
+    "bbox": [
+      72.0,
+      238.1,
+      543.1,
+      251.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 16,
+    "text": "exemplo, sulfonilureia, ou à insulina podem apresentar um ri",
+    "bbox": [
+      72.0,
+      251.9,
+      543.0,
+      265.2
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 17,
+    "text": "Informe ao seu médico se fizer uso de sulfonilureia ou insul",
+    "bbox": [
+      72.0,
+      265.7,
+      543.0,
+      279.0
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 18,
+    "text": "ser diminuído por meio da alteração da dose desses outros me",
+    "bbox": [
+      72.0,
+      279.5,
+      429.4,
+      292.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 19,
+    "text": "Reações de hipersensibilidade:",
+    "bbox": [
+      72.0,
+      293.3,
+      229.3,
+      306.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 20,
+    "text": "ao iniciar o tratamento com MOUNJARO você pode apresentar",
+    "bbox": [
+      229.2,
+      293.3,
+      543.0,
+      306.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 21,
+    "text": "reações de hipersensibilidade, como por exemplo urticária (v",
+    "bbox": [
+      72.0,
+      307.1,
+      543.1,
+      320.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 22,
+    "text": "eczema (inflamação na pele). Caso ocorra uma reação de hiper",
+    "bbox": [
+      72.0,
+      320.9,
+      543.1,
+      334.2
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 23,
+    "text": "MOUNJARO e informe ao seu médico. Informe seu médico caso po",
+    "bbox": [
+      72.0,
+      334.7,
+      543.0,
+      348.0
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 24,
+    "text": "(inchaço repentino sob a pele) e anafilaxia (reação alérgica",
+    "bbox": [
+      72.0,
+      348.5,
+      543.1,
+      361.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 25,
+    "text": "medicamentos para diabetes.",
+    "bbox": [
+      72.0,
+      362.3,
+      213.3,
+      375.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 26,
+    "text": "Efeitos gastrointestinais:",
+    "bbox": [
+      72.0,
+      376.1,
+      198.1,
+      389.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 27,
+    "text": "ao iniciar o tratamento com MOUNJARO você pode apresentar ná",
+    "bbox": [
+      198.1,
+      376.1,
+      543.1,
+      389.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 28,
+    "text": "(enjoo), vômito e diarreia (ver seção 8. QUAIS OS MALES QUE ",
+    "bbox": [
+      72.0,
+      389.9,
+      543.0,
+      403.2
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 29,
+    "text": "ME CAUSAR?). Esses eventos podem levar à desidratação (perda",
+    "bbox": [
+      72.0,
+      403.7,
+      543.1,
+      417.0
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 30,
+    "text": "diminuir a função renal. É importante aumentar a ingestão de",
+    "bbox": [
+      72.0,
+      417.5,
+      542.8,
+      430.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 31,
+    "text": "Converse com seu médico.",
+    "bbox": [
+      72.0,
+      431.3,
+      204.4,
+      444.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 32,
+    "text": "Aspiração pulmonar:",
+    "bbox": [
+      72.0,
+      445.1,
+      186.2,
+      458.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 33,
+    "text": "MOUNJARO retarda o esvaziamento do estômago. Foi reportada",
+    "bbox": [
+      186.3,
+      445.1,
+      543.1,
+      458.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 34,
+    "text": "aspiração pulmonar (broncoaspiração) em pacientes submetidos",
+    "bbox": [
+      72.0,
+      458.9,
+      542.9,
+      472.2
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 35,
+    "text": "profunda e que fazem uso de medicamentos da mesma classe de ",
+    "bbox": [
+      72.0,
+      472.7,
+      543.0,
+      486.0
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 36,
+    "text": "desses procedimentos, informe seu médico imediatamente sobre",
+    "bbox": [
+      72.0,
+      486.5,
+      542.9,
+      499.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 37,
+    "text": "medicamentos.",
+    "bbox": [
+      72.0,
+      500.3,
+      147.4,
+      513.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 38,
+    "text": "Doença gastrointestinal grave:",
+    "bbox": [
+      72.0,
+      514.1,
+      234.7,
+      527.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 39,
+    "text": "MOUNJARO não foi estudado em pacientes com doença",
+    "bbox": [
+      234.8,
+      514.1,
+      542.9,
+      527.4
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 40,
+    "text": "gastrointestinal grave (doença dos órgãos digestivos), inclu",
+    "bbox": [
+      72.0,
+      527.9,
+      543.1,
+      541.2
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 41,
+    "text": "atrasa o esvaziamento do estômago) grave. Foram reportados e",
+    "bbox": [
+      72.0,
+      541.7,
+      543.0,
+      555.0
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 42,
+    "text": "esvaziamento gástrico, incluindo gastroparesia grave. Caso t",
+    "bbox": [
+      72.0,
+      555.5,
+      542.8,
+      568.8
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 43,
+    "text": "gastrointestinal grave informe ao seu médico, pois ele poder",
+    "bbox": [
+      72.0,
+      569.3,
+      543.0,
+      582.6
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 44,
+    "text": "o seu tratamento.",
+    "bbox": [
+      72.0,
+      583.2,
+      157.3,
+      596.5
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 45,
+    "text": "Desnutrição:",
+    "bbox": [
+      72.0,
+      597.0,
+      137.9,
+      610.3
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 46,
+    "text": "foram reportados eventos relacionados à desnutrição (diminui",
+    "bbox": [
+      137.9,
+      597.0,
+      542.8,
+      610.3
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 47,
+    "text": "nutrientes), podendo ser graves. Informe ao seu médico caso ",
+    "bbox": [
+      72.0,
+      610.8,
+      542.9,
+      624.1
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 48,
+    "text": "de vitaminas e minerais, deficiência de proteína, diminuição",
+    "bbox": [
+      72.0,
+      624.6,
+      543.0,
+      637.9
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 49,
+    "text": "médico poderá solicitar suplemento nutricional ou descontinu",
+    "bbox": [
+      72.0,
+      638.4,
+      542.9,
+      651.7
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 50,
+    "text": "ou persistentes.",
+    "bbox": [
+      72.0,
+      652.2,
+      149.1,
+      665.5
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 51,
+    "text": "Retinopatia diabética (doença ocular diabética):",
+    "bbox": [
+      72.0,
+      666.0,
+      319.9,
+      679.3
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 52,
+    "text": "MOUNJARO não foi estudado em pacientes",
+    "bbox": [
+      319.9,
+      666.0,
+      543.0,
+      679.3
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 53,
+    "text": "com retinopatia diabética grave ou que estivessem em tratame",
+    "bbox": [
+      72.0,
+      679.8,
+      543.0,
+      693.1
+    ],
+    "size": 12.0
+  },
+  {
+    "idx": 54,
+    "text": "tenha retinopatia diabética (doença ocular diabética).",
+    "bbox": [
+      72.0,
+      693.6,
+      329.0,
+      706.9
+    ],
+    "size": 12.0
+  }
+]

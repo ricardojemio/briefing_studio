@@ -1,0 +1,17 @@
+[
+  {
+    "id": "diff_001",
+    "type": "visual",
+    "severity": "low",
+    "original_text": "",
+    "revised_text": "",
+    "bbox": [
+      70.08,
+      141.6,
+      301.44,
+      156.95999999999998
+    ],
+    "page": 2,
+    "description": "Visual difference: 482×32px region at (146,295)"
+  }
+]

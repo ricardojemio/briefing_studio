@@ -1,0 +1,230 @@
+{
+  "spans_a": [
+    {
+      "text": "Label text here:",
+      "bbox": [
+        72.0,
+        87.47200012207031,
+        153.31201171875,
+        104.09200286865234
+      ]
+    },
+    {
+      "text": "continuation text on same line",
+      "bbox": [
+        153.31199645996094,
+        87.36399841308594,
+        300.9720153808594,
+        103.37200164794922
+      ]
+    },
+    {
+      "text": "Second line of text unrelated to the edit.",
+      "bbox": [
+        72.0,
+        107.36399841308594,
+        263.97601318359375,
+        123.37200164794922
+      ]
+    },
+    {
+      "text": "Third line, also unrelated to the edit.",
+      "bbox": [
+        72.0,
+        127.36399841308594,
+        246.64801025390625,
+        143.3719940185547
+      ]
+    }
+  ],
+  "spans_b": [
+    {
+      "text": "continuation text on same line",
+      "bbox": [
+        153.31199645996094,
+        87.36399841308594,
+        300.9720153808594,
+        103.37200164794922
+      ]
+    },
+    {
+      "text": "Second line of text unrelated to the edit.",
+      "bbox": [
+        72.0,
+        107.36399841308594,
+        263.97601318359375,
+        123.37200164794922
+      ]
+    },
+    {
+      "text": "Third line, also unrelated to the edit.",
+      "bbox": [
+        72.0,
+        127.36399841308594,
+        246.64801025390625,
+        143.3719940185547
+      ]
+    },
+    {
+      "text": "Label text here:",
+      "bbox": [
+        72.0,
+        89.78599548339844,
+        149.92401123046875,
+        105.71349334716797
+      ]
+    }
+  ],
+  "differences": [
+    {
+      "id": "diff_001",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        168.48,
+        134.88,
+        193.44,
+        142.56
+      ],
+      "page": 1,
+      "description": "Visual difference: 52×16px region at (351,281)"
+    },
+    {
+      "id": "diff_002",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        194.88,
+        132.95999999999998,
+        205.92,
+        142.56
+      ],
+      "page": 1,
+      "description": "Visual difference: 23×20px region at (406,277)"
+    },
+    {
+      "id": "diff_003",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        206.39999999999998,
+        130.07999999999998,
+        247.67999999999998,
+        142.56
+      ],
+      "page": 1,
+      "description": "Visual difference: 86×26px region at (430,271)"
+    },
+    {
+      "id": "diff_004",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        101.27999999999999,
+        129.6,
+        108.47999999999999,
+        133.92
+      ],
+      "page": 1,
+      "description": "Visual difference: 15×9px region at (211,270)"
+    },
+    {
+      "id": "diff_005",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        70.55999999999999,
+        129.6,
+        99.36,
+        142.07999999999998
+      ],
+      "page": 1,
+      "description": "Visual difference: 60×26px region at (147,270)"
+    },
+    {
+      "id": "diff_006",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        242.39999999999998,
+        117.11999999999999,
+        264.96,
+        122.39999999999999
+      ],
+      "page": 1,
+      "description": "Visual difference: 47×11px region at (505,244)"
+    },
+    {
+      "id": "diff_007",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        70.55999999999999,
+        109.44,
+        163.2,
+        121.91999999999999
+      ],
+      "page": 1,
+      "description": "Visual difference: 193×26px region at (147,228)"
+    },
+    {
+      "id": "diff_008",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        292.32,
+        92.63999999999999,
+        302.4,
+        102.24
+      ],
+      "page": 1,
+      "description": "Visual difference: 21×20px region at (609,193)"
+    },
+    {
+      "id": "diff_009",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        222.23999999999998,
+        92.16,
+        228.95999999999998,
+        101.75999999999999
+      ],
+      "page": 1,
+      "description": "Visual difference: 14×20px region at (463,192)"
+    },
+    {
+      "id": "diff_010",
+      "type": "visual",
+      "severity": "low",
+      "original_text": "",
+      "revised_text": "",
+      "bbox": [
+        70.08,
+        89.27999999999999,
+        217.92,
+        104.16
+      ],
+      "page": 1,
+      "description": "Visual difference: 308×31px region at (146,186)"
+    }
+  ]
+}
