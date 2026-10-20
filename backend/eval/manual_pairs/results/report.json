@@ -2,7 +2,7 @@
   "pairs": {
     "par1_sonridor_dose_755mg": {
       "description": "Dose sutil (1 caractere): \"750 mg\" -> \"755 mg\", página 1",
-      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via get_text('words'), não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
       "metrics": {
         "lenient": {
           "precision": 1.0,
@@ -12,7 +12,23 @@
           "fp": 0,
           "fn": 0
         },
+        "lenient_normalized": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
         "strict": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 1,
+          "fn": 1
+        },
+        "strict_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -21,15 +37,55 @@
           "fn": 0
         }
       },
-      "false_negatives": [],
-      "false_positives": [],
-      "text_mismatches": []
+      "false_negatives_exact": [],
+      "false_positives_exact": [],
+      "false_negatives_normalized": [],
+      "false_positives_normalized": [],
+      "text_mismatches_exact": [
+        {
+          "expected": {
+            "type": "text_changed",
+            "page": 1,
+            "bbox": [
+              248.6,
+              483.6,
+              349.6,
+              496.9
+            ],
+            "description": "Dose alterada de 750 mg para 755 mg na capa (edição real do usuário, não sintética)",
+            "original_text": "paracetamol 750 mg",
+            "revised_text": "paracetamol 755 mg"
+          },
+          "detected": {
+            "type": "text_changed",
+            "page": 1,
+            "bbox": [
+              310.199951171875,
+              481.64398193359375,
+              328.199951171875,
+              497.6519775390625
+            ],
+            "original_text": "750",
+            "revised_text": "755",
+            "description": "Text changed: '750' → '755'"
+          }
+        }
+      ],
+      "text_mismatches_normalized": []
     },
     "par2_mounjaro_dose_17mg": {
       "description": "Dose sutil (1 caractere): \"15 mg\" -> \"17 mg\", página 4",
-      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via get_text('words'), não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
       "metrics": {
         "lenient": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 1,
+          "fn": 1
+        },
+        "lenient_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -38,6 +94,14 @@
           "fn": 0
         },
         "strict": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 1,
+          "fn": 1
+        },
+        "strict_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -46,9 +110,40 @@
           "fn": 0
         }
       },
-      "false_negatives": [],
-      "false_positives": [],
-      "text_mismatches": []
+      "false_negatives_exact": [
+        {
+          "type": "text_changed",
+          "page": 4,
+          "bbox": [
+            72.0,
+            196.7,
+            287.7,
+            210.0
+          ],
+          "description": "Dose máxima alterada de 15 mg para 17 mg (edição real do usuário, não sintética)",
+          "original_text": "MOUNJARO é 15 mg uma vez por semana.",
+          "revised_text": "MOUNJARO é 17 mg uma vez por semana."
+        }
+      ],
+      "false_positives_exact": [
+        {
+          "type": "text_changed",
+          "page": 4,
+          "bbox": [
+            149.89199829101562,
+            194.74400329589844,
+            161.89199829101562,
+            210.7519989013672
+          ],
+          "original_text": "15",
+          "revised_text": "17",
+          "description": "Text changed: '15' → '17'"
+        }
+      ],
+      "false_negatives_normalized": [],
+      "false_positives_normalized": [],
+      "text_mismatches_exact": [],
+      "text_mismatches_normalized": []
     },
     "par3_mounjaro_fontdelta05pt": {
       "description": "Delta de fonte no limiar: label em negrito \"Pancreatite (...) aguda:\" de 12,0pt para 11,5pt, página 2",
@@ -62,24 +157,7 @@
           "fp": 0,
           "fn": 0
         },
-        "strict": {
-          "precision": 1.0,
-          "recall": 1.0,
-          "f1": 1.0,
-          "tp": 1,
-          "fp": 0,
-          "fn": 0
-        }
-      },
-      "false_negatives": [],
-      "false_positives": [],
-      "text_mismatches": []
-    },
-    "par4_mounjaro_multilinha": {
-      "description": "Texto em frase multilinha (1 caractere): \"farmacêutico\" -> \"farmacêutica\", dentro de uma frase em negrito que se estende por duas linhas físicas (hifenização \"cirurgião-dentista\"), página 4",
-      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via get_text('words'), não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
-      "metrics": {
-        "lenient": {
+        "lenient_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -94,15 +172,117 @@
           "tp": 1,
           "fp": 0,
           "fn": 0
+        },
+        "strict_normalized": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
         }
       },
-      "false_negatives": [],
-      "false_positives": [],
-      "text_mismatches": []
+      "false_negatives_exact": [],
+      "false_positives_exact": [],
+      "false_negatives_normalized": [],
+      "false_positives_normalized": [],
+      "text_mismatches_exact": [],
+      "text_mismatches_normalized": []
+    },
+    "par4_mounjaro_multilinha": {
+      "description": "Texto em frase multilinha (1 caractere): \"farmacêutico\" -> \"farmacêutica\", dentro de uma frase em negrito que se estende por duas linhas físicas (hifenização \"cirurgião-dentista\"), página 4",
+      "ground_truth_status": "PROVISÓRIO — reconstruído por inspeção (bbox/texto extraídos diretamente dos PDFs via _spans_from_page, não fornecidos pelo usuário). Substituir pelo gabarito original do usuário quando disponível; em caso de divergência, o gabarito do usuário prevalece.",
+      "metrics": {
+        "lenient": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "lenient_normalized": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "strict": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 1,
+          "fn": 1
+        },
+        "strict_normalized": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        }
+      },
+      "false_negatives_exact": [],
+      "false_positives_exact": [],
+      "false_negatives_normalized": [],
+      "false_positives_normalized": [],
+      "text_mismatches_exact": [
+        {
+          "expected": {
+            "type": "text_changed",
+            "page": 4,
+            "bbox": [
+              72.0,
+              610.8,
+              540.1,
+              624.1
+            ],
+            "description": "'farmacêutico' alterado para 'farmacêutica' na primeira linha física da frase (edição real do usuário, não sintética)",
+            "original_text": "Em caso de dúvidas, procure orientação do farmacêutico ou de seu médico ou cirurgião-",
+            "revised_text": "Em caso de dúvidas, procure orientação do farmacêutica ou de seu médico ou cirurgião-"
+          },
+          "detected": {
+            "type": "text_changed",
+            "page": 4,
+            "bbox": [
+              304.3919982910156,
+              608.9320068359375,
+              371.70001220703125,
+              625.552001953125
+            ],
+            "original_text": "farmacêutico",
+            "revised_text": "farmacêutica",
+            "description": "Text changed: 'farmacêutico' → 'farmacêutica'"
+          }
+        }
+      ],
+      "text_mismatches_normalized": []
     }
   },
   "by_type": {
     "lenient": {
+      "text_changed": {
+        "precision": 0.667,
+        "recall": 0.667,
+        "f1": 0.667,
+        "tp": 2,
+        "fp": 1,
+        "fn": 1
+      },
+      "visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "lenient_normalized": {
       "text_changed": {
         "precision": 1.0,
         "recall": 1.0,
@@ -121,6 +301,24 @@
       }
     },
     "strict": {
+      "text_changed": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 3,
+        "fn": 3
+      },
+      "visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "strict_normalized": {
       "text_changed": {
         "precision": 1.0,
         "recall": 1.0,
@@ -141,6 +339,14 @@
   },
   "overall": {
     "lenient": {
+      "precision": 0.75,
+      "recall": 0.75,
+      "f1": 0.75,
+      "tp": 3,
+      "fp": 1,
+      "fn": 1
+    },
+    "lenient_normalized": {
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,
@@ -149,6 +355,14 @@
       "fn": 0
     },
     "strict": {
+      "precision": 0.25,
+      "recall": 0.25,
+      "f1": 0.25,
+      "tp": 1,
+      "fp": 3,
+      "fn": 3
+    },
+    "strict_normalized": {
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,

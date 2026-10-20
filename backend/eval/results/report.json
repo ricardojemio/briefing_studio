@@ -12,7 +12,23 @@
           "fp": 0,
           "fn": 0
         },
+        "lenient_normalized": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
         "strict": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 1,
+          "fn": 1
+        },
+        "strict_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -21,9 +37,41 @@
           "fn": 0
         }
       },
-      "false_negatives": [],
-      "false_positives": [],
-      "text_mismatches": []
+      "false_negatives_exact": [],
+      "false_positives_exact": [],
+      "false_negatives_normalized": [],
+      "false_positives_normalized": [],
+      "text_mismatches_exact": [
+        {
+          "expected": {
+            "type": "text_changed",
+            "page": 1,
+            "bbox": [
+              248.64,
+              483.59,
+              346.56,
+              496.88
+            ],
+            "description": "Dose alterada de 750 mg para 500 mg na capa",
+            "original_text": "paracetamol 750 mg",
+            "revised_text": "paracetamol 500 mg"
+          },
+          "detected": {
+            "type": "text_changed",
+            "page": 1,
+            "bbox": [
+              310.199951171875,
+              481.8399963378906,
+              328.28399658203125,
+              497.8479919433594
+            ],
+            "original_text": "750",
+            "revised_text": "500",
+            "description": "Text changed: '750' → '500'"
+          }
+        }
+      ],
+      "text_mismatches_normalized": []
     },
     "pair2_font_changes": {
       "description": "Mudança de negrito e tamanho de fonte",
@@ -37,7 +85,23 @@
           "fp": 0,
           "fn": 0
         },
+        "lenient_normalized": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
         "strict": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "strict_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -46,9 +110,12 @@
           "fn": 0
         }
       },
-      "false_negatives": [],
-      "false_positives": [],
-      "text_mismatches": []
+      "false_negatives_exact": [],
+      "false_positives_exact": [],
+      "false_negatives_normalized": [],
+      "false_positives_normalized": [],
+      "text_mismatches_exact": [],
+      "text_mismatches_normalized": []
     },
     "pair3_visual_image_move": {
       "description": "Selo/logo movido e redimensionado (visual puro)",
@@ -62,7 +129,23 @@
           "fp": 0,
           "fn": 0
         },
+        "lenient_normalized": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
         "strict": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "strict_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -71,15 +154,26 @@
           "fn": 0
         }
       },
-      "false_negatives": [],
-      "false_positives": [],
-      "text_mismatches": []
+      "false_negatives_exact": [],
+      "false_positives_exact": [],
+      "false_negatives_normalized": [],
+      "false_positives_normalized": [],
+      "text_mismatches_exact": [],
+      "text_mismatches_normalized": []
     },
     "pair4_text_add_remove": {
       "description": "Texto alterado, removido e adicionado",
       "ground_truth_status": "fornecido/gerado — não provisório",
       "metrics": {
         "lenient": {
+          "precision": 0.667,
+          "recall": 0.667,
+          "f1": 0.667,
+          "tp": 2,
+          "fp": 1,
+          "fn": 1
+        },
+        "lenient_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -88,6 +182,14 @@
           "fn": 0
         },
         "strict": {
+          "precision": 0.667,
+          "recall": 0.667,
+          "f1": 0.667,
+          "tp": 2,
+          "fp": 1,
+          "fn": 1
+        },
+        "strict_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -96,9 +198,40 @@
           "fn": 0
         }
       },
-      "false_negatives": [],
-      "false_positives": [],
-      "text_mismatches": []
+      "false_negatives_exact": [
+        {
+          "type": "text_changed",
+          "page": 2,
+          "bbox": [
+            85.08,
+            161.4,
+            346.77,
+            172.43
+          ],
+          "description": "Dose alterada de 750 mg para 500 mg nas apresentações",
+          "original_text": "Comprimidos de 750 mg: embalagens com 20 e 50 comprimidos.",
+          "revised_text": "Comprimidos de 500 mg: embalagens com 20 e 50 comprimidos."
+        }
+      ],
+      "false_positives_exact": [
+        {
+          "type": "text_changed",
+          "page": 2,
+          "bbox": [
+            154.25221252441406,
+            159.95309448242188,
+            169.62049865722656,
+            173.23974609375
+          ],
+          "original_text": "750",
+          "revised_text": "500",
+          "description": "Text changed: '750' → '500'"
+        }
+      ],
+      "false_negatives_normalized": [],
+      "false_positives_normalized": [],
+      "text_mismatches_exact": [],
+      "text_mismatches_normalized": []
     },
     "pair5_combined": {
       "description": "Texto + fonte + visual combinados",
@@ -112,7 +245,23 @@
           "fp": 0,
           "fn": 0
         },
+        "lenient_normalized": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 4,
+          "fp": 0,
+          "fn": 0
+        },
         "strict": {
+          "precision": 0.75,
+          "recall": 0.75,
+          "f1": 0.75,
+          "tp": 3,
+          "fp": 1,
+          "fn": 1
+        },
+        "strict_normalized": {
           "precision": 1.0,
           "recall": 1.0,
           "f1": 1.0,
@@ -121,13 +270,95 @@
           "fn": 0
         }
       },
-      "false_negatives": [],
-      "false_positives": [],
-      "text_mismatches": []
+      "false_negatives_exact": [],
+      "false_positives_exact": [],
+      "false_negatives_normalized": [],
+      "false_positives_normalized": [],
+      "text_mismatches_exact": [
+        {
+          "expected": {
+            "type": "text_changed",
+            "page": 1,
+            "bbox": [
+              248.64,
+              483.59,
+              346.56,
+              496.88
+            ],
+            "description": "Dose alterada de 750 mg para 500 mg na capa",
+            "original_text": "paracetamol 750 mg",
+            "revised_text": "paracetamol 500 mg"
+          },
+          "detected": {
+            "type": "text_changed",
+            "page": 1,
+            "bbox": [
+              310.199951171875,
+              481.8399963378906,
+              328.28399658203125,
+              497.8479919433594
+            ],
+            "original_text": "750",
+            "revised_text": "500",
+            "description": "Text changed: '750' → '500'"
+          }
+        }
+      ],
+      "text_mismatches_normalized": []
     }
   },
   "by_type": {
     "lenient": {
+      "font_size": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 2,
+        "fp": 0,
+        "fn": 0
+      },
+      "font_style": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "text_added": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "text_changed": {
+        "precision": 0.667,
+        "recall": 0.667,
+        "f1": 0.667,
+        "tp": 2,
+        "fp": 1,
+        "fn": 1
+      },
+      "text_removed": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "lenient_normalized": {
       "font_size": {
         "precision": 1.0,
         "recall": 1.0,
@@ -178,6 +409,56 @@
       }
     },
     "strict": {
+      "font_size": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 2,
+        "fp": 0,
+        "fn": 0
+      },
+      "font_style": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "text_added": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "text_changed": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 3,
+        "fn": 3
+      },
+      "text_removed": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "strict_normalized": {
       "font_size": {
         "precision": 1.0,
         "recall": 1.0,
@@ -230,6 +511,14 @@
   },
   "overall": {
     "lenient": {
+      "precision": 0.917,
+      "recall": 0.917,
+      "f1": 0.917,
+      "tp": 11,
+      "fp": 1,
+      "fn": 1
+    },
+    "lenient_normalized": {
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,
@@ -238,6 +527,14 @@
       "fn": 0
     },
     "strict": {
+      "precision": 0.75,
+      "recall": 0.75,
+      "f1": 0.75,
+      "tp": 9,
+      "fp": 3,
+      "fn": 3
+    },
+    "strict_normalized": {
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,

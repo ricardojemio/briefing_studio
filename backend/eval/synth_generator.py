@@ -138,12 +138,8 @@ def build_pair_1(doc: fitz.Document) -> list[dict]:
     """Dose changed on the cover page: pure text_changed."""
     page = doc[0]
     rect = replace_text(page, "paracetamol 750 mg", "paracetamol 500 mg")
-    # original_text/revised_text at word granularity: fix/line-level-text-diff
-    # diffs text content word-by-word within a matched line (the smallest
-    # changed word-run), not the whole span, so the ground truth must match
-    # that — not the full "paracetamol 750 mg" string this edit started from.
     return [_gt("text_changed", 1, rect, "Dose alterada de 750 mg para 500 mg na capa",
-                "750", "500")]
+                "paracetamol 750 mg", "paracetamol 500 mg")]
 
 
 def build_pair_2(doc: fitz.Document) -> list[dict]:
@@ -172,20 +168,16 @@ def build_pair_3(doc: fitz.Document) -> list[dict]:
 def build_pair_4(doc: fitz.Document) -> list[dict]:
     """Text add/remove/change combo on page 2 (index 1)."""
     page = doc[1]
-    # Ground-truth bbox for the word-level diff fix/line-level-text-diff
-    # reports: just "750" within the sentence, not the whole replaced
-    # span — a wide expected bbox vs. a narrow detected one can fall below
-    # IOU_MATCH_THRESHOLD even when the edit is identified correctly.
-    word_rect = page.search_for("750")[0]
-    replace_text(
+    r1 = replace_text(
         page, "Comprimidos de 750 mg: embalagens com 20 e 50 comprimidos.",
         "Comprimidos de 500 mg: embalagens com 20 e 50 comprimidos.",
     )
     r2 = remove_text(page, "USO ORAL")
     r3 = add_text(page, "Contraindicado para gestantes no primeiro trimestre.", (85, 800))
     return [
-        _gt("text_changed", 2, word_rect, "Dose alterada de 750 mg para 500 mg nas apresentações",
-            "750", "500"),
+        _gt("text_changed", 2, r1, "Dose alterada de 750 mg para 500 mg nas apresentações",
+            "Comprimidos de 750 mg: embalagens com 20 e 50 comprimidos.",
+            "Comprimidos de 500 mg: embalagens com 20 e 50 comprimidos."),
         _gt("text_removed", 2, r2, "Aviso 'USO ORAL' removido", "USO ORAL", ""),
         _gt("text_added", 2, r3, "Frase de contraindicação adicionada sem previsão no original",
             "", "Contraindicado para gestantes no primeiro trimestre."),
@@ -198,7 +190,7 @@ def build_pair_5(doc: fitz.Document) -> list[dict]:
     p0 = doc[0]
     r0 = replace_text(p0, "paracetamol 750 mg", "paracetamol 500 mg")
     gt.append(_gt("text_changed", 1, r0, "Dose alterada de 750 mg para 500 mg na capa",
-                   "750", "500"))
+                   "paracetamol 750 mg", "paracetamol 500 mg"))
 
     p1 = doc[1]
     r1 = replace_text(p1, "COMPOSIÇÃO", "COMPOSIÇÃO", fontsize=14.0)

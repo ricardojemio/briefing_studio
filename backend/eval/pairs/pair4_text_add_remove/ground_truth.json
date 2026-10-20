@@ -9,14 +9,14 @@
       "type": "text_changed",
       "page": 2,
       "bbox": [
-        154.56,
+        85.08,
         161.4,
-        169.62,
+        346.77,
         172.43
       ],
       "description": "Dose alterada de 750 mg para 500 mg nas apresentações",
-      "original_text": "750",
-      "revised_text": "500"
+      "original_text": "Comprimidos de 750 mg: embalagens com 20 e 50 comprimidos.",
+      "revised_text": "Comprimidos de 500 mg: embalagens com 20 e 50 comprimidos."
     },
     {
       "type": "text_removed",
