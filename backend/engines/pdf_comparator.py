@@ -11,6 +11,7 @@ DO NOT MODIFY: pdf_draft_engine.py, raster_engine_v3.py, draft_engine.py, detect
 
 from __future__ import annotations
 
+import difflib
 import re
 import uuid
 from pathlib import Path
@@ -38,6 +39,26 @@ DIM_DELTA_MM         = 0.5   # page size change threshold in mm
 VISUAL_THRESHOLD     = 30    # pixel intensity diff (0–255)
 VISUAL_MIN_AREA_PX2  = 100   # min contour area (px²) to report as visual diff
 VISUAL_DILATE_PX     = 5     # dilation kernel size for merging nearby diff pixels
+
+# ── Line-level text diff (word-token based) ─────────────────────────────────────────
+# Text content diffing is done on get_text("words") grouped into physical
+# lines by y-coordinate — NOT on get_text("dict") spans grouped by their
+# position in the extraction list. See _words_from_page/_group_words_into_lines
+# for why: a redact()+insert_text() patch (the standard way to edit a
+# single word/character in an existing PDF) can split one visual line into
+# several spans and/or relocate the edited span far from its original
+# index in PyMuPDF's extraction order, even though its on-page (x, y)
+# position stays correct. Span-level matching handles the relocation fine
+# (c7528fc fixed that), but it can't reassemble 2-3 disjoint span
+# fragments back into "this together is the one line that changed" —
+# geometrically they're disjoint boxes. Words are pre-tokenized at
+# whitespace boundaries by PyMuPDF itself, so reassembling a line's text
+# only needs position-based ordering + one gap check per adjacent pair
+# (see _join_words) — no per-span spacing to guess.
+LINE_Y_TOLERANCE_PT = 3.0   # pt: words within this y0 distance are the same physical line
+WORD_GAP_MERGE_PT   = 1.0   # pt: a gap this small between adjacent word-tokens means they
+                            # were one word split by the edit (e.g. "1"+"7" -> "17"), not
+                            # two separate words — join with no space instead of one
 
 # ── Image registration (ORB + homography) ──────────────────────────────────────────
 # ORB is used instead of SIFT/SURF because it is patent-free and ships in the
@@ -240,38 +261,40 @@ def _bbox_iou(a: tuple, b: tuple) -> float:
     return inter / union if union > 0 else 0.0
 
 
-def _match_spans(
-    spans_orig: list[dict], spans_rev: list[dict]
-) -> tuple[set[int], set[int], dict[int, int]]:
+def _best_iou_match(
+    boxes_orig: list[tuple], boxes_rev: list[tuple], pad: float = TEXT_PROXIMITY_PT
+) -> dict[int, int]:
     """
-    Pair original and revised spans by best geometric overlap rather than
+    Pair original and revised items (spans, or lines of words — anything
+    with a bbox) by best geometric overlap rather than
     first-candidate-within-tolerance.
 
-    A pure "first span of spans_rev within TEXT_PROXIMITY_PT of spans_orig[i]"
-    match is vulnerable to a single out-of-order span stealing an unrelated
+    A pure "first item of *_rev within `pad` of *_orig[i]" match is
+    vulnerable to a single out-of-order item stealing an unrelated
     neighbour's slot: PyMuPDF appends a freshly redact()+insert_text()'d
     block to the END of a page's text-extraction order, not its visual
-    position, so a single edited line can land far from its original index.
-    Once that line's true match is skipped over (it's scanned last), the
-    first-match-wins loop greedily latches onto whatever adjacent-but-wrong
-    span happens to fall within the proximity pad, and the mismatch cascades
-    span-by-span for the rest of the page.
+    position, so a single edited line/span can land far from its original
+    index. Once that item's true match is skipped over (it's scanned
+    last), a first-match-wins loop greedily latches onto whatever
+    adjacent-but-wrong item happens to fall within the proximity pad, and
+    the mismatch cascades item-by-item for the rest of the page (the bug
+    fixed in c7528fc).
 
-    Candidate pairs are still gated by _bboxes_overlap() — same tolerance,
-    same admitted pairs as before — but are assigned highest-IoU-first
-    instead of first-found. A span's true counterpart, wherever it landed in
-    the list, has near-total bbox overlap (IoU close to 1.0); a merely
-    tolerance-adjacent neighbour (e.g. the next word on the same line, or
-    the line below) has IoU 0 — they touch or sit within the pad, but don't
-    actually intersect — so it only gets picked if nothing better exists for
-    either span, which is exactly the unambiguous, single-candidate case the
-    original algorithm already handled correctly.
+    Candidate pairs are gated by _bboxes_overlap(pad) but assigned
+    highest-IoU-first instead of first-found. An item's true counterpart,
+    wherever it landed in the list, has near-total bbox overlap (IoU close
+    to 1.0); a merely tolerance-adjacent neighbour (e.g. the next word on
+    the same line, or the line below) has IoU 0 — they touch or sit within
+    the pad, but don't actually intersect — so it only gets picked if
+    nothing better exists for either item, which is exactly the
+    unambiguous, single-candidate case a naive algorithm already handles
+    correctly.
     """
     candidates: list[tuple[float, int, int]] = []
-    for i, so in enumerate(spans_orig):
-        for j, sr in enumerate(spans_rev):
-            if _bboxes_overlap(so["bbox"], sr["bbox"]):
-                candidates.append((_bbox_iou(so["bbox"], sr["bbox"]), i, j))
+    for i, a in enumerate(boxes_orig):
+        for j, b in enumerate(boxes_rev):
+            if _bboxes_overlap(a, b, pad=pad):
+                candidates.append((_bbox_iou(a, b), i, j))
 
     candidates.sort(key=lambda c: c[0], reverse=True)
 
@@ -286,7 +309,109 @@ def _match_spans(
         matched_rev.add(j)
         match_map[i] = j
 
-    return matched_orig, matched_rev, match_map
+    return match_map
+
+
+def _match_spans(
+    spans_orig: list[dict], spans_rev: list[dict]
+) -> dict[int, int]:
+    """Span-level best-IoU matching — see _best_iou_match(). Used only for
+    font_size/font_style/color comparison (compare_artworks section 2);
+    text content is diffed at the word/line level instead (section 2')."""
+    return _best_iou_match(
+        [s["bbox"] for s in spans_orig], [s["bbox"] for s in spans_rev], pad=TEXT_PROXIMITY_PT
+    )
+
+
+def _words_from_page(page) -> list[dict]:
+    """Extract words via PyMuPDF's own tokenizer (whitespace-aware). Unlike
+    _spans_from_page, words are already split at natural boundaries, so
+    reassembling a line's text only needs position-based ordering and one
+    gap check per adjacent pair (_join_words) — no span-boundary spacing
+    to reconstruct or guess, which is what made the span-concatenation
+    approach lose spaces around a fragmented edit."""
+    words = []
+    for x0, y0, x1, y1, text, *_rest in page.get_text("words"):
+        if text.strip():
+            words.append({"text": text, "bbox": (float(x0), float(y0), float(x1), float(y1))})
+    return words
+
+
+def _join_words(words: list[dict]) -> str:
+    """Joins word-tokens left-to-right, inserting a space only where the
+    gap between adjacent bboxes is large enough to be a real word
+    boundary. A near-zero gap means the edit technique split one word into
+    two tokens (observed: "1" + "7" at zero gap, meant to read "17") —
+    joining those without a space is what recovers the original word."""
+    parts: list[str] = []
+    for i, w in enumerate(words):
+        if i > 0:
+            gap = w["bbox"][0] - words[i - 1]["bbox"][2]
+            if gap >= WORD_GAP_MERGE_PT:
+                parts.append(" ")
+        parts.append(w["text"])
+    return "".join(parts)
+
+
+def _group_words_into_lines(words: list[dict]) -> list[dict]:
+    """Groups words into physical lines by y0 proximity ALONE — ignoring
+    PyMuPDF's own block/line numbering, which (like span order) reflects
+    extraction/content-stream structure and can misplace a relocated
+    word's line index even though its y-coordinate is correct. Returns one
+    dict per line: {"words": [...], "bbox": union, "text": joined}."""
+    remaining = list(words)
+    lines: list[dict] = []
+    while remaining:
+        seed = remaining.pop(0)
+        group = [seed]
+        rest = []
+        for w in remaining:
+            if abs(w["bbox"][1] - seed["bbox"][1]) <= LINE_Y_TOLERANCE_PT:
+                group.append(w)
+            else:
+                rest.append(w)
+        remaining = rest
+
+        group.sort(key=lambda w: w["bbox"][0])
+        x0 = min(w["bbox"][0] for w in group)
+        y0 = min(w["bbox"][1] for w in group)
+        x1 = max(w["bbox"][2] for w in group)
+        y1 = max(w["bbox"][3] for w in group)
+        lines.append({"words": group, "bbox": (x0, y0, x1, y1), "text": _join_words(group)})
+
+    lines.sort(key=lambda ln: (ln["bbox"][1], ln["bbox"][0]))
+    return lines
+
+
+def _diff_line_words(words_orig: list[dict], words_rev: list[dict]) -> list[dict]:
+    """Word-level diff within one matched original/revised line pair.
+    Returns only the smallest contiguous changed word-run(s) — e.g. just
+    "750" -> "755", not the whole surrounding sentence — using difflib's
+    LCS-based opcodes, so unrelated unchanged words before/after the edit
+    are never reported. Each entry's bbox is the union of the words
+    actually involved (old side, new side, or both for a replace)."""
+    texts_orig = [w["text"] for w in words_orig]
+    texts_rev  = [w["text"] for w in words_rev]
+    sm = difflib.SequenceMatcher(None, texts_orig, texts_rev, autojunk=False)
+
+    out: list[dict] = []
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == "equal":
+            continue
+        old_words = words_orig[i1:i2]
+        new_words = words_rev[j1:j2]
+        bbox_words = old_words + new_words
+        x0 = min(w["bbox"][0] for w in bbox_words)
+        y0 = min(w["bbox"][1] for w in bbox_words)
+        x1 = max(w["bbox"][2] for w in bbox_words)
+        y1 = max(w["bbox"][3] for w in bbox_words)
+        out.append({
+            "tag":      tag,
+            "old_text": _join_words(old_words),
+            "new_text": _join_words(new_words),
+            "bbox":     (x0, y0, x1, y1),
+        })
+    return out
 
 
 # ── Public API ────────────────────────────────────────────────────────────────────
@@ -357,35 +482,107 @@ def compare_artworks(
             })
             summary["dimensional_changes"] += 1
 
-        # ── 2. Text span extraction and matching ──────────────────────────────
-        spans_orig = _spans_from_page(page_orig)
-        spans_rev  = _spans_from_page(page_rev)
+        # ── 2. Text content diff: word/line level, independent of span segmentation ──
+        # See the LINE_Y_TOLERANCE_PT/WORD_GAP_MERGE_PT constants' comment for why:
+        # span-level matching (still used below, for font attributes only) can't
+        # reassemble an edit that PyMuPDF's redact()+insert_text() split across
+        # several disjoint span fragments. Words/lines sidestep that entirely.
+        lines_orig = _group_words_into_lines(_words_from_page(page_orig))
+        lines_rev  = _group_words_into_lines(_words_from_page(page_rev))
+        line_match = _best_iou_match(
+            [ln["bbox"] for ln in lines_orig], [ln["bbox"] for ln in lines_rev], pad=TEXT_PROXIMITY_PT
+        )
 
-        matched_orig, matched_rev, match_map = _match_spans(spans_orig, spans_rev)
+        # Lines that had any text diff, at the WHOLE-LINE bbox rather than
+        # the narrower per-word diff bbox. Reporting the tight word bbox is
+        # correct for pinpointing an edit, but a redact()+insert_text()
+        # patch can perturb rendering (sub-pixel antialiasing) anywhere
+        # along the line it touched, not just at the edited word — so
+        # visual-diff suppression below checks against this broader area,
+        # not just each diff's own narrow bbox, to avoid flagging that
+        # perturbation as a separate spurious "visual" difference.
+        edited_line_bboxes: list[tuple] = []
 
-        for i, so in enumerate(spans_orig):
-            j = match_map.get(i)
-            if j is None:
+        for li, line_o in enumerate(lines_orig):
+            lj = line_match.get(li)
+            if lj is None:
+                # Whole line gone — nothing in the revised page overlaps it at all.
+                differences.append({
+                    "id":            _next_id(counter),
+                    "type":          "text_removed",
+                    "severity":      "high",
+                    "original_text": line_o["text"],
+                    "revised_text":  "",
+                    "bbox":          list(line_o["bbox"]),
+                    "page":          page_idx + 1,
+                    "description":   f"Text removed: '{line_o['text']}'",
+                })
+                summary["text_changes"] += 1
+                edited_line_bboxes.append(line_o["bbox"])
                 continue
-            sr = spans_rev[j]
 
-            # ── 2a. Text content change ───────────────────────────────────────
-            if so["text"] != sr["text"]:
-                # Promote to ean_changed if either span contains EAN
-                has_ean = bool(EAN_RE.search(so["text"])) or bool(EAN_RE.search(sr["text"]))
-                dtype    = "ean_changed" if has_ean else "text_changed"
-                cat_key  = "code_changes" if has_ean else "text_changes"
+            line_r = lines_rev[lj]
+            line_word_diffs = _diff_line_words(line_o["words"], line_r["words"])
+            if line_word_diffs:
+                edited_line_bboxes.append(line_o["bbox"])
+            for wd in line_word_diffs:
+                has_ean = bool(EAN_RE.search(wd["old_text"])) or bool(EAN_RE.search(wd["new_text"]))
+                if wd["tag"] == "replace":
+                    dtype, severity = ("ean_changed" if has_ean else "text_changed"), "high"
+                    desc = f"Text changed: '{wd['old_text']}' → '{wd['new_text']}'"
+                elif wd["tag"] == "delete":
+                    dtype, severity = "text_removed", "high"
+                    desc = f"Text removed: '{wd['old_text']}'"
+                else:  # "insert"
+                    dtype, severity = "text_added", "medium"
+                    desc = f"Text added: '{wd['new_text']}'"
+                cat_key = "code_changes" if has_ean else "text_changes"
                 differences.append({
                     "id":            _next_id(counter),
                     "type":          dtype,
-                    "severity":      "high",
-                    "original_text": so["text"],
-                    "revised_text":  sr["text"],
-                    "bbox":          list(so["bbox"]),
+                    "severity":      severity,
+                    "original_text": wd["old_text"],
+                    "revised_text":  wd["new_text"],
+                    "bbox":          list(wd["bbox"]),
                     "page":          page_idx + 1,
-                    "description":   f"Text changed: '{so['text']}' → '{sr['text']}'",
+                    "description":   desc,
                 })
                 summary[cat_key] += 1
+
+        matched_rev_lines = set(line_match.values())
+        for lj, line_r in enumerate(lines_rev):
+            if lj not in matched_rev_lines:
+                differences.append({
+                    "id":            _next_id(counter),
+                    "type":          "text_added",
+                    "severity":      "medium",
+                    "original_text": "",
+                    "revised_text":  line_r["text"],
+                    "bbox":          list(line_r["bbox"]),
+                    "page":          page_idx + 1,
+                    "description":   f"Text added: '{line_r['text']}'",
+                })
+                summary["text_changes"] += 1
+                edited_line_bboxes.append(line_r["bbox"])
+
+        # ── 2'. Font attributes: span-level matching (unchanged from c7528fc) ──
+        # Kept at span granularity deliberately: a span is, by construction, a
+        # run of text sharing one font/size/colour, which is the natural unit
+        # for comparing those attributes — word-level has no such guarantee
+        # (a single word doesn't span a font-attribute boundary in practice,
+        # but a span legitimately groups multiple words that do share one).
+        # This path never reports text content (2a was removed above), so it
+        # can't double-report or fragment an edit; it only adds font_size/
+        # font_style/color diffs for spans matched with confidence.
+        spans_orig = _spans_from_page(page_orig)
+        spans_rev  = _spans_from_page(page_rev)
+        span_match = _match_spans(spans_orig, spans_rev)
+
+        for i, so in enumerate(spans_orig):
+            j = span_match.get(i)
+            if j is None:
+                continue
+            sr = spans_rev[j]
 
             # ── 2b. Font size change ──────────────────────────────────────────
             if abs(so["size"] - sr["size"]) > TEXT_SIZE_DELTA_PT:
@@ -448,36 +645,6 @@ def compare_artworks(
                         summary["text_changes"] += 1
                 except Exception:
                     pass
-
-        # ── 2e. Unmatched original spans = text removed ───────────────────────
-        for i, so in enumerate(spans_orig):
-            if i not in matched_orig:
-                differences.append({
-                    "id":            _next_id(counter),
-                    "type":          "text_removed",
-                    "severity":      "high",
-                    "original_text": so["text"],
-                    "revised_text":  "",
-                    "bbox":          list(so["bbox"]),
-                    "page":          page_idx + 1,
-                    "description":   f"Text removed: '{so['text']}'",
-                })
-                summary["text_changes"] += 1
-
-        # ── 2f. Unmatched revised spans = text added ──────────────────────────
-        for j, sr in enumerate(spans_rev):
-            if j not in matched_rev:
-                differences.append({
-                    "id":            _next_id(counter),
-                    "type":          "text_added",
-                    "severity":      "medium",
-                    "original_text": "",
-                    "revised_text":  sr["text"],
-                    "bbox":          list(sr["bbox"]),
-                    "page":          page_idx + 1,
-                    "description":   f"Text added: '{sr['text']}'",
-                })
-                summary["text_changes"] += 1
 
         # ── 3. EAN: full-page cross-check for codes that moved position ───────
         eans_orig = set(EAN_RE.findall(page_orig.get_text()))
@@ -584,11 +751,19 @@ def compare_artworks(
             px, py, pw, ph_ = cv2.boundingRect(cnt)
             bbox_pts = [px / scale, py / scale, (px + pw) / scale, (py + ph_) / scale]
 
-            # Suppress if already covered by a text or code diff
+            # Suppress if already covered by a text or code diff, OR if it
+            # falls within a line that had any text edit — a word-level
+            # diff's reported bbox is intentionally tight (just the edited
+            # word), but redact()+insert_text() can perturb rendering
+            # anywhere along the line it touched (see edited_line_bboxes
+            # above), not only at that word.
             already = any(
                 d["type"] not in ("dimensional", "compliance", "visual")
                 and _bboxes_overlap(tuple(bbox_pts), tuple(d["bbox"]), pad=4.0)
                 for d in differences
+            ) or any(
+                _bboxes_overlap(tuple(bbox_pts), line_bbox, pad=4.0)
+                for line_bbox in edited_line_bboxes
             )
             if already:
                 continue

@@ -5,20 +5,30 @@ Evaluation harness for the ArtReview comparison core.
 
 Runs engines.pdf_comparator.compare_artworks() over every pair in a
 manifest, matches detected differences against each pair's
-ground_truth.json, and reports precision / recall / F1 per difference type
-and in aggregate — under two metrics:
+ground_truth.json (never edited to match the detector's output — the
+ground truth is the ground truth), and reports precision / recall / F1 per
+difference type and in aggregate, under four metrics:
 
 - lenient: a detection counts as a true positive if its type matches and
   its bbox overlaps the expected one (IoU >= IOU_MATCH_THRESHOLD). This is
   the original (and only) metric this harness had before.
-- strict: additionally requires the reported original_text/revised_text
-  (normalized for whitespace) to match the ground truth's. A lenient TP
-  whose reported text doesn't match counts as a strict FP (the detection
-  exists but says the wrong thing) *and* a strict FN (the real edit's
-  correct content was never actually reported) — not just a lesser TP.
-  This catches cases like a text_changed diff whose bbox and type are
-  right but whose text is corrupted (e.g. a digit dropped by span
-  fragmentation): lenient treats it as a full match, strict does not.
+- strict ("exata"): additionally requires the reported original_text/
+  revised_text (normalized for whitespace only) to match the ground
+  truth's EXACTLY. A lenient TP whose reported text doesn't match counts
+  as a strict FP (the detection exists but says the wrong thing) *and* a
+  strict FN (the real edit's correct content was never actually reported)
+  — not just a lesser TP.
+- lenient_normalized / strict_normalized ("normalizada"): same two ideas,
+  but with the bbox and text comparisons both normalized for *granularity*
+  — see CONTAINMENT_THRESHOLD and _minimal_edit below. This exists because
+  the ground truth and the detector can correctly describe the same real
+  edit at different granularities (a whole sentence vs. just the one word
+  that changed) without either one being wrong, and "exata" alone can't
+  tell that apart from a genuine content error. "exata" is kept exactly as
+  it was BEFORE this normalization was added (commit 52a80a3), reported
+  side by side with "normalizada" for transparency, specifically so the
+  effect of normalizing for granularity is visible rather than hidden
+  inside a single changed number — see eval/README.md.
 
 Needs opencv (via pdf_comparator) — run inside the backend Docker image:
     docker compose exec backend python -m eval.harness
@@ -44,7 +54,22 @@ RESULTS_DIR = Path(__file__).parent / "results"
 IOU_MATCH_THRESHOLD = 0.10  # generous: dilated pixel-diff contours rarely
                              # tightly bound the original vector shape
 
-METRICS = ("lenient", "strict")
+# A ground-truth bbox and a detected bbox can legitimately describe the
+# same edit at different granularities (a whole sentence vs. just the one
+# word the detector isolated inside it) — IoU alone penalizes this pairing
+# heavily, because the two boxes can differ enormously in area even though
+# the small one sits entirely inside the large one. CONTAINMENT_THRESHOLD
+# accepts a match when at least half of the DETECTED box's own area falls
+# inside the EXPECTED box: generous enough to tolerate a detector that
+# (correctly) narrows to a sub-span of a coarser ground truth, but still
+# requires most of the detected region to genuinely be inside the expected
+# one — a detection that only grazes a corner, or sits mostly outside it,
+# still fails. 0.5 was chosen as "more inside than outside"; it is not
+# derived from the observed cases, since this rule must apply uniformly
+# to every pair, not be tuned to make any specific one pass.
+CONTAINMENT_THRESHOLD = 0.5
+
+METRICS = ("lenient", "lenient_normalized", "strict", "strict_normalized")
 
 
 def _iou(a: list, b: list) -> float:
@@ -57,6 +82,18 @@ def _iou(a: list, b: list) -> float:
     area_b = (b[2] - b[0]) * (b[3] - b[1])
     union = area_a + area_b - inter
     return inter / union if union > 0 else 0.0
+
+
+def _bbox_contained_ratio(inner: list, outer: list) -> float:
+    """Fraction of *inner*'s own area that falls inside *outer*. Not
+    symmetric — _iou() already covers the symmetric case."""
+    ix0, iy0 = max(inner[0], outer[0]), max(inner[1], outer[1])
+    ix1, iy1 = min(inner[2], outer[2]), min(inner[3], outer[3])
+    if ix1 <= ix0 or iy1 <= iy0:
+        return 0.0
+    inter = (ix1 - ix0) * (iy1 - iy0)
+    area_inner = (inner[2] - inner[0]) * (inner[3] - inner[1])
+    return inter / area_inner if area_inner > 0 else 0.0
 
 
 def _normalize_text(s: str) -> str:
@@ -72,6 +109,40 @@ def _text_matches(expected: dict, detected: dict) -> bool:
         _normalize_text(expected.get("original_text", "")) == _normalize_text(detected.get("original_text", ""))
         and _normalize_text(expected.get("revised_text", "")) == _normalize_text(detected.get("revised_text", ""))
     )
+
+
+def _minimal_edit(old_text: str, new_text: str) -> tuple[str, str]:
+    """Reduces an (old, new) text pair to its minimal word-level edit by
+    stripping the longest common leading and trailing word-runs. Two
+    differently-granular descriptions of the same real edit normalize to
+    the same core: ("paracetamol 750 mg", "paracetamol 500 mg") and
+    ("750", "500") both reduce to ("750", "500"), because "paracetamol"
+    and "mg" are common prefix/suffix words around the one word that
+    actually changed. A genuine content error still fails: ("15", "17")
+    vs ("15", "1") reduce to ("", "17") vs ("", "1") — different cores,
+    correctly not a match."""
+    old_words = _normalize_text(old_text).split()
+    new_words = _normalize_text(new_text).split()
+
+    i = 0
+    while i < len(old_words) and i < len(new_words) and old_words[i] == new_words[i]:
+        i += 1
+
+    j = 0
+    max_suffix = min(len(old_words), len(new_words)) - i
+    while (j < max_suffix
+           and old_words[len(old_words) - 1 - j] == new_words[len(new_words) - 1 - j]):
+        j += 1
+
+    old_core = old_words[i: len(old_words) - j]
+    new_core = new_words[i: len(new_words) - j]
+    return " ".join(old_core), " ".join(new_core)
+
+
+def _text_matches_minimal_edit(expected: dict, detected: dict) -> bool:
+    exp_old, exp_new = _minimal_edit(expected.get("original_text", ""), expected.get("revised_text", ""))
+    det_old, det_new = _minimal_edit(detected.get("original_text", ""), detected.get("revised_text", ""))
+    return exp_old == det_old and exp_new == det_new
 
 
 def _flatten_detections(result: dict) -> list[dict]:
@@ -120,6 +191,43 @@ def _match(expected: list[dict], detected: list[dict]) -> dict:
     return {"tp": tp, "fn": fn, "fp": fp}
 
 
+def _match_normalized(expected: list[dict], detected: list[dict]) -> dict:
+    """Same greedy highest-score-first assignment as _match(), but:
+    (a) the admission gate additionally accepts a detected bbox mostly
+        contained in the expected one (CONTAINMENT_THRESHOLD), not just
+        IoU >= IOU_MATCH_THRESHOLD — see that constant's docstring;
+    (b) "text_match" is computed via _text_matches_minimal_edit() instead
+        of the exact _text_matches().
+    Both normalizations apply uniformly to every pair — nothing here is
+    conditioned on which pair is being scored."""
+    candidates = []
+    for ei, e in enumerate(expected):
+        for di, d in enumerate(detected):
+            if e["type"] != d["type"] or e["page"] != d["page"]:
+                continue
+            iou = _iou(e["bbox"], d["bbox"])
+            containment = _bbox_contained_ratio(d["bbox"], e["bbox"])
+            if iou >= IOU_MATCH_THRESHOLD or containment >= CONTAINMENT_THRESHOLD:
+                candidates.append((max(iou, containment), ei, di))
+    candidates.sort(reverse=True)
+
+    matched_e, matched_d = set(), set()
+    tp = []
+    for score, ei, di in candidates:
+        if ei in matched_e or di in matched_d:
+            continue
+        matched_e.add(ei)
+        matched_d.add(di)
+        tp.append({
+            "expected": expected[ei], "detected": detected[di], "score": round(score, 3),
+            "text_match": _text_matches_minimal_edit(expected[ei], detected[di]),
+        })
+
+    fn = [expected[i] for i in range(len(expected)) if i not in matched_e]
+    fp = [detected[i] for i in range(len(detected)) if i not in matched_d]
+    return {"tp": tp, "fn": fn, "fp": fp}
+
+
 def _counts(match: dict, strict: bool) -> tuple[int, int, int]:
     """(tp, fp, fn) under the lenient or strict criterion. Strict demotes
     every lenient TP whose text didn't match into one FP *and* one FN."""
@@ -141,11 +249,20 @@ def _prf1(tp: int, fp: int, fn: int) -> dict:
             "tp": tp, "fp": fp, "fn": fn}
 
 
-def _bump_type_counts(by_type: dict, match: dict, metric: str) -> None:
+#   metric name          -> (which match dict to use, strict text check?)
+METRIC_SPECS = {
+    "lenient":            ("exact",      False),
+    "lenient_normalized": ("normalized", False),
+    "strict":             ("exact",      True),
+    "strict_normalized":  ("normalized", True),
+}
+
+
+def _bump_type_counts(by_type: dict, match: dict, metric: str, strict: bool) -> None:
     tp_d, fp_d, fn_d = by_type[metric]["tp"], by_type[metric]["fp"], by_type[metric]["fn"]
     for t in match["tp"]:
         typ = t["expected"]["type"]
-        if metric == "lenient" or t["text_match"]:
+        if not strict or t["text_match"]:
             tp_d[typ] = tp_d.get(typ, 0) + 1
         else:
             fp_d[typ] = fp_d.get(typ, 0) + 1
@@ -190,21 +307,31 @@ def run(pairs_dir: Path | None = None) -> dict:
                 alignment_log.append({"pair": pair_id, "page": page["page_num"], **page["alignment"]})
 
             detected = _flatten_detections(result)
-            match = _match(expected, detected)
+            matches = {
+                "exact":      _match(expected, detected),
+                "normalized": _match_normalized(expected, detected),
+            }
 
             for m in METRICS:
-                _bump_type_counts(by_type, match, m)
+                kind, strict = METRIC_SPECS[m]
+                _bump_type_counts(by_type, matches[kind], m, strict)
 
-            metrics = {m: _prf1(*_counts(match, strict=(m == "strict"))) for m in METRICS}
+            metrics = {m: _prf1(*_counts(matches[METRIC_SPECS[m][0]], strict=METRIC_SPECS[m][1])) for m in METRICS}
             per_pair[pair_id] = {
                 "description": gt["description"],
                 "ground_truth_status": gt.get("ground_truth_status", "fornecido/gerado — não provisório"),
                 "metrics": metrics,
-                "false_negatives": match["fn"],
-                "false_positives": match["fp"],
-                "text_mismatches": [
+                "false_negatives_exact": matches["exact"]["fn"],
+                "false_positives_exact": matches["exact"]["fp"],
+                "false_negatives_normalized": matches["normalized"]["fn"],
+                "false_positives_normalized": matches["normalized"]["fp"],
+                "text_mismatches_exact": [
                     {"expected": t["expected"], "detected": t["detected"]}
-                    for t in match["tp"] if not t["text_match"]
+                    for t in matches["exact"]["tp"] if not t["text_match"]
+                ],
+                "text_mismatches_normalized": [
+                    {"expected": t["expected"], "detected": t["detected"]}
+                    for t in matches["normalized"]["tp"] if not t["text_match"]
                 ],
             }
 
@@ -240,33 +367,46 @@ def _print_report(report: dict) -> None:
               f"kp_orig={a['keypoints_orig']} kp_rev={a['keypoints_rev']} "
               f"good_matches={a['good_matches']} inliers={a['inliers']}")
 
-    print("\n=== Por par (leniente vs. estrita) ===")
+    print("\n=== Por par — leniente / leniente_normalizado / estrita(exata) / estrita_normalizada ===")
     for pair_id, info in report["pairs"].items():
         status = info["ground_truth_status"]
         print(f"  {pair_id} — {info['description']}")
         if "PROVISÓRIO" in status:
             print(f"      [{status}]")
-        print(f"      leniente: {_fmt(info['metrics']['lenient'])}")
-        print(f"      estrita : {_fmt(info['metrics']['strict'])}")
-        for fn in info["false_negatives"]:
-            print(f"      MISSED   [{fn['type']}] p{fn['page']} {fn['description']}")
-        for fp in info["false_positives"]:
-            print(f"      SPURIOUS [{fp['type']}] p{fp['page']} {fp['description']}")
-        for tm in info["text_mismatches"]:
+        m = info["metrics"]
+        print(f"      leniente            : {_fmt(m['lenient'])}")
+        print(f"      leniente_normalizado: {_fmt(m['lenient_normalized'])}")
+        print(f"      estrita (exata)     : {_fmt(m['strict'])}")
+        print(f"      estrita_normalizada : {_fmt(m['strict_normalized'])}")
+        for fn in info["false_negatives_normalized"]:
+            print(f"      MISSED   (normalizado) [{fn['type']}] p{fn['page']} {fn['description']}")
+        for fp in info["false_positives_normalized"]:
+            print(f"      SPURIOUS (normalizado) [{fp['type']}] p{fp['page']} {fp['description']}")
+        for tm in info["text_mismatches_normalized"]:
             e, d = tm["expected"], tm["detected"]
-            print(f"      TEXT MISMATCH [{e['type']}] p{e['page']}: "
+            print(f"      TEXT MISMATCH (normalizado) [{e['type']}] p{e['page']}: "
                   f"expected old={e.get('original_text','')!r} new={e.get('revised_text','')!r} "
                   f"| got old={d.get('original_text','')!r} new={d.get('revised_text','')!r}")
 
-    print("\n=== Por tipo de divergência (leniente vs. estrita) ===")
+    print("\n=== Por tipo de divergência ===")
     types = sorted(report["by_type"]["lenient"])
     for t in types:
-        print(f"  {t:15s} leniente: {_fmt(report['by_type']['lenient'][t])}")
-        print(f"  {'':15s} estrita : {_fmt(report['by_type']['strict'][t])}")
+        bt = report["by_type"]
+        print(f"  {t:15s} leniente            : {_fmt(bt['lenient'][t])}")
+        print(f"  {'':15s} leniente_normalizado: {_fmt(bt['lenient_normalized'][t])}")
+        print(f"  {'':15s} estrita (exata)     : {_fmt(bt['strict'][t])}")
+        print(f"  {'':15s} estrita_normalizada : {_fmt(bt['strict_normalized'][t])}")
 
+    o = report["overall"]
     print("\n=== Agregado ===")
-    print(f"  leniente: {_fmt(report['overall']['lenient'])}")
-    print(f"  estrita : {_fmt(report['overall']['strict'])}")
+    print(f"  leniente            : {_fmt(o['lenient'])}")
+    print(f"  leniente_normalizado: {_fmt(o['lenient_normalized'])}")
+    print(f"  estrita (exata)     : {_fmt(o['strict'])}")
+    print(f"  estrita_normalizada : {_fmt(o['strict_normalized'])}")
+    print(f"\n  diferença (normalizada - exata): "
+          f"ΔP={o['strict_normalized']['precision'] - o['strict']['precision']:+.3f} "
+          f"ΔR={o['strict_normalized']['recall'] - o['strict']['recall']:+.3f} "
+          f"ΔF1={o['strict_normalized']['f1'] - o['strict']['f1']:+.3f}")
 
 
 if __name__ == "__main__":
