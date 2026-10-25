@@ -9,48 +9,53 @@ import type {
   PageComparison,
   ReviewSummary,
 } from '../types/process'
+import { theme, FOCUSABLE_CLASS, MIN_TOUCH_TARGET, injectComparisonGlobalStyles } from '../styles/comparisonTheme'
+import { comparisonStrings as S } from '../i18n/comparisonStrings'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────────
-const T = {
-  bgBase:     '#0C0E14',
-  bgSurface:  '#141720',
-  bgElevated: '#1C2030',
-  border:     '#2A2F3F',
-  accent:     '#2D6BE4',
-  success:    '#1A9E6F',
-  danger:     '#D63C3C',
-  warning:    '#C47E1A',
-  textPrimary:'#E8ECF4',
-  textSecond: '#7A8299',
-  textMuted:  '#3D4560',
-} as const
+// T is the legacy name kept so the diff below stays readable; it now
+// re-exports the shared light theme instead of the old dark-theme values.
+const T = theme
 
 const SEV_COLOR: Record<DiffSeverity, string> = {
-  high:   '#D63C3C',
-  medium: '#C47E1A',
-  low:    '#2D6BE4',
+  high:   T.reject,
+  medium: T.highlight,
+  low:    T.accent,
 }
 
+// Diff "group" colours used for chips and page highlights. Text and
+// Visual match the exact colours the spec calls out; the remaining groups
+// (which the spec doesn't give colours for) reuse the neutral/secondary
+// palette so they don't invent new hues that clash with the two that are
+// specified.
 const GROUP_COLOR: Record<string, string> = {
-  Compliance:  '#D63C3C',
-  Codes:       '#D63C3C',
-  Text:        '#F59E0B',
-  Visual:      '#2D6BE4',
-  Dimensional: '#7C3AED',
+  Compliance:  T.reject,
+  Codes:       T.reject,
+  Text:        T.highlight,
+  Visual:      T.visualChipText,
+  Dimensional: T.textSecondary,
+}
+
+const GROUP_CHIP_BG: Record<string, string> = {
+  Compliance:  T.rejectBg,
+  Codes:       T.rejectBg,
+  Text:        T.highlightChipBg,
+  Visual:      T.visualChipBg,
+  Dimensional: T.surfaceAlt,
 }
 
 const TYPE_LABEL: Partial<Record<DiffType, string>> = {
-  text_changed:  'Text Changed',
-  text_added:    'Text Added',
-  text_removed:  'Text Removed',
-  font_size:     'Font Size',
-  font_style:    'Font Style',
-  color:         'Colour',
-  ean_changed:   'EAN / Barcode',
-  pharmaCode:    'PharmaCode',
-  visual:        'Visual',
-  dimensional:   'Dimensional',
-  compliance:    'Compliance',
+  text_changed:  S.diffCard.typeText,
+  text_added:    S.diffCard.typeText,
+  text_removed:  S.diffCard.typeText,
+  font_size:     S.diffCard.typeFontSize,
+  font_style:    S.diffCard.typeFontStyle,
+  color:         S.diffCard.typeColor,
+  ean_changed:   S.diffCard.typeCode,
+  pharmaCode:    S.diffCard.typeCode,
+  visual:        S.diffCard.typeVisual,
+  dimensional:   S.diffCard.typeDimensional,
+  compliance:    S.diffCard.typeCompliance,
 }
 
 const TYPE_GROUP: Record<string, string> = {
@@ -138,8 +143,8 @@ function DiffHighlights({
               height:    `${r.height * 100}%`,
               minWidth:  4,
               minHeight: 4,
-              background: isSelected ? `${color}40` : 'rgba(255,255,255,0.08)',
-              border:     isSelected ? `2px solid ${color}DD` : '1px solid rgba(255,255,255,0.25)',
+              background: isSelected ? T.highlightFillSel : T.highlightFillLight,
+              border:     isSelected ? `3px solid ${T.highlight}` : `1.5px dashed ${T.highlight}`,
               borderRadius: 2,
               cursor: 'pointer',
               boxSizing: 'border-box',
@@ -208,11 +213,13 @@ function PagePanel({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+      {/* Label sits in its own white strip — the workspace behind the PDF
+          is a coloured gradient, so plain text there would fail contrast. */}
       <div style={{
         padding: '6px 12px', flexShrink: 0,
-        fontSize: 10, fontWeight: 700, color: T.textMuted,
-        textTransform: 'uppercase', letterSpacing: '0.1em',
-        background: T.bgSurface, borderBottom: `1px solid ${T.border}`,
+        fontSize: 12, fontWeight: 700, color: T.textSecondary,
+        textTransform: 'uppercase', letterSpacing: '0.08em',
+        background: T.surface, borderBottom: `1px solid ${T.border}`,
       }}>
         {label}
       </div>
@@ -232,7 +239,8 @@ function PagePanel({
           )
         }}
         style={{
-          flex: 1, overflow: 'auto', background: '#090B10',
+          flex: 1, overflow: 'auto',
+          background: T.workspaceGradient,
           cursor: zoomMode === 'zoomin'  ? 'zoom-in'
                 : zoomMode === 'zoomout' ? 'zoom-out'
                 : 'default',
@@ -248,6 +256,7 @@ function PagePanel({
                 aspectRatio: displayAR,
                 overflow:    'hidden',
                 margin:      '0 auto',
+                boxShadow:   '0 4px 24px rgba(0,0,0,0.35)',
               }}
             >
               <div style={{
@@ -279,11 +288,11 @@ function PagePanel({
             <div style={{
               width: `${zoom}%`, minWidth: 120, margin: '0 auto',
               aspectRatio: displayAR,
-              background: T.bgSurface, border: `1px solid ${T.border}`,
+              background: T.surface, border: `1px solid ${T.border}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: T.textMuted, fontSize: 12,
+              color: T.textSecondary, fontSize: 13,
             }}>
-              Page not available
+              {S.pageLabels.notAvailable}
             </div>
           )}
         </div>
@@ -315,61 +324,62 @@ function ReviewStatusBar({
 
   return (
     <div style={{
-      padding: '7px 16px',
-      background: T.bgSurface,
+      padding: '8px 16px',
+      background: T.surface,
       borderBottom: `1px solid ${T.border}`,
       display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flexShrink: 0,
     }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: T.textSecond, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-        Review
+      <span style={{ fontSize: 12, fontWeight: 700, color: T.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        {S.reviewBar.heading}
       </span>
 
-      <div style={{ display: 'flex', gap: 5 }}>
+      <div style={{ display: 'flex', gap: 6 }}>
         {summary.pending > 0 && (
           <span style={{
-            fontSize: 10, padding: '1px 7px', borderRadius: 10, fontWeight: 700,
-            background: `${T.warning}18`, color: T.warning, border: `1px solid ${T.warning}40`,
+            fontSize: 12, padding: '2px 8px', borderRadius: 10, fontWeight: 700,
+            background: T.surfaceAlt, color: T.statusPending, border: `1px solid ${T.border}`,
           }}>
-            {summary.pending} pending
+            {S.reviewBar.pending(summary.pending)}
           </span>
         )}
         {summary.accepted > 0 && (
           <span style={{
-            fontSize: 10, padding: '1px 7px', borderRadius: 10, fontWeight: 700,
-            background: `${T.success}18`, color: T.success, border: `1px solid ${T.success}40`,
+            fontSize: 12, padding: '2px 8px', borderRadius: 10, fontWeight: 700,
+            background: T.acceptBg, color: T.accept, border: `1px solid ${T.accept}40`,
           }}>
-            {summary.accepted} accepted
+            {S.reviewBar.accepted(summary.accepted)}
           </span>
         )}
         {summary.rejected > 0 && (
           <span style={{
-            fontSize: 10, padding: '1px 7px', borderRadius: 10, fontWeight: 700,
-            background: `${T.danger}18`, color: T.danger, border: `1px solid ${T.danger}40`,
+            fontSize: 12, padding: '2px 8px', borderRadius: 10, fontWeight: 700,
+            background: T.rejectBg, color: T.reject, border: `1px solid ${T.reject}40`,
           }}>
-            {summary.rejected} rejected
+            {S.reviewBar.rejected(summary.rejected)}
           </span>
         )}
-        <span style={{ fontSize: 10, color: T.textMuted }}>
-          ({reviewed}/{summary.total} reviewed)
+        <span style={{ fontSize: 12, color: T.textSecondary }}>
+          {S.reviewBar.reviewedOf(reviewed, summary.total)}
         </span>
       </div>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
         {approvedAt ? (
-          <span style={{ fontSize: 11, color: T.success, fontWeight: 700 }}>
-            ✓ Approved {new Date(approvedAt).toLocaleString()}
+          <span style={{ fontSize: 13, color: T.accept, fontWeight: 700 }}>
+            ✓ {S.reviewBar.approvedAt(new Date(approvedAt).toLocaleString())}
           </span>
         ) : (
           <>
             <input
               value={reviewerEmail}
               onChange={e => onEmailChange(e.target.value)}
-              placeholder="reviewer@company.com"
-              title="Your email — required to record reviews"
+              placeholder={S.reviewBar.emailPlaceholder}
+              title={S.reviewBar.emailTitle}
+              className={FOCUSABLE_CLASS}
               style={{
-                background: T.bgElevated, border: `1px solid ${T.border}`,
-                borderRadius: 5, color: T.textPrimary, fontSize: 11,
-                padding: '3px 8px', outline: 'none', width: 190,
+                background: T.surfaceAlt, border: `1px solid ${T.border}`,
+                borderRadius: 6, color: T.text, fontSize: 13,
+                padding: '6px 10px', outline: 'none', width: 200,
                 fontFamily: 'inherit',
               }}
             />
@@ -378,21 +388,22 @@ function ReviewStatusBar({
                 onClick={onApprove}
                 disabled={approving || !reviewerEmail.trim()}
                 title={!reviewerEmail.trim() ? 'Enter your reviewer email first' : undefined}
+                className={FOCUSABLE_CLASS}
                 style={{
-                  padding: '5px 14px',
-                  background: approving || !reviewerEmail.trim() ? T.bgElevated : (summary.has_rejections ? T.warning : T.success),
-                  color: approving || !reviewerEmail.trim() ? T.textMuted : '#fff',
-                  border: 'none', borderRadius: 6,
+                  padding: '8px 16px', minHeight: MIN_TOUCH_TARGET,
+                  background: approving || !reviewerEmail.trim() ? T.surfaceAlt : (summary.has_rejections ? T.highlight : T.accept),
+                  color: approving || !reviewerEmail.trim() ? T.textSecondary : '#fff',
+                  border: 'none', borderRadius: 7,
                   cursor: approving || !reviewerEmail.trim() ? 'not-allowed' : 'pointer',
-                  fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
-                  opacity: !reviewerEmail.trim() ? 0.5 : 1,
+                  fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
+                  opacity: !reviewerEmail.trim() ? 0.6 : 1,
                 }}
               >
                 {approving
-                  ? 'Approving…'
+                  ? S.reviewBar.approving
                   : summary.has_rejections
-                    ? '⚠ Approve with Rejections'
-                    : '✓ Approve Comparison'}
+                    ? `⚠ ${S.reviewBar.approveWithRejections}`
+                    : `✓ ${S.reviewBar.approve}`}
               </button>
             )}
           </>
@@ -448,24 +459,24 @@ function DiffListPanel({
 
   return (
     <div style={{
-      width: 280, flexShrink: 0,
+      width: 300, flexShrink: 0,
       display: 'flex', flexDirection: 'column',
-      background: T.bgSurface, borderLeft: `1px solid ${T.border}`,
+      background: T.surface, borderLeft: `1px solid ${T.border}`,
     }}>
       <div style={{
-        padding: '10px 14px', borderBottom: `1px solid ${T.border}`,
+        padding: '12px 14px', borderBottom: `1px solid ${T.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: T.textSecond, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Differences
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {S.diffPanel.heading}
         </span>
         <span style={{
-          padding: '2px 7px', borderRadius: 10,
-          background: totalCount > 0 ? `${T.danger}20` : `${T.success}20`,
-          color:      totalCount > 0 ? T.danger          : T.success,
-          border:    `1px solid ${totalCount > 0 ? T.danger : T.success}40`,
-          fontSize: 10, fontWeight: 700,
+          padding: '2px 8px', borderRadius: 10,
+          background: totalCount > 0 ? T.rejectBg : T.acceptBg,
+          color:      totalCount > 0 ? T.reject   : T.accept,
+          border:    `1px solid ${totalCount > 0 ? T.reject : T.accept}40`,
+          fontSize: 12, fontWeight: 700,
         }}>
           {totalCount}
         </span>
@@ -473,8 +484,8 @@ function DiffListPanel({
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {totalCount === 0 && (
-          <div style={{ padding: '32px 14px', textAlign: 'center', color: T.textMuted, fontSize: 12 }}>
-            No differences on this page
+          <div style={{ padding: '32px 14px', textAlign: 'center', color: T.textSecondary, fontSize: 13 }}>
+            {S.diffPanel.empty}
           </div>
         )}
 
@@ -482,9 +493,9 @@ function DiffListPanel({
           <div key={groupName}>
             <div style={{
               padding: '6px 14px 4px',
-              fontSize: 9, fontWeight: 700, color: T.textMuted,
-              textTransform: 'uppercase', letterSpacing: '0.12em',
-              background: T.bgElevated, borderBottom: `1px solid ${T.border}`,
+              fontSize: 11, fontWeight: 700, color: T.textSecondary,
+              textTransform: 'uppercase', letterSpacing: '0.1em',
+              background: T.surfaceAlt, borderBottom: `1px solid ${T.border}`,
               position: 'sticky', top: 0,
             }}>
               {groupName} ({grouped[groupName].length})
@@ -493,6 +504,7 @@ function DiffListPanel({
             {grouped[groupName].map(d => {
               const isSelected   = selectedId === d.id
               const color        = GROUP_COLOR[TYPE_GROUP[d.type] ?? 'Text']
+              const chipBg       = GROUP_CHIP_BG[TYPE_GROUP[d.type] ?? 'Text']
               const review       = reviews[d.id]
               const isSub        = submitting.has(d.id)
               const isEditing    = editing?.diffId === d.id
@@ -502,10 +514,10 @@ function DiffListPanel({
                 <div
                   key={d.id}
                   style={{
-                    padding: '9px 14px',
-                    background:   isSelected ? `${color}12` : 'transparent',
+                    padding: '10px 14px',
+                    background:   isSelected ? T.surfaceAlt : 'transparent',
                     borderBottom: `1px solid ${T.border}`,
-                    borderLeft:   `3px solid ${isSelected ? color : 'transparent'}`,
+                    borderLeft:   `3px solid ${isSelected ? T.accent : 'transparent'}`,
                   }}
                 >
                   <div
@@ -514,46 +526,42 @@ function DiffListPanel({
                       onSelect(d.id)
                     }}
                     style={{ cursor: 'pointer' }}
-                    onMouseEnter={e => {
-                      if (!isSelected)
-                        (e.currentTarget as HTMLDivElement).style.opacity = '0.85'
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLDivElement).style.opacity = '1'
-                    }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                       <span style={{
-                        fontSize: 11, fontWeight: 700, color: T.textPrimary, flexShrink: 0,
+                        fontSize: 14, fontWeight: 700, color: T.text, flexShrink: 0,
                       }}>
-                        Change {diffIndex.get(d.id)}
+                        #{diffIndex.get(d.id)}
                       </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
                       <span style={{
-                        fontSize: 8, fontWeight: 700, color,
-                        background: `${color}18`, border: `1px solid ${color}35`,
-                        padding: '1px 5px', borderRadius: 3, textTransform: 'uppercase',
-                        letterSpacing: '0.06em', flexShrink: 0,
+                        fontSize: 11, fontWeight: 700, color,
+                        background: chipBg, border: `1px solid ${color}40`,
+                        padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase',
+                        letterSpacing: '0.04em', flexShrink: 0,
                       }}>
                         {TYPE_LABEL[d.type] ?? d.type}
                       </span>
-                      <span style={{ fontSize: 8, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        {d.severity}
-                      </span>
                     </div>
-                    <div style={{ fontSize: 11, color: T.textPrimary, lineHeight: 1.4, wordBreak: 'break-word' }}>
+                    <div style={{ fontSize: 14, color: T.text, lineHeight: 1.4, wordBreak: 'break-word' }}>
                       {d.description.length > 80 ? d.description.slice(0, 80) + '…' : d.description}
                     </div>
                     {(d.original_text || d.revised_text) && (
-                      <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
                         {d.original_text && (
-                          <div style={{ fontSize: 10, color: '#ff8888', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                          <div style={{
+                            fontSize: 13, color: T.reject, background: T.rejectBg,
+                            padding: '3px 7px', borderRadius: 4,
+                            textDecoration: 'line-through', fontFamily: 'monospace', wordBreak: 'break-all',
+                          }}>
                             − {d.original_text.slice(0, 50)}{d.original_text.length > 50 ? '…' : ''}
                           </div>
                         )}
                         {d.revised_text && (
-                          <div style={{ fontSize: 10, color: '#88ff99', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                          <div style={{
+                            fontSize: 13, color: T.accept, background: T.acceptBg,
+                            padding: '3px 7px', borderRadius: 4,
+                            fontWeight: 700, fontFamily: 'monospace', wordBreak: 'break-all',
+                          }}>
                             + {d.revised_text.slice(0, 50)}{d.revised_text.length > 50 ? '…' : ''}
                           </div>
                         )}
@@ -562,22 +570,22 @@ function DiffListPanel({
                   </div>
 
                   {/* ── Review section ── */}
-                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.border}40` }}>
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.border}` }}>
 
                     {/* Current status badge (when reviewed and not editing) */}
                     {review && !isEditing && (
                       <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{
-                          fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
-                          textTransform: 'uppercase', letterSpacing: '0.06em',
-                          background: reviewStatus === 'accepted' ? `${T.success}20` : `${T.danger}20`,
-                          color:      reviewStatus === 'accepted' ? T.success          : T.danger,
-                          border:    `1px solid ${reviewStatus === 'accepted' ? T.success : T.danger}40`,
+                          fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+                          textTransform: 'uppercase', letterSpacing: '0.04em',
+                          background: reviewStatus === 'accepted' ? T.acceptBg : T.rejectBg,
+                          color:      reviewStatus === 'accepted' ? T.accept   : T.reject,
+                          border:    `1px solid ${reviewStatus === 'accepted' ? T.accept : T.reject}40`,
                         }}>
-                          {reviewStatus === 'accepted' ? '✓ Accepted' : '✗ Rejected'}
+                          {reviewStatus === 'accepted' ? `✓ ${S.diffCard.statusAccepted}` : `✗ ${S.diffCard.statusRejected}`}
                         </span>
                         {review.comment && (
-                          <span style={{ fontSize: 9, color: T.textMuted, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 12, color: T.textSecondary, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             "{review.comment.slice(0, 40)}{review.comment.length > 40 ? '…' : ''}"
                           </span>
                         )}
@@ -586,46 +594,50 @@ function DiffListPanel({
 
                     {/* Accept / Reject buttons */}
                     {!isEditing && (
-                      <div style={{ display: 'flex', gap: 5 }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
                         <button
                           disabled={isSub || !reviewerEmailSet}
                           title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : (reviewStatus === 'accepted' ? 'Edit acceptance' : 'Accept this difference')}
+                          aria-pressed={reviewStatus === 'accepted'}
+                          className={FOCUSABLE_CLASS}
                           onClick={e => {
                             e.stopPropagation()
                             setEditing({ diffId: d.id, action: 'accepted', comment: review?.comment ?? '' })
                           }}
                           style={{
-                            flex: 1, padding: '4px 0', fontSize: 10, fontWeight: 700,
-                            border:     `1px solid ${reviewStatus === 'accepted' ? T.success : T.border}`,
-                            background: reviewStatus === 'accepted' ? `${T.success}25` : T.bgElevated,
-                            color:      reviewStatus === 'accepted' ? T.success          : T.textSecond,
-                            borderRadius: 4,
+                            flex: 1, minHeight: MIN_TOUCH_TARGET, padding: '6px 0', fontSize: 13, fontWeight: 700,
+                            border:     `1px solid ${T.accept}`,
+                            background: reviewStatus === 'accepted' ? T.accept : T.surface,
+                            color:      reviewStatus === 'accepted' ? '#fff'  : T.accept,
+                            borderRadius: 6,
                             cursor: isSub || !reviewerEmailSet ? 'not-allowed' : 'pointer',
-                            opacity: isSub || !reviewerEmailSet ? 0.45 : 1,
+                            opacity: isSub || !reviewerEmailSet ? 0.5 : 1,
                             transition: 'background 0.1s, border-color 0.1s',
                           }}
                         >
-                          ✓ Accept
+                          ✓ {S.diffCard.accept}
                         </button>
                         <button
                           disabled={isSub || !reviewerEmailSet}
                           title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : (reviewStatus === 'rejected' ? 'Edit rejection' : 'Reject this difference')}
+                          aria-pressed={reviewStatus === 'rejected'}
+                          className={FOCUSABLE_CLASS}
                           onClick={e => {
                             e.stopPropagation()
                             setEditing({ diffId: d.id, action: 'rejected', comment: review?.comment ?? '' })
                           }}
                           style={{
-                            flex: 1, padding: '4px 0', fontSize: 10, fontWeight: 700,
-                            border:     `1px solid ${reviewStatus === 'rejected' ? T.danger : T.border}`,
-                            background: reviewStatus === 'rejected' ? `${T.danger}20` : T.bgElevated,
-                            color:      reviewStatus === 'rejected' ? T.danger          : T.textSecond,
-                            borderRadius: 4,
+                            flex: 1, minHeight: MIN_TOUCH_TARGET, padding: '6px 0', fontSize: 13, fontWeight: 700,
+                            border:     `1px solid ${T.reject}`,
+                            background: reviewStatus === 'rejected' ? T.reject : T.surface,
+                            color:      reviewStatus === 'rejected' ? '#fff'  : T.reject,
+                            borderRadius: 6,
                             cursor: isSub || !reviewerEmailSet ? 'not-allowed' : 'pointer',
-                            opacity: isSub || !reviewerEmailSet ? 0.45 : 1,
+                            opacity: isSub || !reviewerEmailSet ? 0.5 : 1,
                             transition: 'background 0.1s, border-color 0.1s',
                           }}
                         >
-                          ✗ Reject
+                          ✗ {S.diffCard.reject}
                         </button>
                       </div>
                     )}
@@ -635,50 +647,53 @@ function DiffListPanel({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{
-                            fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3,
+                            fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
                             textTransform: 'uppercase',
-                            background: editing.action === 'accepted' ? `${T.success}20` : `${T.danger}20`,
-                            color:      editing.action === 'accepted' ? T.success          : T.danger,
-                            border:    `1px solid ${editing.action === 'accepted' ? T.success : T.danger}40`,
+                            background: editing.action === 'accepted' ? T.acceptBg : T.rejectBg,
+                            color:      editing.action === 'accepted' ? T.accept   : T.reject,
+                            border:    `1px solid ${editing.action === 'accepted' ? T.accept : T.reject}40`,
                           }}>
-                            {editing.action === 'accepted' ? '✓ Accept' : '✗ Reject'}
+                            {editing.action === 'accepted' ? `✓ ${S.diffCard.accept}` : `✗ ${S.diffCard.reject}`}
                           </span>
-                          <span style={{ fontSize: 9, color: T.textMuted }}>Optional note</span>
+                          <span style={{ fontSize: 12, color: T.textSecondary }}>{S.diffCard.noteLabel}</span>
                         </div>
                         <textarea
                           autoFocus
                           value={editing.comment}
                           onChange={e => setEditing(prev => prev ? { ...prev, comment: e.target.value } : prev)}
-                          placeholder="Audit comment (optional)…"
+                          placeholder={S.diffCard.notePlaceholder}
                           rows={2}
+                          className={FOCUSABLE_CLASS}
                           style={{
                             width: '100%', boxSizing: 'border-box',
-                            background: T.bgElevated, border: `1px solid ${T.border}`,
-                            borderRadius: 4, color: T.textPrimary, fontSize: 11,
-                            padding: '5px 7px', resize: 'vertical', outline: 'none',
+                            background: T.surfaceAlt, border: `1px solid ${T.border}`,
+                            borderRadius: 5, color: T.text, fontSize: 13,
+                            padding: '6px 8px', resize: 'vertical', outline: 'none',
                             fontFamily: 'inherit', lineHeight: 1.4,
                           }}
                         />
-                        <div style={{ display: 'flex', gap: 5 }}>
+                        <div style={{ display: 'flex', gap: 6 }}>
                           <button
+                            className={FOCUSABLE_CLASS}
                             onClick={e => { e.stopPropagation(); confirmReview() }}
                             style={{
-                              flex: 1, padding: '5px 0', fontSize: 10, fontWeight: 700,
-                              background: editing.action === 'accepted' ? T.success : T.danger,
-                              color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer',
+                              flex: 1, minHeight: 36, padding: '6px 0', fontSize: 13, fontWeight: 700,
+                              background: editing.action === 'accepted' ? T.accept : T.reject,
+                              color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer',
                             }}
                           >
-                            Confirm
+                            {S.diffCard.confirm}
                           </button>
                           <button
+                            className={FOCUSABLE_CLASS}
                             onClick={e => { e.stopPropagation(); setEditing(null) }}
                             style={{
-                              flex: 1, padding: '5px 0', fontSize: 10, fontWeight: 700,
-                              background: T.bgElevated, color: T.textSecond,
-                              border: `1px solid ${T.border}`, borderRadius: 4, cursor: 'pointer',
+                              flex: 1, minHeight: 36, padding: '6px 0', fontSize: 13, fontWeight: 700,
+                              background: T.surfaceAlt, color: T.textSecondary,
+                              border: `1px solid ${T.border}`, borderRadius: 5, cursor: 'pointer',
                             }}
                           >
-                            Cancel
+                            {S.diffCard.cancel}
                           </button>
                         </div>
                       </div>
@@ -686,8 +701,8 @@ function DiffListPanel({
 
                     {/* Submitting spinner */}
                     {isSub && (
-                      <div style={{ fontSize: 9, color: T.textMuted, textAlign: 'center', marginTop: 4 }}>
-                        Saving…
+                      <div style={{ fontSize: 12, color: T.textSecondary, textAlign: 'center', marginTop: 4 }}>
+                        {S.diffCard.saving}
                       </div>
                     )}
                   </div>
@@ -733,19 +748,19 @@ function UploadForm({
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '60px 40px', gap: 20,
+      background: T.surface, height: '100%', fontFamily: T.fontFamily,
     }}>
       <div style={{ fontSize: 40, marginBottom: 4 }}>⚖️</div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary }}>Run Artwork Comparison</div>
-      <div style={{ fontSize: 12, color: T.textSecond, maxWidth: 420, textAlign: 'center', lineHeight: 1.6 }}>
-        Upload the revised PDF from your design studio. The system will automatically
-        detect text, code, visual, and dimensional differences.
+      <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{S.upload.heading}</div>
+      <div style={{ fontSize: 14, color: T.textSecondary, maxWidth: 420, textAlign: 'center', lineHeight: 1.6 }}>
+        {S.upload.description}
       </div>
 
       {error && (
         <div style={{
-          padding: '10px 16px', background: `${T.danger}18`,
-          border: `1px solid ${T.danger}40`, borderRadius: 8,
-          color: '#fca5a5', fontSize: 12, maxWidth: 400, textAlign: 'center',
+          padding: '10px 16px', background: T.rejectBg,
+          border: `1px solid ${T.reject}40`, borderRadius: 8,
+          color: T.reject, fontSize: 13, maxWidth: 400, textAlign: 'center',
         }}>{error}</div>
       )}
 
@@ -753,25 +768,25 @@ function UploadForm({
         onChange={e => setFile(e.target.files?.[0] ?? null)} />
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <button onClick={() => fileRef.current?.click()} style={{
-          padding: '9px 18px', background: T.bgElevated,
+        <button onClick={() => fileRef.current?.click()} className={FOCUSABLE_CLASS} style={{
+          padding: '10px 18px', minHeight: MIN_TOUCH_TARGET, background: T.surfaceAlt,
           border: `1px solid ${T.border}`, borderRadius: 8,
-          color: T.textSecond, cursor: 'pointer', fontSize: 12,
+          color: T.textSecondary, cursor: 'pointer', fontSize: 14,
         }}>
-          {file ? '↺ Change file' : '↑ Choose revised PDF'}
+          {file ? `↺ ${S.upload.changeFile}` : `↑ ${S.upload.chooseFile}`}
         </button>
-        {file && <span style={{ fontSize: 11, color: T.success }}>✓ {file.name}</span>}
+        {file && <span style={{ fontSize: 13, color: T.accept }}>✓ {file.name}</span>}
       </div>
 
-      <button onClick={run} disabled={!file || running} style={{
-        padding: '10px 28px',
-        background: file && !running ? T.accent : T.bgElevated,
-        color:      file && !running ? '#fff'   : T.textMuted,
+      <button onClick={run} disabled={!file || running} className={FOCUSABLE_CLASS} style={{
+        padding: '12px 28px', minHeight: MIN_TOUCH_TARGET,
+        background: file && !running ? T.accent : T.surfaceAlt,
+        color:      file && !running ? '#fff'   : T.textSecondary,
         border: 'none', borderRadius: 8,
         cursor: file && !running ? 'pointer' : 'not-allowed',
-        fontSize: 13, fontWeight: 700,
+        fontSize: 14, fontWeight: 700,
       }}>
-        {running ? 'Analysing…' : 'Compare Artworks'}
+        {running ? S.upload.comparing : S.upload.compare}
       </button>
     </div>
   )
@@ -784,38 +799,38 @@ function SummaryBar({ rec, onNew }: { rec: ComparisonRecord; onNew: () => void }
   if (!s) return null
   const total = s.total_differences
   const pills = [
-    { label: 'Text',        value: s.text_changes,         color: T.accent  },
-    { label: 'Codes',       value: s.code_changes,         color: T.danger  },
-    { label: 'Visual',      value: s.visual_changes,       color: T.warning },
-    { label: 'Dimensional', value: s.dimensional_changes,  color: '#7C3AED' },
-    { label: 'Compliance',  value: s.compliance_flags,     color: T.danger  },
+    { label: 'Text',        value: s.text_changes,         color: T.highlight },
+    { label: 'Codes',       value: s.code_changes,         color: T.reject  },
+    { label: 'Visual',      value: s.visual_changes,       color: T.visualChipText },
+    { label: 'Dimensional', value: s.dimensional_changes,  color: T.textSecondary },
+    { label: 'Compliance',  value: s.compliance_flags,     color: T.reject  },
   ].filter(p => p.value > 0)
 
   return (
     <div style={{
-      padding: '8px 16px', background: T.bgSurface, borderBottom: `1px solid ${T.border}`,
+      padding: '10px 16px', background: T.surface, borderBottom: `1px solid ${T.border}`,
       display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', flexShrink: 0,
     }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: total === 0 ? T.success : T.textPrimary }}>
-        {total === 0 ? '✓ Identical' : `${total} difference${total !== 1 ? 's' : ''}`}
+      <span style={{ fontSize: 14, fontWeight: 700, color: total === 0 ? T.accept : T.text }}>
+        {total === 0 ? `✓ ${S.summaryBar.identical}` : S.summaryBar.differences(total)}
       </span>
       {pills.map(p => (
         <span key={p.label} style={{
-          fontSize: 10, padding: '2px 8px', borderRadius: 10,
-          background: `${p.color}18`, color: p.color, border: `1px solid ${p.color}40`, fontWeight: 700,
+          fontSize: 12, padding: '2px 9px', borderRadius: 10,
+          background: T.surfaceAlt, color: p.color, border: `1px solid ${p.color}40`, fontWeight: 700,
         }}>
           {p.label}: {p.value}
         </span>
       ))}
       <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 10, color: T.textMuted, fontFamily: 'monospace' }}>
+        <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: 'monospace' }}>
           {new Date(rec.created_at).toLocaleString()}
         </span>
-        <button onClick={onNew} style={{
-          padding: '5px 12px', background: 'transparent', border: `1px solid ${T.border}`,
-          borderRadius: 6, color: T.textSecond, cursor: 'pointer', fontSize: 11,
+        <button onClick={onNew} className={FOCUSABLE_CLASS} style={{
+          padding: '6px 14px', minHeight: 36, background: T.surface, border: `1px solid ${T.border}`,
+          borderRadius: 6, color: T.textSecondary, cursor: 'pointer', fontSize: 13,
         }}>
-          + New comparison
+          + {S.upload.newComparison}
         </button>
       </div>
     </div>
@@ -838,26 +853,27 @@ function ToolbarBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      className={FOCUSABLE_CLASS}
       style={{
-        background: active ? `${T.accent}20` : 'none',
+        background: active ? `${T.accent}18` : 'none',
         border:     active ? `1px solid ${T.accent}60` : `1px solid transparent`,
-        color:      disabled ? T.textMuted : active ? T.accent : T.textSecond,
+        color:      disabled ? T.textSecondary : active ? T.accent : T.textSecondary,
         cursor:     disabled ? 'not-allowed' : 'pointer',
-        padding:    '4px 8px', borderRadius: 6,
-        fontSize: 11, fontWeight: 600,
-        display: 'flex', alignItems: 'center', gap: 3,
+        padding:    '6px 10px', borderRadius: 6, minHeight: 32,
+        fontSize: 13, fontWeight: 600,
+        display: 'flex', alignItems: 'center', gap: 4,
         transition: 'color 0.12s, background 0.12s',
-        opacity: disabled ? 0.4 : 1,
+        opacity: disabled ? 0.5 : 1,
       }}
       onMouseEnter={e => {
         if (!disabled && !active) {
-          e.currentTarget.style.color      = T.textPrimary
-          e.currentTarget.style.background = T.bgElevated
+          e.currentTarget.style.color      = T.text
+          e.currentTarget.style.background = T.surfaceAlt
         }
       }}
       onMouseLeave={e => {
         if (!disabled && !active) {
-          e.currentTarget.style.color      = T.textSecond
+          e.currentTarget.style.color      = T.textSecondary
           e.currentTarget.style.background = 'none'
         }
       }}
@@ -889,17 +905,17 @@ function ViewToolbar({
 
   return (
     <div style={{
-      padding: '5px 12px', background: T.bgSurface, borderBottom: `1px solid ${T.border}`,
+      padding: '6px 12px', background: T.surface, borderBottom: `1px solid ${T.border}`,
       display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
     }}>
       <ToolbarBtn onClick={onFitWidth} title="Fit to width (Ctrl+0)" active={is100}>
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
           <rect x="1" y="2" width="9" height="7" rx="1"/>
           <line x1="3" y1="5.5" x2="8" y2="5.5"/>
           <line x1="3" y1="3.5" x2="3" y2="7.5"/>
           <line x1="8" y1="3.5" x2="8" y2="7.5"/>
         </svg>
-        Fit width
+        {S.toolbar.fitWidth}
       </ToolbarBtn>
 
       <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
@@ -917,7 +933,7 @@ function ViewToolbar({
         active={zoomMode === 'zoomin'}
         title={zoomMode === 'zoomin' ? 'Zoom in active — click again to deactivate' : 'Zoom in — click on PDF to zoom in (Ctrl+=)'}
       >
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
+        <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
           <circle cx="4.5" cy="4.5" r="3"/>
           <line x1="7" y1="7" x2="10" y2="10"/>
           <line x1="3" y1="4.5" x2="6" y2="4.5"/>
@@ -926,10 +942,10 @@ function ViewToolbar({
       </ToolbarBtn>
 
       <span style={{
-        minWidth: 42, textAlign: 'center',
-        fontSize: 11, fontWeight: 700, color: T.textPrimary,
+        minWidth: 46, textAlign: 'center',
+        fontSize: 13, fontWeight: 700, color: T.text,
         fontFamily: 'monospace',
-        padding: '3px 6px', background: T.bgElevated,
+        padding: '4px 6px', background: T.surfaceAlt,
         border: `1px solid ${T.border}`, borderRadius: 5,
       }}>
         {zoom}%
@@ -940,7 +956,7 @@ function ViewToolbar({
         active={zoomMode === 'zoomout'}
         title={zoomMode === 'zoomout' ? 'Zoom out active — click again to deactivate' : 'Zoom out — click on PDF to zoom out (Ctrl+−)'}
       >
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
+        <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
           <circle cx="4.5" cy="4.5" r="3"/>
           <line x1="7" y1="7" x2="10" y2="10"/>
           <line x1="3" y1="4.5" x2="6" y2="4.5"/>
@@ -958,15 +974,15 @@ function ViewToolbar({
       <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
 
       <ToolbarBtn onClick={onRotate} title="Rotate 90° clockwise">
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M2 5.5a3.5 3.5 0 107-0"/>
           <polyline points="7,2 9,4.5 6.5,4.5"/>
         </svg>
-        Rotate
+        {S.toolbar.rotate}
       </ToolbarBtn>
 
       {rotation !== 0 && (
-        <span style={{ fontSize: 10, color: T.textSecond, fontFamily: 'monospace', marginLeft: 2 }}>
+        <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: 'monospace', marginLeft: 2 }}>
           {rotation}°
         </span>
       )}
@@ -1126,21 +1142,9 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     })
   }, [zoomMode])
 
-  // ── Inject arrowPulse keyframes once at mount ─────────────────────────────────
+  // ── Inject shared keyframes + focus-ring stylesheet once at mount ─────────────
   useEffect(() => {
-    const id = 'cv-keyframes'
-    if (!document.getElementById(id)) {
-      const style = document.createElement('style')
-      style.id = id
-      style.textContent = `@keyframes starPulse {
-        0%   { transform: translateY(-50%) scale(1.0) rotate(0deg);   opacity: 1;   }
-        25%  { transform: translateY(-50%) scale(1.4) rotate(45deg);  opacity: 0.8; }
-        50%  { transform: translateY(-50%) scale(1.0) rotate(90deg);  opacity: 1;   }
-        75%  { transform: translateY(-50%) scale(1.3) rotate(135deg); opacity: 0.8; }
-        100% { transform: translateY(-50%) scale(1.0) rotate(180deg); opacity: 1;   }
-      }`
-      document.head.appendChild(style)
-    }
+    injectComparisonGlobalStyles()
   }, [])
 
   // ── Scroll both panels to centre the selected diff ────────────────────────────
@@ -1251,7 +1255,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
   // ── Render guards ─────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{ padding: 40, color: T.textMuted, fontSize: 12, fontFamily: 'monospace' }}>
+      <div style={{ padding: 40, color: T.textSecondary, fontSize: 13, fontFamily: T.fontFamily, background: T.surface, height: '100%' }}>
         Loading comparisons…
       </div>
     )
@@ -1273,7 +1277,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
   const hasNext = currentPage < pages.length - 1
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', fontFamily: T.fontFamily }}>
 
       {/* ── Summary bar ── */}
       <SummaryBar rec={activeRec} onNew={() => setShowUpload(true)} />
@@ -1291,34 +1295,36 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
       {/* ── Page navigation (only when multi-page) ── */}
       {pages.length > 1 && (
         <div style={{
-          padding: '6px 16px', background: T.bgSurface, borderBottom: `1px solid ${T.border}`,
+          padding: '8px 16px', background: T.surface, borderBottom: `1px solid ${T.border}`,
           display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
         }}>
           <button
             onClick={() => { setCurrentPage(p => p - 1); setSelectedId(null) }}
             disabled={!hasPrev}
+            className={FOCUSABLE_CLASS}
             style={{
-              padding: '3px 10px', background: 'none', border: `1px solid ${T.border}`,
-              borderRadius: 5, color: hasPrev ? T.textSecond : T.textMuted,
-              cursor: hasPrev ? 'pointer' : 'not-allowed', fontSize: 12, opacity: hasPrev ? 1 : 0.3,
+              padding: '4px 12px', minHeight: 32, background: 'none', border: `1px solid ${T.border}`,
+              borderRadius: 6, color: hasPrev ? T.textSecondary : T.textSecondary,
+              cursor: hasPrev ? 'pointer' : 'not-allowed', fontSize: 13, opacity: hasPrev ? 1 : 0.4,
             }}
           >◀</button>
 
-          <span style={{ fontSize: 11, color: T.textSecond }}>
-            Page {currentPage + 1} of {pages.length}
+          <span style={{ fontSize: 13, color: T.textSecondary }}>
+            {S.pageLabels.pageOf(currentPage + 1, pages.length)}
           </span>
 
           <button
             onClick={() => { setCurrentPage(p => p + 1); setSelectedId(null) }}
             disabled={!hasNext}
+            className={FOCUSABLE_CLASS}
             style={{
-              padding: '3px 10px', background: 'none', border: `1px solid ${T.border}`,
-              borderRadius: 5, color: hasNext ? T.accent : T.textMuted,
-              cursor: hasNext ? 'pointer' : 'not-allowed', fontSize: 12, opacity: hasNext ? 1 : 0.3,
+              padding: '4px 12px', minHeight: 32, background: 'none', border: `1px solid ${T.border}`,
+              borderRadius: 6, color: hasNext ? T.accent : T.textSecondary,
+              cursor: hasNext ? 'pointer' : 'not-allowed', fontSize: 13, opacity: hasNext ? 1 : 0.4,
             }}
           >▶</button>
 
-          <span style={{ fontSize: 10, color: T.textMuted, marginLeft: 4 }}>
+          <span style={{ fontSize: 12, color: T.textSecondary, marginLeft: 4 }}>
             {page.differences.length} difference{page.differences.length !== 1 ? 's' : ''} on this page
           </span>
         </div>
@@ -1340,7 +1346,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
         <PagePanel
           imgUrl={page.original_render_url}
-          label="Original"
+          label={S.pageLabels.original}
           page={page}
           zoom={zoom}
           rotation={rotation}
@@ -1356,7 +1362,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
 
         <PagePanel
           imgUrl={page.revised_render_url}
-          label="Revised"
+          label={S.pageLabels.revised}
           page={page}
           zoom={zoom}
           rotation={rotation}

@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Briefing Studio</title>
+    <!-- IBM Plex Sans: used by the artwork comparison screen only
+         (src/styles/comparisonTheme.ts). Loaded globally here because web
+         fonts can only be loaded via <link>/@import, but the rest of the
+         app keeps its existing font — this tag doesn't change body's
+         font-family below. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { font-family: Inter, system-ui, sans-serif; background: #0d0d1a; color: #fff; }
