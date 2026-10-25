@@ -72,8 +72,6 @@ const TYPE_GROUP: Record<string, string> = {
   compliance:    'Compliance',
 }
 
-const GROUP_ORDER = ['Compliance', 'Codes', 'Dimensional', 'Text', 'Visual']
-
 // ── Zoom ──────────────────────────────────────────────────────────────────────────
 const ZOOM_STEPS = [25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400]
 const ZOOM_DEFAULT = 100
@@ -413,6 +411,244 @@ function ReviewStatusBar({
   )
 }
 
+// ── Diff card (single card in the panel) ────────────────────────────────────────
+
+function DiffCard({
+  d,
+  index,
+  isSelected,
+  onSelect,
+  review,
+  isSub,
+  onReview,
+  reviewerEmailSet,
+}: {
+  d:                DiffEntry
+  index:            number
+  isSelected:       boolean
+  onSelect:         (id: string) => void
+  review:           DifferenceReview | undefined
+  isSub:            boolean
+  onReview:         (diffId: string, status: 'accepted' | 'rejected', comment: string) => void
+  reviewerEmailSet: boolean
+}) {
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [note,     setNote]     = useState(review?.comment ?? '')
+  useEffect(() => { setNote(review?.comment ?? ''); setNoteOpen(false) }, [review?.comment, d.id])
+
+  const group        = TYPE_GROUP[d.type] ?? 'Text'
+  const color        = GROUP_COLOR[group]
+  const chipBg       = GROUP_CHIP_BG[group]
+  const chipLabel    = group === 'Visual' ? S.diffCard.typeVisual : (TYPE_LABEL[d.type] ?? d.type)
+  const reviewStatus = review?.status ?? 'pending'
+
+  const statusMeta = {
+    pending:  { label: S.diffCard.statusPending,  color: T.statusPending,  bg: T.surfaceAlt },
+    accepted: { label: S.diffCard.statusAccepted, color: T.statusAccepted, bg: T.acceptBg },
+    rejected: { label: S.diffCard.statusRejected, color: T.statusRejected, bg: T.rejectBg },
+  }[reviewStatus]
+
+  // Accept ⇄ Reject switches freely (just a PATCH with the other status).
+  // Clicking the already-active button again is a no-op: the review API
+  // only accepts 'accepted' | 'rejected' (PATCH, upsert) and has no way to
+  // clear a review back to 'pending' — no DELETE route, no 'pending'
+  // value it accepts. The spec asks for "click again undoes, back to
+  // Pending"; that's not implementable without a backend change, which is
+  // out of scope this round. Reported in the final summary.
+  const handleToggle = (action: 'accepted' | 'rejected') => {
+    if (reviewStatus === action) return
+    onReview(d.id, action, note)
+  }
+
+  return (
+    <div
+      style={{
+        margin: '8px 10px',
+        background: T.surface,
+        border:     isSelected ? `2px solid ${T.accent}` : `1px solid ${T.border}`,
+        borderRadius: 10,
+        boxShadow: isSelected ? '0 2px 10px rgba(36,71,197,0.18)' : 'none',
+        overflow: 'hidden',
+      }}
+    >
+      {/* ── Header row — clickable, selects + scrolls to this diff ── */}
+      <button
+        className={FOCUSABLE_CLASS}
+        onClick={() => onSelect(d.id)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '10px 12px', background: isSelected ? T.surfaceAlt : 'transparent',
+          border: 'none', borderBottom: `1px solid ${T.border}`, cursor: 'pointer',
+          textAlign: 'left', fontFamily: 'inherit',
+        }}
+      >
+        <span style={{
+          flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
+          background: T.highlight, color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 700,
+        }}>
+          {index}
+        </span>
+        <span style={{
+          fontSize: 12, fontWeight: 700, color,
+          background: chipBg, border: `1px solid ${color}40`,
+          padding: '2px 8px', borderRadius: 4,
+        }}>
+          {chipLabel}
+        </span>
+        <span style={{ fontSize: 13, color: T.textSecondary, flexShrink: 0 }}>
+          {S.diffCard.page(d.page)}
+        </span>
+        <span style={{
+          marginLeft: 'auto', fontSize: 12, fontWeight: 700, flexShrink: 0,
+          color: statusMeta.color, background: statusMeta.bg,
+          padding: '2px 9px', borderRadius: 10, border: `1px solid ${statusMeta.color}40`,
+        }}>
+          {statusMeta.label}
+        </span>
+      </button>
+
+      {/* ── Body ── */}
+      <div style={{ padding: '10px 12px 12px' }}>
+        {d.original_text && (
+          <div style={{
+            display: 'flex', gap: 6, fontSize: 14, color: T.reject, background: T.rejectBg,
+            padding: '5px 8px', borderRadius: 5, marginBottom: 4,
+            textDecoration: 'line-through', wordBreak: 'break-word',
+          }}>
+            <span style={{ flexShrink: 0, fontWeight: 700 }}>−</span>
+            <span>{d.original_text}</span>
+          </div>
+        )}
+        {d.revised_text && (
+          <div style={{
+            display: 'flex', gap: 6, fontSize: 14, fontWeight: 700, color: T.accept, background: T.acceptBg,
+            padding: '5px 8px', borderRadius: 5, marginBottom: 4, wordBreak: 'break-word',
+          }}>
+            <span style={{ flexShrink: 0 }}>+</span>
+            <span>{d.revised_text}</span>
+          </div>
+        )}
+        {/* Context sentence: only shown when the backend provides one —
+            DiffEntry has no such field today (see summary at end of task),
+            so this intentionally never renders yet. */}
+        {!d.original_text && !d.revised_text && (
+          <div style={{ fontSize: 14, color: T.text, lineHeight: 1.4 }}>
+            {d.description}
+          </div>
+        )}
+
+        {/* ── Accept / Reject — immediate toggle, click again undoes ── */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <button
+            disabled={isSub || !reviewerEmailSet}
+            aria-pressed={reviewStatus === 'accepted'}
+            title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : undefined}
+            className={FOCUSABLE_CLASS}
+            onClick={() => handleToggle('accepted')}
+            style={{
+              flex: 1, minHeight: MIN_TOUCH_TARGET, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: 6, fontSize: 14, fontWeight: 700,
+              border: `1.5px solid ${T.accept}`,
+              background: reviewStatus === 'accepted' ? T.accept : T.surface,
+              color:      reviewStatus === 'accepted' ? '#fff'  : T.accept,
+              borderRadius: 8,
+              cursor: isSub || !reviewerEmailSet ? 'not-allowed' : 'pointer',
+              opacity: isSub || !reviewerEmailSet ? 0.5 : 1,
+            }}
+          >
+            ✓ {S.diffCard.accept}
+          </button>
+          <button
+            disabled={isSub || !reviewerEmailSet}
+            aria-pressed={reviewStatus === 'rejected'}
+            title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : undefined}
+            className={FOCUSABLE_CLASS}
+            onClick={() => handleToggle('rejected')}
+            style={{
+              flex: 1, minHeight: MIN_TOUCH_TARGET, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: 6, fontSize: 14, fontWeight: 700,
+              border: `1.5px solid ${T.reject}`,
+              background: reviewStatus === 'rejected' ? T.reject : T.surface,
+              color:      reviewStatus === 'rejected' ? '#fff'  : T.reject,
+              borderRadius: 8,
+              cursor: isSub || !reviewerEmailSet ? 'not-allowed' : 'pointer',
+              opacity: isSub || !reviewerEmailSet ? 0.5 : 1,
+            }}
+          >
+            ✗ {S.diffCard.reject}
+          </button>
+        </div>
+
+        {isSub && (
+          <div style={{ fontSize: 12, color: T.textSecondary, textAlign: 'center', marginTop: 6 }}>
+            {S.diffCard.saving}
+          </div>
+        )}
+
+        {/* ── Optional audit note — secondary, doesn't block the toggle ── */}
+        {reviewStatus !== 'pending' && !isSub && (
+          <div style={{ marginTop: 8 }}>
+            {!noteOpen ? (
+              <button
+                className={FOCUSABLE_CLASS}
+                onClick={() => setNoteOpen(true)}
+                style={{
+                  background: 'none', border: 'none', color: T.textSecondary,
+                  fontSize: 12, cursor: 'pointer', padding: '2px 0', textDecoration: 'underline',
+                }}
+              >
+                {review?.comment ? `"${review.comment.slice(0, 40)}${review.comment.length > 40 ? '…' : ''}"` : `+ ${S.diffCard.noteLabel}`}
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <textarea
+                  autoFocus
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  placeholder={S.diffCard.notePlaceholder}
+                  rows={2}
+                  className={FOCUSABLE_CLASS}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: T.surfaceAlt, border: `1px solid ${T.border}`,
+                    borderRadius: 5, color: T.text, fontSize: 13,
+                    padding: '6px 8px', resize: 'vertical', outline: 'none',
+                    fontFamily: 'inherit', lineHeight: 1.4,
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    className={FOCUSABLE_CLASS}
+                    onClick={() => { onReview(d.id, reviewStatus as 'accepted' | 'rejected', note); setNoteOpen(false) }}
+                    style={{
+                      padding: '5px 12px', fontSize: 12, fontWeight: 700,
+                      background: T.accent, color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer',
+                    }}
+                  >
+                    {S.diffCard.confirm}
+                  </button>
+                  <button
+                    className={FOCUSABLE_CLASS}
+                    onClick={() => { setNote(review?.comment ?? ''); setNoteOpen(false) }}
+                    style={{
+                      padding: '5px 12px', fontSize: 12, fontWeight: 700,
+                      background: 'none', color: T.textSecondary, border: `1px solid ${T.border}`, borderRadius: 5, cursor: 'pointer',
+                    }}
+                  >
+                    {S.diffCard.cancel}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Diff list sidebar ─────────────────────────────────────────────────────────────
 
 function DiffListPanel({
@@ -423,6 +659,8 @@ function DiffListPanel({
   submitting,
   onReview,
   reviewerEmailSet,
+  onApprove,
+  approving,
 }: {
   page:             PageComparison
   selectedId:       string | null
@@ -431,42 +669,36 @@ function DiffListPanel({
   submitting:       Set<string>
   onReview:         (diffId: string, status: 'accepted' | 'rejected', comment: string) => void
   reviewerEmailSet: boolean
+  onApprove:        () => void
+  approving:        boolean
 }) {
-  const [editing, setEditing] = useState<{
-    diffId:  string
-    action:  'accepted' | 'rejected'
-    comment: string
-  } | null>(null)
+  const diffs      = page.differences
+  const totalCount = diffs.length
+  const reviewedCount = diffs.filter(d => {
+    const s = reviews[d.id]?.status
+    return s === 'accepted' || s === 'rejected'
+  }).length
+  const allReviewed = totalCount > 0 && reviewedCount === totalCount
 
-  useEffect(() => { setEditing(null) }, [page])
-
-  // Sequential number across all diffs on this page (order = page.differences)
-  const diffIndex = new Map(page.differences.map((d, i) => [d.id, i + 1]))
-
-  const grouped: Record<string, DiffEntry[]> = {}
-  for (const d of page.differences) {
-    const g = TYPE_GROUP[d.type] ?? 'Other'
-    if (!grouped[g]) grouped[g] = []
-    grouped[g].push(d)
-  }
-  const totalCount = page.differences.length
-
-  const confirmReview = () => {
-    if (!editing) return
-    onReview(editing.diffId, editing.action, editing.comment)
-    setEditing(null)
+  const goToOffset = (offset: 1 | -1) => {
+    if (totalCount === 0) return
+    const curIdx = diffs.findIndex(d => d.id === selectedId)
+    const nextIdx = curIdx === -1
+      ? (offset === 1 ? 0 : totalCount - 1)
+      : (curIdx + offset + totalCount) % totalCount
+    onSelect(diffs[nextIdx].id)
   }
 
   return (
     <div style={{
-      width: 300, flexShrink: 0,
+      width: 320, flexShrink: 0,
       display: 'flex', flexDirection: 'column',
-      background: T.surface, borderLeft: `1px solid ${T.border}`,
+      background: T.surfaceAlt, borderLeft: `1px solid ${T.border}`,
     }}>
       <div style={{
         padding: '12px 14px', borderBottom: `1px solid ${T.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: 0,
+        flexShrink: 0, background: T.surface,
       }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: T.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           {S.diffPanel.heading}
@@ -489,229 +721,69 @@ function DiffListPanel({
           </div>
         )}
 
-        {GROUP_ORDER.filter(g => grouped[g]).map(groupName => (
-          <div key={groupName}>
-            <div style={{
-              padding: '6px 14px 4px',
-              fontSize: 11, fontWeight: 700, color: T.textSecondary,
-              textTransform: 'uppercase', letterSpacing: '0.1em',
-              background: T.surfaceAlt, borderBottom: `1px solid ${T.border}`,
-              position: 'sticky', top: 0,
-            }}>
-              {groupName} ({grouped[groupName].length})
-            </div>
-
-            {grouped[groupName].map(d => {
-              const isSelected   = selectedId === d.id
-              const color        = GROUP_COLOR[TYPE_GROUP[d.type] ?? 'Text']
-              const chipBg       = GROUP_CHIP_BG[TYPE_GROUP[d.type] ?? 'Text']
-              const review       = reviews[d.id]
-              const isSub        = submitting.has(d.id)
-              const isEditing    = editing?.diffId === d.id
-              const reviewStatus = review?.status ?? 'pending'
-
-              return (
-                <div
-                  key={d.id}
-                  style={{
-                    padding: '10px 14px',
-                    background:   isSelected ? T.surfaceAlt : 'transparent',
-                    borderBottom: `1px solid ${T.border}`,
-                    borderLeft:   `3px solid ${isSelected ? T.accent : 'transparent'}`,
-                  }}
-                >
-                  <div
-                    onClick={e => {
-                      e.stopPropagation()
-                      onSelect(d.id)
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                      <span style={{
-                        fontSize: 14, fontWeight: 700, color: T.text, flexShrink: 0,
-                      }}>
-                        #{diffIndex.get(d.id)}
-                      </span>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, color,
-                        background: chipBg, border: `1px solid ${color}40`,
-                        padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase',
-                        letterSpacing: '0.04em', flexShrink: 0,
-                      }}>
-                        {TYPE_LABEL[d.type] ?? d.type}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 14, color: T.text, lineHeight: 1.4, wordBreak: 'break-word' }}>
-                      {d.description.length > 80 ? d.description.slice(0, 80) + '…' : d.description}
-                    </div>
-                    {(d.original_text || d.revised_text) && (
-                      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        {d.original_text && (
-                          <div style={{
-                            fontSize: 13, color: T.reject, background: T.rejectBg,
-                            padding: '3px 7px', borderRadius: 4,
-                            textDecoration: 'line-through', fontFamily: 'monospace', wordBreak: 'break-all',
-                          }}>
-                            − {d.original_text.slice(0, 50)}{d.original_text.length > 50 ? '…' : ''}
-                          </div>
-                        )}
-                        {d.revised_text && (
-                          <div style={{
-                            fontSize: 13, color: T.accept, background: T.acceptBg,
-                            padding: '3px 7px', borderRadius: 4,
-                            fontWeight: 700, fontFamily: 'monospace', wordBreak: 'break-all',
-                          }}>
-                            + {d.revised_text.slice(0, 50)}{d.revised_text.length > 50 ? '…' : ''}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── Review section ── */}
-                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.border}` }}>
-
-                    {/* Current status badge (when reviewed and not editing) */}
-                    {review && !isEditing && (
-                      <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{
-                          fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                          textTransform: 'uppercase', letterSpacing: '0.04em',
-                          background: reviewStatus === 'accepted' ? T.acceptBg : T.rejectBg,
-                          color:      reviewStatus === 'accepted' ? T.accept   : T.reject,
-                          border:    `1px solid ${reviewStatus === 'accepted' ? T.accept : T.reject}40`,
-                        }}>
-                          {reviewStatus === 'accepted' ? `✓ ${S.diffCard.statusAccepted}` : `✗ ${S.diffCard.statusRejected}`}
-                        </span>
-                        {review.comment && (
-                          <span style={{ fontSize: 12, color: T.textSecondary, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            "{review.comment.slice(0, 40)}{review.comment.length > 40 ? '…' : ''}"
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Accept / Reject buttons */}
-                    {!isEditing && (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          disabled={isSub || !reviewerEmailSet}
-                          title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : (reviewStatus === 'accepted' ? 'Edit acceptance' : 'Accept this difference')}
-                          aria-pressed={reviewStatus === 'accepted'}
-                          className={FOCUSABLE_CLASS}
-                          onClick={e => {
-                            e.stopPropagation()
-                            setEditing({ diffId: d.id, action: 'accepted', comment: review?.comment ?? '' })
-                          }}
-                          style={{
-                            flex: 1, minHeight: MIN_TOUCH_TARGET, padding: '6px 0', fontSize: 13, fontWeight: 700,
-                            border:     `1px solid ${T.accept}`,
-                            background: reviewStatus === 'accepted' ? T.accept : T.surface,
-                            color:      reviewStatus === 'accepted' ? '#fff'  : T.accept,
-                            borderRadius: 6,
-                            cursor: isSub || !reviewerEmailSet ? 'not-allowed' : 'pointer',
-                            opacity: isSub || !reviewerEmailSet ? 0.5 : 1,
-                            transition: 'background 0.1s, border-color 0.1s',
-                          }}
-                        >
-                          ✓ {S.diffCard.accept}
-                        </button>
-                        <button
-                          disabled={isSub || !reviewerEmailSet}
-                          title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : (reviewStatus === 'rejected' ? 'Edit rejection' : 'Reject this difference')}
-                          aria-pressed={reviewStatus === 'rejected'}
-                          className={FOCUSABLE_CLASS}
-                          onClick={e => {
-                            e.stopPropagation()
-                            setEditing({ diffId: d.id, action: 'rejected', comment: review?.comment ?? '' })
-                          }}
-                          style={{
-                            flex: 1, minHeight: MIN_TOUCH_TARGET, padding: '6px 0', fontSize: 13, fontWeight: 700,
-                            border:     `1px solid ${T.reject}`,
-                            background: reviewStatus === 'rejected' ? T.reject : T.surface,
-                            color:      reviewStatus === 'rejected' ? '#fff'  : T.reject,
-                            borderRadius: 6,
-                            cursor: isSub || !reviewerEmailSet ? 'not-allowed' : 'pointer',
-                            opacity: isSub || !reviewerEmailSet ? 0.5 : 1,
-                            transition: 'background 0.1s, border-color 0.1s',
-                          }}
-                        >
-                          ✗ {S.diffCard.reject}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Inline edit form */}
-                    {isEditing && editing && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{
-                            fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                            textTransform: 'uppercase',
-                            background: editing.action === 'accepted' ? T.acceptBg : T.rejectBg,
-                            color:      editing.action === 'accepted' ? T.accept   : T.reject,
-                            border:    `1px solid ${editing.action === 'accepted' ? T.accept : T.reject}40`,
-                          }}>
-                            {editing.action === 'accepted' ? `✓ ${S.diffCard.accept}` : `✗ ${S.diffCard.reject}`}
-                          </span>
-                          <span style={{ fontSize: 12, color: T.textSecondary }}>{S.diffCard.noteLabel}</span>
-                        </div>
-                        <textarea
-                          autoFocus
-                          value={editing.comment}
-                          onChange={e => setEditing(prev => prev ? { ...prev, comment: e.target.value } : prev)}
-                          placeholder={S.diffCard.notePlaceholder}
-                          rows={2}
-                          className={FOCUSABLE_CLASS}
-                          style={{
-                            width: '100%', boxSizing: 'border-box',
-                            background: T.surfaceAlt, border: `1px solid ${T.border}`,
-                            borderRadius: 5, color: T.text, fontSize: 13,
-                            padding: '6px 8px', resize: 'vertical', outline: 'none',
-                            fontFamily: 'inherit', lineHeight: 1.4,
-                          }}
-                        />
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button
-                            className={FOCUSABLE_CLASS}
-                            onClick={e => { e.stopPropagation(); confirmReview() }}
-                            style={{
-                              flex: 1, minHeight: 36, padding: '6px 0', fontSize: 13, fontWeight: 700,
-                              background: editing.action === 'accepted' ? T.accept : T.reject,
-                              color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer',
-                            }}
-                          >
-                            {S.diffCard.confirm}
-                          </button>
-                          <button
-                            className={FOCUSABLE_CLASS}
-                            onClick={e => { e.stopPropagation(); setEditing(null) }}
-                            style={{
-                              flex: 1, minHeight: 36, padding: '6px 0', fontSize: 13, fontWeight: 700,
-                              background: T.surfaceAlt, color: T.textSecondary,
-                              border: `1px solid ${T.border}`, borderRadius: 5, cursor: 'pointer',
-                            }}
-                          >
-                            {S.diffCard.cancel}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Submitting spinner */}
-                    {isSub && (
-                      <div style={{ fontSize: 12, color: T.textSecondary, textAlign: 'center', marginTop: 4 }}>
-                        {S.diffCard.saving}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        {diffs.map((d, i) => (
+          <DiffCard
+            key={d.id}
+            d={d}
+            index={i + 1}
+            isSelected={selectedId === d.id}
+            onSelect={onSelect}
+            review={reviews[d.id]}
+            isSub={submitting.has(d.id)}
+            onReview={onReview}
+            reviewerEmailSet={reviewerEmailSet}
+          />
         ))}
       </div>
+
+      {/* ── Fixed footer: Previous / Next + Complete review ── */}
+      {totalCount > 0 && (
+        <div style={{
+          flexShrink: 0, padding: 10, background: T.surface,
+          borderTop: `1px solid ${T.border}`,
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className={FOCUSABLE_CLASS}
+              onClick={() => goToOffset(-1)}
+              style={{
+                flex: 1, minHeight: MIN_TOUCH_TARGET, fontSize: 13, fontWeight: 700,
+                background: T.surface, color: T.textSecondary, border: `1px solid ${T.border}`,
+                borderRadius: 7, cursor: 'pointer',
+              }}
+            >
+              ◀ {S.diffPanel.previous}
+            </button>
+            <button
+              className={FOCUSABLE_CLASS}
+              onClick={() => goToOffset(1)}
+              style={{
+                flex: 1, minHeight: MIN_TOUCH_TARGET, fontSize: 13, fontWeight: 700,
+                background: T.surface, color: T.accent, border: `1px solid ${T.border}`,
+                borderRadius: 7, cursor: 'pointer',
+              }}
+            >
+              {S.diffPanel.next} ▶
+            </button>
+          </div>
+          <button
+            className={FOCUSABLE_CLASS}
+            disabled={!allReviewed || !reviewerEmailSet || approving}
+            onClick={onApprove}
+            style={{
+              minHeight: MIN_TOUCH_TARGET, fontSize: 14, fontWeight: 700,
+              background: allReviewed && reviewerEmailSet ? T.accent : T.surfaceAlt,
+              color:      allReviewed && reviewerEmailSet ? '#fff'  : T.textSecondary,
+              border: 'none', borderRadius: 8,
+              cursor: allReviewed && reviewerEmailSet && !approving ? 'pointer' : 'not-allowed',
+              opacity: allReviewed ? 1 : 0.7,
+            }}
+          >
+            {approving ? S.reviewBar.approving : S.diffPanel.complete(reviewedCount, totalCount)}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1382,6 +1454,8 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
           submitting={submitting}
           onReview={handleReview}
           reviewerEmailSet={!!reviewerEmail.trim()}
+          onApprove={handleApprove}
+          approving={approving}
         />
       </div>
     </div>
