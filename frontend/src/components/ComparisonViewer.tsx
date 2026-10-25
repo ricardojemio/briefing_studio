@@ -123,10 +123,9 @@ function DiffHighlights({
 }) {
   return (
     <>
-      {diffs.map(d => {
+      {diffs.map((d, i) => {
         const r          = transformBbox(d.bbox, rotation, pageSizePts)
         const isSelected = selectedId === d.id
-        const color      = GROUP_COLOR[TYPE_GROUP[d.type] ?? 'Text']
         const arrowLeft  = r.left + r.width > 0.80
         return (
           <div
@@ -150,24 +149,49 @@ function DiffHighlights({
               zIndex: isSelected ? 2 : 1,
             }}
           >
-            {isSelected && (
-              <span style={{
-                position:      'absolute',
-                top:           '50%',
-                ...(arrowLeft
-                  ? { right: 'calc(100% + 6px)' }
-                  : { left:  'calc(100% + 6px)' }),
-                fontSize:      24,
-                color,
-                filter:        'drop-shadow(0 0 6px currentColor)',
-                animation:     'starPulse 1.4s ease-in-out infinite',
-                pointerEvents: 'none',
-                lineHeight:    1,
-                userSelect:    'none',
-              }}>
-                ✦
-              </span>
-            )}
+            {/* Numbered marker — same number as the card in the panel,
+                shown above the highlighted region for every diff (not
+                just the selected one), so a designer can see at a glance
+                which change is which without opening the panel. */}
+            <span style={{
+              position:   'absolute',
+              top:        -22,
+              left:       0,
+              width:      20, height: 20, borderRadius: '50%',
+              background: T.highlight, color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 700,
+              border: '2px solid #fff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+              pointerEvents: 'none',
+              userSelect: 'none',
+              zIndex: isSelected ? 3 : 2,
+            }}>
+              {i + 1}
+            </span>
+
+            {/* Star marker — bigger/solid/pulsing when selected, small
+                and muted otherwise. Never relies on colour alone: the
+                numbered circle above identifies the diff regardless. */}
+            <span style={{
+              position:      'absolute',
+              top:           '50%',
+              ...(arrowLeft
+                ? { right: 'calc(100% + 6px)' }
+                : { left:  'calc(100% + 6px)' }),
+              fontSize:      isSelected ? 22 : 13,
+              color:         T.highlight,
+              opacity:       isSelected ? 1 : 0.55,
+              filter:        isSelected ? 'drop-shadow(0 0 6px currentColor)' : 'none',
+              WebkitTextStroke: isSelected ? '1px #fff' : undefined,
+              animation:     isSelected ? 'starPulse 1.4s ease-in-out infinite' : undefined,
+              pointerEvents: 'none',
+              lineHeight:    1,
+              userSelect:    'none',
+              transform:     'translateY(-50%)',
+            }}>
+              ✦
+            </span>
           </div>
         )
       })}
@@ -176,6 +200,79 @@ function DiffHighlights({
 }
 
 // ── Single page panel ─────────────────────────────────────────────────────────────
+
+function PageThumbnailRail({
+  pages,
+  currentPage,
+  onSelectPage,
+}: {
+  pages:        PageComparison[]
+  currentPage:  number
+  onSelectPage: (index: number) => void
+}) {
+  if (pages.length <= 1) return null
+  return (
+    <div style={{
+      width: 108, flexShrink: 0, overflowY: 'auto',
+      background: T.thumbStripBg, borderRight: `1px solid ${T.thumbStripBorder}`,
+      padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      <div style={{
+        fontSize: 12, fontWeight: 700, color: T.textSecondary,
+        textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px 2px',
+      }}>
+        {S.thumbnails.heading}
+      </div>
+      {pages.map((pg, i) => {
+        const isCurrent = i === currentPage
+        const diffCount = pg.differences.length
+        return (
+          <button
+            key={i}
+            onClick={() => onSelectPage(i)}
+            className={FOCUSABLE_CLASS}
+            style={{
+              position: 'relative', display: 'block', width: '100%',
+              padding: 0, border: isCurrent ? `3px solid ${T.accent}` : `1px solid ${T.thumbStripBorder}`,
+              borderRadius: 6, background: T.surface, cursor: 'pointer',
+              boxShadow: isCurrent ? '0 2px 8px rgba(36,71,197,0.35)' : 'none',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ position: 'relative', width: '100%', aspectRatio: `${pg.page_size_pts[0]} / ${pg.page_size_pts[1]}`, background: T.surfaceAlt }}>
+              {pg.original_render_url ? (
+                <img
+                  src={pg.original_render_url}
+                  alt={S.pageLabels.pageOf(i + 1, pages.length)}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  draggable={false}
+                />
+              ) : null}
+              {diffCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: 4, right: 4,
+                  minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px',
+                  background: T.highlight, color: '#fff',
+                  fontSize: 11, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: '2px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+                }}>
+                  {diffCount}
+                </span>
+              )}
+            </div>
+            <div style={{
+              fontSize: 12, fontWeight: 600, color: T.text, textAlign: 'center',
+              padding: '4px 0', background: T.surface,
+            }}>
+              {i + 1}
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 function PagePanel({
   imgUrl,
@@ -866,7 +963,13 @@ function UploadForm({
 
 // ── Summary bar ───────────────────────────────────────────────────────────────────
 
-function SummaryBar({ rec, onNew }: { rec: ComparisonRecord; onNew: () => void }) {
+function SummaryBar({
+  rec, onNew, reviewSummary,
+}: {
+  rec:           ComparisonRecord
+  onNew:         () => void
+  reviewSummary: ReviewSummary | null
+}) {
   const s = rec.result?.summary
   if (!s) return null
   const total = s.total_differences
@@ -878,33 +981,63 @@ function SummaryBar({ rec, onNew }: { rec: ComparisonRecord; onNew: () => void }
     { label: 'Compliance',  value: s.compliance_flags,     color: T.reject  },
   ].filter(p => p.value > 0)
 
+  const reviewed = reviewSummary ? reviewSummary.accepted + reviewSummary.rejected : 0
+  const reviewTotal = reviewSummary?.total ?? 0
+  const progressPct = reviewTotal > 0 ? Math.round((reviewed / reviewTotal) * 100) : 0
+
   return (
-    <div style={{
-      padding: '10px 16px', background: T.surface, borderBottom: `1px solid ${T.border}`,
-      display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', flexShrink: 0,
-    }}>
-      <span style={{ fontSize: 14, fontWeight: 700, color: total === 0 ? T.accept : T.text }}>
-        {total === 0 ? `✓ ${S.summaryBar.identical}` : S.summaryBar.differences(total)}
-      </span>
-      {pills.map(p => (
-        <span key={p.label} style={{
-          fontSize: 12, padding: '2px 9px', borderRadius: 10,
-          background: T.surfaceAlt, color: p.color, border: `1px solid ${p.color}40`, fontWeight: 700,
-        }}>
-          {p.label}: {p.value}
+    <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+      <div style={{
+        padding: '10px 16px 6px',
+        display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+      }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: total === 0 ? T.accept : T.text }}>
+          {total === 0 ? `✓ ${S.summaryBar.identical}` : S.summaryBar.differences(total)}
         </span>
-      ))}
-      <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: 'monospace' }}>
-          {new Date(rec.created_at).toLocaleString()}
-        </span>
-        <button onClick={onNew} className={FOCUSABLE_CLASS} style={{
-          padding: '6px 14px', minHeight: 36, background: T.surface, border: `1px solid ${T.border}`,
-          borderRadius: 6, color: T.textSecondary, cursor: 'pointer', fontSize: 13,
-        }}>
-          + {S.upload.newComparison}
-        </button>
+        {pills.map(p => (
+          <span key={p.label} style={{
+            fontSize: 12, padding: '2px 9px', borderRadius: 10,
+            background: T.surfaceAlt, color: p.color, border: `1px solid ${p.color}40`, fontWeight: 700,
+          }}>
+            {p.label}: {p.value}
+          </span>
+        ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: 'monospace' }}>
+            {new Date(rec.created_at).toLocaleString()}
+          </span>
+          <button onClick={onNew} className={FOCUSABLE_CLASS} style={{
+            padding: '6px 14px', minHeight: 36, background: T.surface, border: `1px solid ${T.border}`,
+            borderRadius: 6, color: T.textSecondary, cursor: 'pointer', fontSize: 13,
+          }}>
+            + {S.upload.newComparison}
+          </button>
+        </div>
       </div>
+
+      {reviewTotal > 0 && (
+        <div style={{ padding: '2px 16px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            role="progressbar"
+            aria-valuenow={reviewed}
+            aria-valuemin={0}
+            aria-valuemax={reviewTotal}
+            aria-label={S.summaryBar.reviewedProgress(reviewed, reviewTotal)}
+            style={{
+              flex: 1, height: 8, borderRadius: 4, background: T.surfaceAlt,
+              border: `1px solid ${T.border}`, overflow: 'hidden',
+            }}
+          >
+            <div style={{
+              width: `${progressPct}%`, height: '100%', background: T.accept,
+              borderRadius: 4, transition: 'width 0.2s ease',
+            }} />
+          </div>
+          <span style={{ fontSize: 13, color: T.textSecondary, flexShrink: 0, fontWeight: 600 }}>
+            {S.summaryBar.reviewedProgress(reviewed, reviewTotal)}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -1352,7 +1485,7 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', fontFamily: T.fontFamily }}>
 
       {/* ── Summary bar ── */}
-      <SummaryBar rec={activeRec} onNew={() => setShowUpload(true)} />
+      <SummaryBar rec={activeRec} onNew={() => setShowUpload(true)} reviewSummary={reviewSummary} />
 
       {/* ── Review status bar ── */}
       <ReviewStatusBar
@@ -1413,8 +1546,14 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
         onZoomModeToggle={handleZoomModeToggle}
       />
 
-      {/* ── Body: side-by-side panels + diff list ── */}
+      {/* ── Body: page thumbnails + side-by-side panels + diff list ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+        <PageThumbnailRail
+          pages={pages}
+          currentPage={currentPage}
+          onSelectPage={i => { setCurrentPage(i); setSelectedId(null) }}
+        />
 
         <PagePanel
           imgUrl={page.original_render_url}

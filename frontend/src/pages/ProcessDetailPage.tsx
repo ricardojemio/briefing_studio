@@ -229,7 +229,7 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
               padding: '12px 16px', border: 'none', background: 'transparent',
               color: tab === t ? T.textPrimary : T.textSecond,
               fontSize: 12, fontWeight: tab === t ? 700 : 400, cursor: 'pointer',
-              borderBottom: `2px solid ${tab === t ? T.accent : 'transparent'}`,
+              borderBottom: `3px solid ${tab === t ? T.accent : 'transparent'}`,
               textTransform: 'capitalize', letterSpacing: '0.02em',
               transition: 'color 0.12s, border-color 0.12s',
             }}
