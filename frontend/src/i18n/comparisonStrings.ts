@@ -23,6 +23,7 @@ export const comparisonStrings = {
     revised:  'REVISADA',
     pageOf:   (current: number, total: number) => `Página ${current} de ${total}`,
     notAvailable: 'Página não disponível',
+    differencesOnThisPage: (n: number) => `${n} diferença${n !== 1 ? 's' : ''} nesta página`,
   },
 
   thumbnails: {
@@ -49,6 +50,7 @@ export const comparisonStrings = {
     confirm:           'Confirmar',
     cancel:             'Cancelar',
     saving:            'Salvando…',
+    region:            (w: number, h: number) => `Região: ${w} × ${h} pt`,
   },
 
   diffPanel: {
@@ -105,5 +107,7 @@ export const comparisonStrings = {
 
   errors: {
     comparisonFailed: 'A comparação falhou',
+    renderFailed:     'Não foi possível exibir esta página da comparação',
+    backToStart:      'Voltar à tela inicial',
   },
 } as const

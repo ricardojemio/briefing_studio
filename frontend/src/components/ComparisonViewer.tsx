@@ -1,4 +1,5 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
+import { Component, useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
+import type { ReactNode } from 'react'
 import { processApi } from '../services/processApi'
 import type {
   ComparisonRecord,
@@ -661,32 +662,47 @@ function DiffCard({
 
       {/* ── Body ── */}
       <div style={{ padding: '10px 12px 12px' }}>
-        {d.original_text && (
-          <div style={{
-            display: 'flex', gap: 6, fontSize: 14, color: T.reject, background: T.rejectBg,
-            padding: '5px 8px', borderRadius: 5, marginBottom: 4,
-            textDecoration: 'line-through', wordBreak: 'break-word',
-          }}>
-            <span style={{ flexShrink: 0, fontWeight: 700 }}>−</span>
-            <span>{d.original_text}</span>
-          </div>
-        )}
-        {d.revised_text && (
-          <div style={{
-            display: 'flex', gap: 6, fontSize: 14, fontWeight: 700, color: T.accept, background: T.acceptBg,
-            padding: '5px 8px', borderRadius: 5, marginBottom: 4, wordBreak: 'break-word',
-          }}>
-            <span style={{ flexShrink: 0 }}>+</span>
-            <span>{d.revised_text}</span>
-          </div>
-        )}
-        {/* Context sentence: only shown when the backend provides one —
-            DiffEntry has no such field today (see summary at end of task),
-            so this intentionally never renders yet. */}
-        {!d.original_text && !d.revised_text && (
+        {/* Visual diffs never have before/after text (original_text and
+            revised_text are always "" from the backend) — show the region
+            size instead, computed from the same bbox the highlight uses
+            (already in PDF points, same unit as every other diff type). */}
+        {group === 'Visual' ? (
           <div style={{ fontSize: 14, color: T.text, lineHeight: 1.4 }}>
-            {d.description}
+            {S.diffCard.region(
+              Math.round(d.bbox[2] - d.bbox[0]),
+              Math.round(d.bbox[3] - d.bbox[1]),
+            )}
           </div>
+        ) : (
+          <>
+            {d.original_text && (
+              <div style={{
+                display: 'flex', gap: 6, fontSize: 14, color: T.reject, background: T.rejectBg,
+                padding: '5px 8px', borderRadius: 5, marginBottom: 4,
+                textDecoration: 'line-through', wordBreak: 'break-word',
+              }}>
+                <span style={{ flexShrink: 0, fontWeight: 700 }}>−</span>
+                <span>{d.original_text}</span>
+              </div>
+            )}
+            {d.revised_text && (
+              <div style={{
+                display: 'flex', gap: 6, fontSize: 14, fontWeight: 700, color: T.accept, background: T.acceptBg,
+                padding: '5px 8px', borderRadius: 5, marginBottom: 4, wordBreak: 'break-word',
+              }}>
+                <span style={{ flexShrink: 0 }}>+</span>
+                <span>{d.revised_text}</span>
+              </div>
+            )}
+            {/* Context sentence: only shown when the backend provides one —
+                DiffEntry has no such field today (see summary at end of task),
+                so this intentionally never renders yet. */}
+            {!d.original_text && !d.revised_text && (
+              <div style={{ fontSize: 14, color: T.text, lineHeight: 1.4 }}>
+                {d.description}
+              </div>
+            )}
+          </>
         )}
 
         {/* ── Accept / Reject — immediate toggle, click again undoes ── */}
@@ -802,7 +818,7 @@ function DiffCard({
 // ── Diff list sidebar ─────────────────────────────────────────────────────────────
 
 function DiffListPanel({
-  page,
+  diffs,
   selectedId,
   onSelect,
   reviews,
@@ -812,7 +828,7 @@ function DiffListPanel({
   onApprove,
   approving,
 }: {
-  page:             PageComparison
+  diffs:            DiffEntry[]
   selectedId:       string | null
   onSelect:         (id: string) => void
   reviews:          Record<string, DifferenceReview>
@@ -822,7 +838,6 @@ function DiffListPanel({
   onApprove:        () => void
   approving:        boolean
 }) {
-  const diffs      = page.differences
   const totalCount = diffs.length
   const reviewedCount = diffs.filter(d => {
     const s = reviews[d.id]?.status
@@ -1260,7 +1275,7 @@ interface Props {
   requestUploadSignal?: number
 }
 
-export default function ComparisonViewer({ processId, originalPdfPath, requestUploadSignal }: Props) {
+function ComparisonViewerInner({ processId, originalPdfPath, requestUploadSignal }: Props) {
   const [comparisons, setComparisons] = useState<ComparisonRecord[]>([])
   const [activeRec,   setActiveRec]   = useState<ComparisonRecord | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
@@ -1436,11 +1451,27 @@ export default function ComparisonViewer({ processId, originalPdfPath, requestUp
     })
   }, [selectedId, currentPage])
 
-  // ── Auto-select the first difference whenever none is selected ────────────────
-  // (initial open, or after navigating to a page whose previous selection no
-  // longer applies) so the panel and the on-page highlight are never both blank.
+  // ── Jump to the first difference on open; keep some diff selected otherwise ───
+  // When a comparison first loads (new upload, or picking one from the list),
+  // jump straight to the page of its very first difference and select it —
+  // landing on page 1 with an empty panel when the first diff is on another
+  // page was the reported bug. On later page navigation within the same
+  // comparison, just keep the current page's first difference selected so
+  // the panel and the on-page highlight are never both blank.
+  const lastOpenedRecIdRef = useRef<string | null>(null)
   useEffect(() => {
     if (!activeRec?.result) return
+
+    if (lastOpenedRecIdRef.current !== activeRec.id) {
+      lastOpenedRecIdRef.current = activeRec.id
+      const firstDiff = activeRec.result.pages.flatMap(p => p.differences)[0]
+      if (firstDiff) {
+        setCurrentPage(firstDiff.page - 1)
+        setSelectedId(firstDiff.id)
+      }
+      return
+    }
+
     const pg = activeRec.result.pages[currentPage]
     if (!pg || pg.differences.length === 0) return
     if (selectedId && pg.differences.some(d => d.id === selectedId)) return
@@ -1553,6 +1584,19 @@ export default function ComparisonViewer({ processId, originalPdfPath, requestUp
   const page    = pages[currentPage]
   const hasPrev = currentPage > 0
   const hasNext = currentPage < pages.length - 1
+  const allDiffs = pages.flatMap(p => p.differences)
+
+  // Selecting a difference from the panel (which now lists every page's
+  // differences, not just the current page's) must first jump to its page
+  // — otherwise clicking a card for a diff on another page would select an
+  // id that doesn't exist on the page currently in view.
+  const handleSelectDiff = (id: string) => {
+    const target = allDiffs.find(d => d.id === id)
+    if (target && target.page - 1 !== currentPage) {
+      setCurrentPage(target.page - 1)
+    }
+    setSelectedId(id)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', fontFamily: T.fontFamily }}>
@@ -1603,7 +1647,7 @@ export default function ComparisonViewer({ processId, originalPdfPath, requestUp
           >▶</button>
 
           <span style={{ fontSize: 12, color: T.textSecondary, marginLeft: 4 }}>
-            {page.differences.length} difference{page.differences.length !== 1 ? 's' : ''} on this page
+            {S.pageLabels.differencesOnThisPage(page.differences.length)}
           </span>
         </div>
       )}
@@ -1635,7 +1679,7 @@ export default function ComparisonViewer({ processId, originalPdfPath, requestUp
           zoom={zoom}
           rotation={rotation}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={handleSelectDiff}
           scrollRef={leftRef}
           onScroll={() => syncScroll('left')}
           zoomMode={zoomMode}
@@ -1651,7 +1695,7 @@ export default function ComparisonViewer({ processId, originalPdfPath, requestUp
           zoom={zoom}
           rotation={rotation}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={handleSelectDiff}
           scrollRef={rightRef}
           onScroll={() => syncScroll('right')}
           zoomMode={zoomMode}
@@ -1659,9 +1703,9 @@ export default function ComparisonViewer({ processId, originalPdfPath, requestUp
         />
 
         <DiffListPanel
-          page={page}
+          diffs={allDiffs}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={handleSelectDiff}
           reviews={reviews}
           submitting={submitting}
           onReview={handleReview}
@@ -1671,5 +1715,59 @@ export default function ComparisonViewer({ processId, originalPdfPath, requestUp
         />
       </div>
     </div>
+  )
+}
+
+// ── Error boundary ───────────────────────────────────────────────────────────────
+//
+// A thrown render error anywhere in this screen used to take down the whole
+// page (blank/black — there was no boundary). This catches it, logs it, and
+// shows a plain-language fallback instead, with a way back to the start
+// screen. Reload is deliberate, not a stand-in for real navigation: this app
+// has no router, just React state that always initialises back to the start
+// screen on a fresh mount, so a reload *is* "voltar à tela inicial" here.
+class ComparisonErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: unknown, info: unknown) {
+    console.error('ComparisonViewer failed to render:', error, info)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 16, height: '100%', padding: 40, textAlign: 'center',
+          background: T.surface, fontFamily: T.fontFamily,
+        }}>
+          <div style={{ fontSize: 15, color: T.text }}>{S.errors.renderFailed}</div>
+          <button
+            className={FOCUSABLE_CLASS}
+            onClick={() => window.location.reload()}
+            style={{
+              minHeight: MIN_TOUCH_TARGET, padding: '0 20px',
+              background: T.accent, color: '#fff', border: 'none', borderRadius: 8,
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            {S.errors.backToStart}
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+export default function ComparisonViewer(props: Props) {
+  return (
+    <ComparisonErrorBoundary>
+      <ComparisonViewerInner {...props} />
+    </ComparisonErrorBoundary>
   )
 }
