@@ -41,6 +41,12 @@ export const theme = {
   thumbStripBg:     '#DDE5FB',
   thumbStripBorder: '#B6C4F0',
 
+  // Start screen (shared with the comparison screen's light palette)
+  logoAccent:       '#FFCB70', // solid — logo mark only, not a highlight fill
+  uploadBoxBorder:  '#A9A79F',
+  uploadLabelOriginalBg: '#EDEBE6',
+  heroSubtitleText: '#4A4945',
+
   // Workspace background behind the PDFs
   workspaceGradient: 'linear-gradient(135deg, #1F3FB5 0%, #3B5FD9 45%, #F28C28 100%)',
 

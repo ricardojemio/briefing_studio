@@ -1,3 +1,8 @@
+// Unreachable by product decision: the start screen (StartScreen.tsx) now
+// creates a process directly from the two uploaded PDFs, so this manual
+// form (with Component Code, Market, SKU, etc.) is no longer linked from
+// anywhere in App.tsx. Kept in code, not deleted, in case the fuller process
+// metadata form is needed again later.
 import { useState, useRef } from 'react'
 import { processApi } from '../services/processApi'
 import { MARKETS, MANUFACTURING_SITES } from '../types/process'

@@ -1,3 +1,8 @@
+// Unreachable by product decision: the start screen (StartScreen.tsx) is now
+// the landing page and project browser (cards + search). This Kanban also
+// surfaced process-stage UI (columns, forward/back arrows, "1/5") that the
+// product no longer shows anywhere, so it's not linked from App.tsx either.
+// Kept in code, not deleted.
 import { useState, useEffect, useCallback } from 'react'
 import { processApi } from '../services/processApi'
 import type { ArtworkProcess, ProcessStatus } from '../types/process'
