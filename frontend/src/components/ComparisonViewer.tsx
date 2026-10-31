@@ -535,7 +535,7 @@ function ReviewStatusBar({
               <button
                 onClick={onApprove}
                 disabled={approving || !reviewerEmail.trim()}
-                title={!reviewerEmail.trim() ? 'Enter your reviewer email first' : undefined}
+                title={!reviewerEmail.trim() ? S.hints.enterEmailToReview : undefined}
                 className={FOCUSABLE_CLASS}
                 style={{
                   padding: '8px 16px', minHeight: MIN_TOUCH_TARGET,
@@ -694,7 +694,7 @@ function DiffCard({
           <button
             disabled={isSub || !reviewerEmailSet}
             aria-pressed={reviewStatus === 'accepted'}
-            title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : undefined}
+            title={!reviewerEmailSet ? S.hints.enterEmailAbove : undefined}
             className={FOCUSABLE_CLASS}
             onClick={() => handleToggle('accepted')}
             style={{
@@ -713,7 +713,7 @@ function DiffCard({
           <button
             disabled={isSub || !reviewerEmailSet}
             aria-pressed={reviewStatus === 'rejected'}
-            title={!reviewerEmailSet ? 'Enter your reviewer email above to begin reviewing' : undefined}
+            title={!reviewerEmailSet ? S.hints.enterEmailAbove : undefined}
             className={FOCUSABLE_CLASS}
             onClick={() => handleToggle('rejected')}
             style={{
@@ -960,7 +960,7 @@ function UploadForm({
     try {
       onComplete(await processApi.runComparison(processId, file, originalPdfPath ?? undefined))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Comparison failed')
+      setError(e instanceof Error ? e.message : S.errors.comparisonFailed)
     } finally {
       setRunning(false)
     }
@@ -1166,7 +1166,7 @@ function ViewToolbar({
       padding: '6px 12px', background: T.surface, borderBottom: `1px solid ${T.border}`,
       display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
     }}>
-      <ToolbarBtn onClick={onFitWidth} title="Fit to width (Ctrl+0)" active={is100}>
+      <ToolbarBtn onClick={onFitWidth} title={S.toolbar.fitWidthTitle} active={is100}>
         <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
           <rect x="1" y="2" width="9" height="7" rx="1"/>
           <line x1="3" y1="5.5" x2="8" y2="5.5"/>
@@ -1181,7 +1181,7 @@ function ViewToolbar({
       <ToolbarBtn
         onClick={() => onZoom(ZOOM_STEPS[0])}
         disabled={zoomIdx === 0}
-        title="Minimum zoom (25%)"
+        title={S.toolbar.zoomMinTitle}
       >
         {ZOOM_STEPS[0]}%
       </ToolbarBtn>
@@ -1189,7 +1189,7 @@ function ViewToolbar({
       <ToolbarBtn
         onClick={() => onZoomModeToggle('zoomin')}
         active={zoomMode === 'zoomin'}
-        title={zoomMode === 'zoomin' ? 'Zoom in active — click again to deactivate' : 'Zoom in — click on PDF to zoom in (Ctrl+=)'}
+        title={zoomMode === 'zoomin' ? S.toolbar.zoomInActiveTitle : S.toolbar.zoomInTitle}
       >
         <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
           <circle cx="4.5" cy="4.5" r="3"/>
@@ -1212,7 +1212,7 @@ function ViewToolbar({
       <ToolbarBtn
         onClick={() => onZoomModeToggle('zoomout')}
         active={zoomMode === 'zoomout'}
-        title={zoomMode === 'zoomout' ? 'Zoom out active — click again to deactivate' : 'Zoom out — click on PDF to zoom out (Ctrl+−)'}
+        title={zoomMode === 'zoomout' ? S.toolbar.zoomOutActiveTitle : S.toolbar.zoomOutTitle}
       >
         <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7">
           <circle cx="4.5" cy="4.5" r="3"/>
@@ -1224,14 +1224,14 @@ function ViewToolbar({
       <ToolbarBtn
         onClick={() => onZoom(ZOOM_STEPS[ZOOM_STEPS.length - 1])}
         disabled={zoomIdx === ZOOM_STEPS.length - 1}
-        title="Maximum zoom (400%)"
+        title={S.toolbar.zoomMaxTitle}
       >
         {ZOOM_STEPS[ZOOM_STEPS.length - 1]}%
       </ToolbarBtn>
 
       <div style={{ width: 1, height: 16, background: T.border, margin: '0 2px' }} />
 
-      <ToolbarBtn onClick={onRotate} title="Rotate 90° clockwise">
+      <ToolbarBtn onClick={onRotate} title={S.toolbar.rotateTitle}>
         <svg width="12" height="12" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M2 5.5a3.5 3.5 0 107-0"/>
           <polyline points="7,2 9,4.5 6.5,4.5"/>
@@ -1534,7 +1534,7 @@ export default function ComparisonViewer({ processId, originalPdfPath, requestUp
   if (loading) {
     return (
       <div style={{ padding: 40, color: T.textSecondary, fontSize: 13, fontFamily: T.fontFamily, background: T.surface, height: '100%' }}>
-        Loading comparisons…
+        {S.loading}
       </div>
     )
   }

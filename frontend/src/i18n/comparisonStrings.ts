@@ -1,90 +1,109 @@
 // src/i18n/comparisonStrings.ts
 //
 // All user-facing strings for the artwork comparison screen, in one place.
-// Text stays in English for now (per product decision) — this file exists
-// so a future translation pass has a single place to edit instead of
-// hunting through ComparisonViewer.tsx and ProcessDetailPage.tsx.
+// Translated to Portuguese (product decision) — this file is still the
+// single place to edit instead of hunting through ComparisonViewer.tsx and
+// ProcessDetailPage.tsx.
 
 export const comparisonStrings = {
   tabs: {
-    comparison: 'Comparison',
-    overview:   'Overview',
-    timeline:   'Timeline',
+    comparison: 'Comparação',
+    overview:   'Visão geral',
+    timeline:   'Histórico',
   },
 
   summaryBar: {
-    differences:      (n: number) => `${n} difference${n !== 1 ? 's' : ''}`,
-    identical:        'Identical',
-    reviewedProgress: (reviewed: number, total: number) => `${reviewed} of ${total} reviewed`,
+    differences:      (n: number) => `${n} diferença${n !== 1 ? 's' : ''}`,
+    identical:        'Idêntico',
+    reviewedProgress: (reviewed: number, total: number) => `${reviewed} de ${total} revisadas`,
   },
 
   pageLabels: {
     original: 'ORIGINAL',
-    revised:  'REVISED',
-    pageOf:   (current: number, total: number) => `Page ${current} of ${total}`,
-    notAvailable: 'Page not available',
+    revised:  'REVISADA',
+    pageOf:   (current: number, total: number) => `Página ${current} de ${total}`,
+    notAvailable: 'Página não disponível',
   },
 
   thumbnails: {
-    heading: 'Pages',
+    heading: 'Páginas',
   },
 
   diffCard: {
-    typeText:          'Text changed',
+    typeText:          'Texto alterado',
     typeVisual:        'Visual',
-    typeFontSize:      'Font size',
-    typeFontStyle:     'Font style',
-    typeColor:         'Colour',
-    typeCode:          'EAN / Barcode',
+    typeFontSize:      'Tamanho da fonte',
+    typeFontStyle:     'Estilo da fonte',
+    typeColor:         'Cor',
+    typeCode:          'EAN / Código de barras',
     typeDimensional:   'Dimensional',
-    typeCompliance:    'Compliance',
-    page:              (n: number) => `Pg. ${n}`,
-    statusPending:     'Pending',
-    statusAccepted:    'Accepted',
-    statusRejected:    'Rejected',
-    accept:            'Accept',
-    reject:            'Reject',
-    noteLabel:         'Audit comment (optional)',
-    notePlaceholder:   'Add a note…',
-    confirm:           'Confirm',
-    cancel:             'Cancel',
-    saving:            'Saving…',
+    typeCompliance:    'Conformidade',
+    page:              (n: number) => `Pág. ${n}`,
+    statusPending:     'Pendente',
+    statusAccepted:    'Aceita',
+    statusRejected:    'Rejeitada',
+    accept:            'Aceitar',
+    reject:            'Rejeitar',
+    noteLabel:         'Comentário de auditoria (opcional)',
+    notePlaceholder:   'Adicionar observação…',
+    confirm:           'Confirmar',
+    cancel:             'Cancelar',
+    saving:            'Salvando…',
   },
 
   diffPanel: {
-    heading:        'Differences',
-    empty:          'No differences on this page',
-    previous:       'Previous',
-    next:           'Next',
-    complete:       (reviewed: number, total: number) => `Complete review · ${reviewed} of ${total} reviewed`,
+    heading:        'Diferenças',
+    empty:          'Nenhuma diferença nesta página',
+    previous:       'Anterior',
+    next:           'Próxima',
+    complete:       (reviewed: number, total: number) => `Concluir revisão · ${reviewed} de ${total} revisadas`,
   },
 
   reviewBar: {
-    heading:          'Review',
-    pending:          (n: number) => `${n} pending`,
-    accepted:         (n: number) => `${n} accepted`,
-    rejected:         (n: number) => `${n} rejected`,
-    reviewedOf:       (reviewed: number, total: number) => `(${reviewed}/${total} reviewed)`,
-    emailPlaceholder: 'reviewer@company.com',
-    emailTitle:       'Your email — required to record reviews',
-    approve:          'Approve Comparison',
-    approveWithRejections: 'Approve with Rejections',
-    approving:        'Approving…',
-    approvedAt:       (date: string) => `Approved ${date}`,
+    heading:          'Revisão',
+    pending:          (n: number) => `${n} pendente${n !== 1 ? 's' : ''}`,
+    accepted:         (n: number) => `${n} aceita${n !== 1 ? 's' : ''}`,
+    rejected:         (n: number) => `${n} rejeitada${n !== 1 ? 's' : ''}`,
+    reviewedOf:       (reviewed: number, total: number) => `(${reviewed}/${total} revisadas)`,
+    emailPlaceholder: 'revisor@empresa.com',
+    emailTitle:       'Seu e-mail — necessário para registrar revisões',
+    approve:          'Aprovar comparação',
+    approveWithRejections: 'Aprovar com rejeições',
+    approving:        'Aprovando…',
+    approvedAt:       (date: string) => `Aprovado em ${date}`,
   },
 
   upload: {
-    heading:     'Run Artwork Comparison',
-    description: 'Upload the revised PDF from your design studio. The system will automatically detect text, code, visual, and dimensional differences.',
-    chooseFile:  'Choose revised PDF',
-    changeFile:  'Change file',
-    compare:     'Compare Artworks',
-    comparing:   'Analysing…',
-    newComparison: 'New comparison',
+    heading:     'Executar comparação de arte',
+    description: 'Envie o PDF revisado do seu estúdio de design. O sistema detecta automaticamente diferenças de texto, código, visuais e dimensionais.',
+    chooseFile:  'Escolher PDF revisado',
+    changeFile:  'Trocar arquivo',
+    compare:     'Comparar artes',
+    comparing:   'Analisando…',
+    newComparison: 'Nova comparação',
   },
 
   toolbar: {
-    fitWidth: 'Fit width',
-    rotate:   'Rotate',
+    fitWidth:      'Ajustar à largura',
+    rotate:        'Girar',
+    fitWidthTitle: 'Ajustar à largura (Ctrl+0)',
+    zoomMinTitle:  'Zoom mínimo (25%)',
+    zoomInActiveTitle:   'Zoom de aumento ativo — clique de novo para desativar',
+    zoomInTitle:         'Zoom de aumento — clique no PDF para ampliar (Ctrl+=)',
+    zoomOutActiveTitle:  'Zoom de redução ativo — clique de novo para desativar',
+    zoomOutTitle:        'Zoom de redução — clique no PDF para reduzir (Ctrl+−)',
+    zoomMaxTitle:  'Zoom máximo (400%)',
+    rotateTitle:   'Girar 90° no sentido horário',
+  },
+
+  loading: 'Carregando comparações…',
+
+  hints: {
+    enterEmailToReview: 'Informe seu e-mail de revisor antes',
+    enterEmailAbove:    'Informe seu e-mail de revisor acima para começar a revisar',
+  },
+
+  errors: {
+    comparisonFailed: 'A comparação falhou',
   },
 } as const
