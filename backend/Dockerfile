@@ -22,9 +22,10 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # Copy application code
 COPY . /app
 
-# Health check
+# Health check (stdlib urllib — the "requests" package isn't in requirements.txt,
+# so the previous probe always failed with ModuleNotFoundError regardless of app health)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)" || exit 1
 
 # Expose port
 EXPOSE 8000
