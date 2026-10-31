@@ -56,6 +56,11 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
   const [error,   setError]   = useState<string | null>(null)
   const [moving,  setMoving]  = useState(false)
 
+  // Bumped by the header's "Nova comparação" button; passed through to
+  // ComparisonViewer as requestUploadSignal to open its upload screen from
+  // outside, without lifting its internal showUpload state up here.
+  const [uploadSignal, setUploadSignal] = useState<number | undefined>(undefined)
+
   // ── Assignment form state ────────────────────────────────────────────────────
   const [showAssignForm,  setShowAssignForm]  = useState(false)
   const [assignRole,      setAssignRole]      = useState<AssignmentRole>('marketing')
@@ -79,6 +84,11 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
     return () => { cancelled = true }
   }, [processId])
 
+  // Unused by rendering, by product decision: the header no longer shows a
+  // stage pill or forward/back arrows, and no action advances process
+  // status anywhere in the UI (confirmed nothing else depends on it — the
+  // comparison review flow calls approveComparison, never updateStatus).
+  // Kept in code, not deleted.
   const moveStatus = async (direction: 'forward' | 'back') => {
     if (!proc) return
     const idx     = STATUS_ORDER.indexOf(proc.status)
@@ -133,6 +143,8 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
     )
   }
 
+  // Unused by rendering, by product decision — see the comment on
+  // moveStatus above. Kept in code, not deleted.
   const statusColor = STATUS_COLOR[proc.status] ?? T.textSecond
   const statusIdx   = STATUS_ORDER.indexOf(proc.status)
   const canForward  = statusIdx < STATUS_ORDER.length - 1
@@ -168,38 +180,20 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
           </div>
         </div>
 
-        {/* Status badge + move buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button
-            onClick={() => moveStatus('back')}
-            disabled={!canBack || moving}
-            style={{
-              background: 'none', border: `1px solid ${T.border}`,
-              color: canBack ? T.textSecond : T.textMuted, borderRadius: 5,
-              cursor: canBack ? 'pointer' : 'not-allowed',
-              padding: '4px 9px', fontSize: 11, opacity: canBack ? 1 : 0.3,
-            }}
-          >◀</button>
-
-          <span style={{
-            padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-            color: statusColor, background: `${statusColor}18`,
-            border: `1px solid ${statusColor}40`,
-          }}>
-            {STATUS_LABEL[proc.status] ?? proc.status}
-          </span>
-
-          <button
-            onClick={() => moveStatus('forward')}
-            disabled={!canForward || moving}
-            style={{
-              background: 'none', border: `1px solid ${T.border}`,
-              color: canForward ? T.accent : T.textMuted, borderRadius: 5,
-              cursor: canForward ? 'pointer' : 'not-allowed',
-              padding: '4px 9px', fontSize: 11, opacity: canForward ? 1 : 0.3,
-            }}
-          >▶</button>
-        </div>
+        {/* Process-stage pill + forward/back arrows removed by product
+            decision (no screen shows process stages any more, and no
+            action here changes one). Replaced with the one action that
+            matters from any tab: starting a new comparison. */}
+        <button
+          onClick={() => { setTab('comparison'); setUploadSignal(n => (n ?? 0) + 1) }}
+          style={{
+            padding: '8px 14px', background: T.accent, color: '#fff',
+            border: 'none', borderRadius: 7, cursor: 'pointer',
+            fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
+          }}
+        >
+          + Nova comparação
+        </button>
       </div>
 
       {/* ── Error banner ── */}
@@ -265,6 +259,7 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
           <ComparisonViewer
             processId={proc.id}
             originalPdfPath={proc.components?.[0]?.pdf_path ?? null}
+            requestUploadSignal={uploadSignal}
           />
         )}
 
@@ -297,15 +292,22 @@ function OverviewTab({
     <div style={{ maxWidth: 800, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── Project info ── */}
+      {/* Only name, created-by and the two dates render — per product
+          decision, no screen shows product metadata (Market, Component
+          code, SKU, manufacturing site, New SKU, description, coordinator)
+          any more. Description hidden below, not deleted. */}
       <Card title="Project">
         <InfoRow label="Name"        value={proc.project_name} />
-        <InfoRow label="Description" value={proc.project_description ?? '—'} />
+        {false && <InfoRow label="Description" value={proc.project_description ?? '—'} />}
         <InfoRow label="Created by"  value={proc.created_by} />
         <InfoRow label="Created"     value={new Date(proc.created_at).toLocaleString()} />
         <InfoRow label="Updated"     value={new Date(proc.updated_at).toLocaleString()} />
       </Card>
 
-      {/* ── Components ── */}
+      {/* ── Components — hidden by product decision (Component code, SKU,
+          Market, manufacturing site and New SKU are all product metadata
+          the UI no longer surfaces anywhere). Kept in code, not deleted. ── */}
+      {false && (
       <Card title={`Components (${proc.components?.length ?? 0})`}>
         {(proc.components ?? []).length === 0 ? (
           <p style={{ fontSize: 12, color: '#3D4560', margin: 0 }}>No components added.</p>
@@ -341,8 +343,12 @@ function OverviewTab({
           </div>
         )}
       </Card>
+      )}
 
-      {/* ── Assignments ── */}
+      {/* ── Assignments — hidden by product decision ("coordenador" and
+          other roles are product-process metadata the UI no longer
+          surfaces). Kept in code, not deleted. ── */}
+      {false && (
       <Card title={`Team Assignments (${proc.assignments?.length ?? 0})`}>
         {(proc.assignments ?? []).length === 0 ? (
           <p style={{ fontSize: 12, color: '#3D4560', margin: 0, marginBottom: 12 }}>No team members assigned yet.</p>
@@ -442,6 +448,7 @@ function OverviewTab({
           </button>
         )}
       </Card>
+      )}
     </div>
   )
 }

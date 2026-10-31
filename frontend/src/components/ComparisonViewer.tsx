@@ -1253,15 +1253,24 @@ function ViewToolbar({
 interface Props {
   processId:       string
   originalPdfPath: string | null
+  // Bumping this (to any new value) opens the upload screen, even while a
+  // comparison is already active. Lets a parent header button ("Nova
+  // comparação") trigger the same flow as the in-panel "+ New comparison"
+  // button without this component handing its showUpload state up.
+  requestUploadSignal?: number
 }
 
-export default function ComparisonViewer({ processId, originalPdfPath }: Props) {
+export default function ComparisonViewer({ processId, originalPdfPath, requestUploadSignal }: Props) {
   const [comparisons, setComparisons] = useState<ComparisonRecord[]>([])
   const [activeRec,   setActiveRec]   = useState<ComparisonRecord | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
   const [selectedId,  setSelectedId]  = useState<string | null>(null)
   const [showUpload,  setShowUpload]  = useState(false)
   const [loading,     setLoading]     = useState(true)
+
+  useEffect(() => {
+    if (requestUploadSignal !== undefined) setShowUpload(true)
+  }, [requestUploadSignal])
 
   // View controls
   const [zoom,     setZoom]     = useState<number>(ZOOM_DEFAULT)
