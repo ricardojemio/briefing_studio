@@ -108,7 +108,12 @@ function transformBbox(
 
 // ── Highlight overlay ─────────────────────────────────────────────────────────────
 
-function DiffHighlights({
+// Translucent click targets over the PDF — must stay inside the clipped/
+// rotated image layer (their percentages are already rotation-aware via
+// transformBbox), since that's what keeps them aligned to the page.
+// mix-blend-mode: multiply lets the text underneath show through instead of
+// being covered; no backdrop-filter per spec.
+function DiffHighlightBoxes({
   diffs,
   pageSizePts,
   rotation,
@@ -123,10 +128,9 @@ function DiffHighlights({
 }) {
   return (
     <>
-      {diffs.map((d, i) => {
+      {diffs.map(d => {
         const r          = transformBbox(d.bbox, rotation, pageSizePts)
         const isSelected = selectedId === d.id
-        const arrowLeft  = r.left + r.width > 0.80
         return (
           <div
             key={d.id}
@@ -141,12 +145,52 @@ function DiffHighlights({
               minWidth:  4,
               minHeight: 4,
               background: isSelected ? T.highlightFillSel : T.highlightFillLight,
+              mixBlendMode: 'multiply',
               border:     isSelected ? `3px solid ${T.highlight}` : `1.5px dashed ${T.highlight}`,
               borderRadius: 2,
               cursor: 'pointer',
               boxSizing: 'border-box',
               transition: 'background 0.12s, border-color 0.12s',
               zIndex: isSelected ? 2 : 1,
+            }}
+          />
+        )
+      })}
+    </>
+  )
+}
+
+// Numbered circle + star markers, rendered in a separate overlay that is a
+// *sibling* of the clipped/rotated image layer (not a descendant) so a
+// marker next to an excerpt near the page edge is never cut off by that
+// layer's overflow: hidden. Rendered after the boxes in DOM order, with no
+// z-index of its own, so every marker always sits above every box.
+function DiffMarkers({
+  diffs,
+  pageSizePts,
+  rotation,
+  selectedId,
+}: {
+  diffs:       DiffEntry[]
+  pageSizePts: [number, number]
+  rotation:    number
+  selectedId:  string | null
+}) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+      {diffs.map((d, i) => {
+        const r          = transformBbox(d.bbox, rotation, pageSizePts)
+        const isSelected = selectedId === d.id
+        const arrowLeft  = r.left + r.width > 0.80
+        return (
+          <div
+            key={d.id}
+            style={{
+              position:  'absolute',
+              left:      `${r.left   * 100}%`,
+              top:       `${r.top    * 100}%`,
+              width:     `${r.width  * 100}%`,
+              height:    `${r.height * 100}%`,
             }}
           >
             {/* Numbered marker — same number as the card in the panel,
@@ -163,9 +207,7 @@ function DiffHighlights({
               fontSize: 11, fontWeight: 700,
               border: '2px solid #fff',
               boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
-              pointerEvents: 'none',
               userSelect: 'none',
-              zIndex: isSelected ? 3 : 2,
             }}>
               {i + 1}
             </span>
@@ -185,7 +227,6 @@ function DiffHighlights({
               filter:        isSelected ? 'drop-shadow(0 0 6px currentColor)' : 'none',
               WebkitTextStroke: isSelected ? '1px #fff' : undefined,
               animation:     isSelected ? 'starPulse 1.4s ease-in-out infinite' : undefined,
-              pointerEvents: 'none',
               lineHeight:    1,
               userSelect:    'none',
               transform:     'translateY(-50%)',
@@ -195,7 +236,7 @@ function DiffHighlights({
           </div>
         )
       })}
-    </>
+    </div>
   )
 }
 
@@ -349,34 +390,46 @@ function PagePanel({
                 width:       `${zoom}%`,
                 minWidth:    120,
                 aspectRatio: displayAR,
-                overflow:    'hidden',
                 margin:      '0 auto',
                 boxShadow:   '0 4px 24px rgba(0,0,0,0.35)',
               }}
             >
-              <div style={{
-                position:        'absolute',
-                top:             '50%',
-                left:            '50%',
-                width:           `${innerWidthPct}%`,
-                height:          `${innerHeightPct}%`,
-                transform:       `translate(-50%, -50%) rotate(${rotation}deg)`,
-                transformOrigin: 'center center',
-              }}>
-                <img
-                  src={imgUrl}
-                  alt={label}
-                  style={{ width: '100%', height: '100%', display: 'block' }}
-                  draggable={false}
+              {/* Clipped layer: rotated image + click-target boxes. Boxes are
+                  safe to clip here (their coordinates never exceed the page
+                  rectangle); only the markers below must escape this clip. */}
+              <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+                <div style={{
+                  position:        'absolute',
+                  top:             '50%',
+                  left:            '50%',
+                  width:           `${innerWidthPct}%`,
+                  height:          `${innerHeightPct}%`,
+                  transform:       `translate(-50%, -50%) rotate(${rotation}deg)`,
+                  transformOrigin: 'center center',
+                }}>
+                  <img
+                    src={imgUrl}
+                    alt={label}
+                    style={{ width: '100%', height: '100%', display: 'block' }}
+                    draggable={false}
+                  />
+                </div>
+
+                <DiffHighlightBoxes
+                  diffs={page.differences}
+                  pageSizePts={page.page_size_pts}
+                  rotation={rotation}
+                  selectedId={selectedId}
+                  onSelect={onSelect}
                 />
               </div>
 
-              <DiffHighlights
+              {/* Unclipped overlay: numbered circles + stars, always fully visible. */}
+              <DiffMarkers
                 diffs={page.differences}
                 pageSizePts={page.page_size_pts}
                 rotation={rotation}
                 selectedId={selectedId}
-                onSelect={onSelect}
               />
             </div>
           ) : (
@@ -1373,6 +1426,17 @@ export default function ComparisonViewer({ processId, originalPdfPath }: Props) 
       }
     })
   }, [selectedId, currentPage])
+
+  // ── Auto-select the first difference whenever none is selected ────────────────
+  // (initial open, or after navigating to a page whose previous selection no
+  // longer applies) so the panel and the on-page highlight are never both blank.
+  useEffect(() => {
+    if (!activeRec?.result) return
+    const pg = activeRec.result.pages[currentPage]
+    if (!pg || pg.differences.length === 0) return
+    if (selectedId && pg.differences.some(d => d.id === selectedId)) return
+    setSelectedId(pg.differences[0].id)
+  }, [activeRec, currentPage, selectedId])
 
   // ── Data loading ──────────────────────────────────────────────────────────────
   useEffect(() => {

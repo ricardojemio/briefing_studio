@@ -16,10 +16,11 @@ export const theme = {
   surfaceAlt:  '#FAFAF8',
   border:      '#E2E0DA',
 
-  // Change highlight (orange)
+  // Change highlight (orange) — translucent + mix-blend-mode: multiply so the
+  // PDF text underneath stays readable instead of being covered by the box.
   highlight:          '#C25E00', // marker/outline colour
-  highlightFillLight: '#FFE9BF', // unselected highlight fill
-  highlightFillSel:   '#FFCB70', // selected highlight fill
+  highlightFillLight: 'rgba(255,170,0,.22)', // unselected highlight fill
+  highlightFillSel:   'rgba(255,170,0,.32)', // selected highlight fill
   highlightChipBg:    '#FFF1D6',
   highlightChipText:  '#7A4A00', // ~5.6:1 on #FFF1D6
 
