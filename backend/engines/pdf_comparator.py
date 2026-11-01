@@ -60,6 +60,28 @@ WORD_GAP_MERGE_PT   = 1.0   # pt: a gap this small between adjacent word-tokens 
                             # were one word split by the edit (e.g. "1"+"7" -> "17"), not
                             # two separate words — join with no space instead of one
 
+# Word-level opcode refinement for _diff_line_words — see that function and
+# backend/eval/investigations/granularity_opcode_refinement/README.md for
+# the two failure modes this fixes (diagnosed before either constant was
+# tuned):
+#   EQUAL_GAP_MERGE_MAX_TOKENS: a short reused token (e.g. a digit that
+#   appears in both the old and new number, just at a different position —
+#   "6 a 8" -> "4 a 6") spuriously anchors difflib's LCS as "equal" and
+#   splits one edit into several opcodes. Opcodes separated by an "equal"
+#   span this short or shorter are merged back into one.
+#   WORD_SUBST_SIM_MIN: the opposite problem — two independent, adjacent
+#   edits with no shared token between them (a 1-letter typo immediately
+#   followed by an unrelated deleted word) get reported as a single
+#   oversized "replace". Within one replace block whose old/new word
+#   counts differ, the contiguous run on the longer side that best matches
+#   the shorter side (by per-word character-similarity ratio) is peeled
+#   off as its own substitution if its average similarity clears this
+#   threshold; whatever's left on the longer side becomes a separate
+#   delete/insert. Calibrated: real typo pairs score 0.86-0.96, an
+#   unrelated word pair scores ~0.31 (see the investigation note).
+EQUAL_GAP_MERGE_MAX_TOKENS = 1
+WORD_SUBST_SIM_MIN         = 0.6
+
 # Minimum text similarity (see _text_similarity) required for two LINES to
 # be matched by _best_iou_match, on top of its geometric gate. Pure
 # geometric matching assumes an edit never shifts other content — true for
@@ -480,34 +502,143 @@ def _group_words_into_lines(words: list[dict]) -> list[dict]:
     return lines
 
 
+def _merge_fragmented_opcodes(
+    opcodes: list[tuple[str, int, int, int, int]],
+    max_equal_gap: int = EQUAL_GAP_MERGE_MAX_TOKENS,
+) -> list[tuple[str, int, int, int, int]]:
+    """Merges a [non-equal, equal(<=max_equal_gap tokens), non-equal, ...]
+    run into one contiguous non-equal opcode. See EQUAL_GAP_MERGE_MAX_TOKENS
+    above for why: a short reused token spuriously anchors as "equal" and
+    fragments one edit into several opcodes."""
+    merged: list[tuple[str, int, int, int, int]] = []
+    i, n = 0, len(opcodes)
+    while i < n:
+        tag, i1, i2, j1, j2 = opcodes[i]
+        if tag == "equal":
+            merged.append(opcodes[i])
+            i += 1
+            continue
+
+        start_i1, start_j1 = i1, j1
+        end_i2, end_j2 = i2, j2
+        i += 1
+        while (
+            i + 1 < n
+            and opcodes[i][0] == "equal"
+            and (opcodes[i][2] - opcodes[i][1]) <= max_equal_gap
+            and opcodes[i + 1][0] != "equal"
+        ):
+            end_i2, end_j2 = opcodes[i + 1][2], opcodes[i + 1][4]
+            i += 2
+
+        if end_i2 == start_i1:
+            merged_tag = "insert"
+        elif end_j2 == start_j1:
+            merged_tag = "delete"
+        else:
+            merged_tag = "replace"
+        merged.append((merged_tag, start_i1, end_i2, start_j1, end_j2))
+    return merged
+
+
+def _split_fused_replace(
+    tag: str, old_words: list[dict], new_words: list[dict], min_sim: float = WORD_SUBST_SIM_MIN,
+) -> list[tuple[str, list[dict], list[dict]]]:
+    """See WORD_SUBST_SIM_MIN above: peels an independent, unrelated edit
+    out of a replace block whose old/new word counts differ — e.g.
+    ['albendazol','não'] -> ['albendasol'] is a 1-letter typo on
+    "albendazol" plus an unrelated deletion of "não", not one big
+    substitution. No-op (returns the block unchanged) for delete/insert
+    tags, equal-length replace blocks, or when no contiguous run on the
+    longer side clears min_sim."""
+    if tag != "replace" or not old_words or not new_words or len(old_words) == len(new_words):
+        return [(tag, old_words, new_words)]
+
+    def word_sim(a: dict, b: dict) -> float:
+        return difflib.SequenceMatcher(None, a["text"].lower(), b["text"].lower()).ratio()
+
+    if len(old_words) > len(new_words):
+        longer, shorter, longer_is_old = old_words, new_words, True
+    else:
+        longer, shorter, longer_is_old = new_words, old_words, False
+
+    k = len(shorter)
+    best_score, best_start = -1.0, 0
+    for start in range(len(longer) - k + 1):
+        window = longer[start:start + k]
+        score = sum(word_sim(w, s) for w, s in zip(window, shorter)) / k
+        if score > best_score:
+            best_score, best_start = score, start
+
+    if best_score < min_sim:
+        return [(tag, old_words, new_words)]
+
+    matched  = longer[best_start:best_start + k]
+    leftover = longer[:best_start] + longer[best_start + k:]
+    if not leftover:
+        return [(tag, old_words, new_words)]
+
+    # A leftover touching the matched window with a near-zero gap is a
+    # token fragment, not an independent word — the same adjacency
+    # _join_words uses to glue a split token back together (e.g. "1"+"7"
+    # meant to read "17", or "mg/dia"+")" meant to read "mg/dia)"). A real
+    # independent edit sits at normal word-spacing. Found as two real
+    # regressions: Domperidona's "30 mg/dia)" -> "50 mg/dia)" was wrongly
+    # split into a substitution plus a spurious insert of ")"; Mounjaro's
+    # "15" -> "17" (where '7' is extracted as its own token touching '1')
+    # was wrongly split into "15"->"1" plus a spurious insert of '7'.
+    def gap_pt(a: dict, b: dict) -> float:
+        return max(a["bbox"][0] - b["bbox"][2], b["bbox"][0] - a["bbox"][2])
+
+    touches_before = best_start > 0 and gap_pt(longer[best_start - 1], matched[0]) < WORD_GAP_MERGE_PT
+    touches_after  = (
+        best_start + k < len(longer)
+        and gap_pt(matched[-1], longer[best_start + k]) < WORD_GAP_MERGE_PT
+    )
+    if touches_before or touches_after:
+        return [(tag, old_words, new_words)]
+
+    if longer_is_old:
+        return [("replace", matched, shorter), ("delete", leftover, [])]
+    return [("replace", shorter, matched), ("insert", [], leftover)]
+
+
 def _diff_line_words(words_orig: list[dict], words_rev: list[dict]) -> list[dict]:
     """Word-level diff within one matched original/revised line pair.
     Returns only the smallest contiguous changed word-run(s) — e.g. just
     "750" -> "755", not the whole surrounding sentence — using difflib's
-    LCS-based opcodes, so unrelated unchanged words before/after the edit
-    are never reported. Each entry's bbox is the union of the words
-    actually involved (old side, new side, or both for a replace)."""
+    LCS-based opcodes (refined by _merge_fragmented_opcodes and
+    _split_fused_replace — see their docstrings and
+    EQUAL_GAP_MERGE_MAX_TOKENS/WORD_SUBST_SIM_MIN above), so unrelated
+    unchanged words before/after the edit are never reported, one edit
+    isn't fragmented into several, and independent adjacent edits aren't
+    fused into one. Each entry's bbox is the union of the words actually
+    involved (old side, new side, or both for a replace)."""
     texts_orig = [w["text"] for w in words_orig]
     texts_rev  = [w["text"] for w in words_rev]
     sm = difflib.SequenceMatcher(None, texts_orig, texts_rev, autojunk=False)
+    opcodes = _merge_fragmented_opcodes(sm.get_opcodes())
 
     out: list[dict] = []
-    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+    for tag, i1, i2, j1, j2 in opcodes:
         if tag == "equal":
             continue
         old_words = words_orig[i1:i2]
         new_words = words_rev[j1:j2]
-        bbox_words = old_words + new_words
-        x0 = min(w["bbox"][0] for w in bbox_words)
-        y0 = min(w["bbox"][1] for w in bbox_words)
-        x1 = max(w["bbox"][2] for w in bbox_words)
-        y1 = max(w["bbox"][3] for w in bbox_words)
-        out.append({
-            "tag":      tag,
-            "old_text": _join_words(old_words),
-            "new_text": _join_words(new_words),
-            "bbox":     (x0, y0, x1, y1),
-        })
+        for sub_tag, sub_old, sub_new in _split_fused_replace(tag, old_words, new_words):
+            bbox_words = sub_old + sub_new
+            if not bbox_words:
+                continue
+            x0 = min(w["bbox"][0] for w in bbox_words)
+            y0 = min(w["bbox"][1] for w in bbox_words)
+            x1 = max(w["bbox"][2] for w in bbox_words)
+            y1 = max(w["bbox"][3] for w in bbox_words)
+            out.append({
+                "tag":      sub_tag,
+                "old_text": _join_words(sub_old),
+                "new_text": _join_words(sub_new),
+                "bbox":     (x0, y0, x1, y1),
+            })
     return out
 
 
