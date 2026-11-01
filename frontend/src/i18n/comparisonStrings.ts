@@ -16,6 +16,11 @@ export const comparisonStrings = {
     differences:      (n: number) => `${n} diferença${n !== 1 ? 's' : ''}`,
     identical:        'Idêntico',
     reviewedProgress: (reviewed: number, total: number) => `${reviewed} de ${total} revisadas`,
+    labelText:         'Texto',
+    labelCodes:        'Códigos',
+    labelVisual:       'Visual',
+    labelDimensional:  'Dimensional',
+    labelCompliance:   'Conformidade',
   },
 
   pageLabels: {

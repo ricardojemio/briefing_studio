@@ -1056,11 +1056,11 @@ function SummaryBar({
   if (!s) return null
   const total = s.total_differences
   const pills = [
-    { label: 'Text',        value: s.text_changes,         color: T.highlight },
-    { label: 'Codes',       value: s.code_changes,         color: T.reject  },
-    { label: 'Visual',      value: s.visual_changes,       color: T.visualChipText },
-    { label: 'Dimensional', value: s.dimensional_changes,  color: T.textSecondary },
-    { label: 'Compliance',  value: s.compliance_flags,     color: T.reject  },
+    { label: S.summaryBar.labelText,        value: s.text_changes,         color: T.highlight },
+    { label: S.summaryBar.labelCodes,       value: s.code_changes,         color: T.reject  },
+    { label: S.summaryBar.labelVisual,      value: s.visual_changes,       color: T.visualChipText },
+    { label: S.summaryBar.labelDimensional, value: s.dimensional_changes,  color: T.textSecondary },
+    { label: S.summaryBar.labelCompliance,  value: s.compliance_flags,     color: T.reject  },
   ].filter(p => p.value > 0)
 
   const reviewed = reviewSummary ? reviewSummary.accepted + reviewSummary.rejected : 0

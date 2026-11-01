@@ -3,6 +3,7 @@ import { processApi } from '../services/processApi'
 import type { ArtworkProcess, AssignmentRole } from '../types/process'
 import { ROLE_LABELS, STATUS_ORDER } from '../types/process'
 import ComparisonViewer from '../components/ComparisonViewer'
+import { comparisonStrings as S } from '../i18n/comparisonStrings'
 
 // ── Design tokens ────────────────────────────────────────────────────────────────
 const T = {
@@ -224,11 +225,11 @@ export default function ProcessDetailPage({ processId, onBack }: Props) {
               color: tab === t ? T.textPrimary : T.textSecond,
               fontSize: 12, fontWeight: tab === t ? 700 : 400, cursor: 'pointer',
               borderBottom: `3px solid ${tab === t ? T.accent : 'transparent'}`,
-              textTransform: 'capitalize', letterSpacing: '0.02em',
+              letterSpacing: '0.02em',
               transition: 'color 0.12s, border-color 0.12s',
             }}
           >
-            {t}
+            {S.tabs[t as keyof typeof S.tabs] ?? t}
           </button>
         ))}
       </div>
