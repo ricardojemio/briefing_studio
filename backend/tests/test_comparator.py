@@ -41,7 +41,7 @@ def _make_pdf(
     return path
 
 
-def _run(orig: str, rev: str) -> dict:
+def _run(orig: str, rev: str, include_compliance: bool = False) -> dict:
     """Run compare_artworks with a temp preview dir. Returns result."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         return compare_artworks(
@@ -49,6 +49,7 @@ def _run(orig: str, rev: str) -> dict:
             revised_pdf_path=rev,
             dpi=72,                # low DPI for speed in tests
             preview_dir=tmp_dir,
+            include_compliance=include_compliance,
         )
 
 
@@ -160,7 +161,7 @@ class TestComparator:
         orig = _make_pdf("Lot: A12345",  font_size=12)
         rev  = _make_pdf("Lot: A12345 *see conditions below",  font_size=3)
         try:
-            result = _run(orig, rev)
+            result = _run(orig, rev, include_compliance=True)
             diffs  = result["pages"][0]["differences"]
             compliance = [d for d in diffs if d["type"] == "compliance"]
             assert len(compliance) >= 1, (
@@ -169,6 +170,34 @@ class TestComparator:
             )
             assert compliance[0]["severity"] == "high"
             assert result["summary"]["compliance_flags"] >= 1
+        finally:
+            Path(orig).unlink(missing_ok=True)
+            Path(rev).unlink(missing_ok=True)
+
+    def test_compliance_is_opt_in_and_excluded_from_total(self):
+        """
+        include_compliance defaults to False: the same sub-6pt text that
+        test_minimum_font_size_compliance flags when opted in must produce
+        no compliance diffs and compliance_flags == 0 by default. And even
+        when opted in, compliance_flags must never be folded into
+        total_differences — it's a count of revised-PDF-alone rule
+        violations, not a version-to-version difference.
+        """
+        orig = _make_pdf("Lot: A12345",  font_size=12)
+        rev  = _make_pdf("Lot: A12345 *see conditions below",  font_size=3)
+        try:
+            off = _run(orig, rev)   # include_compliance defaults to False
+            assert off["summary"]["compliance_flags"] == 0, off["summary"]
+            assert [d for d in off["pages"][0]["differences"] if d["type"] == "compliance"] == []
+
+            on = _run(orig, rev, include_compliance=True)
+            assert on["summary"]["compliance_flags"] >= 1
+            assert on["summary"]["total_differences"] == (
+                on["summary"]["text_changes"]
+                + on["summary"]["code_changes"]
+                + on["summary"]["visual_changes"]
+                + on["summary"]["dimensional_changes"]
+            ), "compliance_flags leaked into total_differences"
         finally:
             Path(orig).unlink(missing_ok=True)
             Path(rev).unlink(missing_ok=True)
@@ -202,7 +231,7 @@ class TestComparator:
             doc.save(path)
             doc.close()
 
-            result = _run(path, path)   # compare identical PDFs (no text diffs)
+            result = _run(path, path, include_compliance=True)   # compare identical PDFs (no text diffs)
             compliance = [
                 d for d in result["pages"][0]["differences"]
                 if d["type"] == "compliance"

@@ -342,6 +342,7 @@ async def run_comparison(
     pid: uuid.UUID,
     file: UploadFile = File(...),
     original_pdf_path: Optional[str] = Form(None),
+    include_compliance: bool = Form(False),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -349,6 +350,11 @@ async def run_comparison(
 
     `original_pdf_path` is optional: if omitted the first component with a
     pdf_path is used as the original.
+
+    `include_compliance` is opt-in (default off): the minimum-font-size
+    compliance check applies an absolute rule to the revised PDF alone, not
+    a version-to-version comparison, and can generate hundreds of flags
+    that bury the actual diffs.
     """
     from engines.pdf_comparator import compare_artworks
 
@@ -392,6 +398,7 @@ async def run_comparison(
         dpi=settings.PDF_DPI,
         preview_dir=settings.PREVIEW_DIR,
         comparison_id=comparison_id,
+        include_compliance=include_compliance,
     )
 
     # Persist result

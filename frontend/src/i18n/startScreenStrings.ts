@@ -23,6 +23,7 @@ export const startScreenStrings = {
     chooseFile:       'Escolher arquivo',
     changeFile:       'Trocar arquivo',
     invalidFileType:  'Envie um arquivo em PDF.',
+    includeCompliance: 'Incluir verificações de conformidade',
   },
 
   compare: {

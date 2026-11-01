@@ -462,6 +462,7 @@ def compare_artworks(
     dpi: int = 150,
     preview_dir: str = "previews",
     comparison_id: Optional[str] = None,
+    include_compliance: bool = False,
 ) -> dict:
     """
     Compare two pharmaceutical artwork PDFs and return structured differences.
@@ -711,44 +712,50 @@ def compare_artworks(
                 summary["code_changes"] += 1
 
         # ── 4. Compliance: minimum font size in revised PDF ───────────────────
-        # Detect the Artwork Information Panel top boundary so its spec text
-        # (Body Text Size, colour swatches, etc.) is excluded from compliance.
-        info_panel_y: float | None = None
-        _PANEL_KEYWORDS = (
-            "Artwork Information Panel",
-            "Studio Location",
-            "Total Number of Colours",
-            "Total Special Finishes",
-        )
-        for _blk in page_rev.get_text("dict")["blocks"]:
-            if _blk.get("type") != 0:
-                continue
-            _blk_text = " ".join(
-                sp["text"]
-                for ln in _blk["lines"]
-                for sp in ln["spans"]
+        # Opt-in only (include_compliance) — this checks the revised PDF
+        # against an absolute rule, not against the original, so it isn't a
+        # "difference between versions" at all. Left on by default it can
+        # generate hundreds of flags (seen: 510 of 528 total items on one
+        # real artwork) that bury the actual version-to-version diffs.
+        if include_compliance:
+            # Detect the Artwork Information Panel top boundary so its spec text
+            # (Body Text Size, colour swatches, etc.) is excluded from compliance.
+            info_panel_y: float | None = None
+            _PANEL_KEYWORDS = (
+                "Artwork Information Panel",
+                "Studio Location",
+                "Total Number of Colours",
+                "Total Special Finishes",
             )
-            if any(kw in _blk_text for kw in _PANEL_KEYWORDS):
-                info_panel_y = float(_blk["bbox"][1])
-                break
+            for _blk in page_rev.get_text("dict")["blocks"]:
+                if _blk.get("type") != 0:
+                    continue
+                _blk_text = " ".join(
+                    sp["text"]
+                    for ln in _blk["lines"]
+                    for sp in ln["spans"]
+                )
+                if any(kw in _blk_text for kw in _PANEL_KEYWORDS):
+                    info_panel_y = float(_blk["bbox"][1])
+                    break
 
-        for s in _spans_from_page(page_rev):
-            if info_panel_y is not None and s["bbox"][1] >= info_panel_y - 10:
-                continue
-            if 0.0 < s["size"] < MIN_FONT_PT and _is_regulatory_text(s["text"]):
-                differences.append({
-                    "id":            _next_id(counter),
-                    "type":          "compliance",
-                    "severity":      "high",
-                    "original_text": "",
-                    "revised_text":  f"{s['size']:.1f}pt",
-                    "bbox":          list(s["bbox"]),
-                    "page":          page_idx + 1,
-                    "description":   (
-                        f"Text below minimum 6pt: '{s['text']}' is {s['size']:.1f}pt"
-                    ),
-                })
-                summary["compliance_flags"] += 1
+            for s in _spans_from_page(page_rev):
+                if info_panel_y is not None and s["bbox"][1] >= info_panel_y - 10:
+                    continue
+                if 0.0 < s["size"] < MIN_FONT_PT and _is_regulatory_text(s["text"]):
+                    differences.append({
+                        "id":            _next_id(counter),
+                        "type":          "compliance",
+                        "severity":      "high",
+                        "original_text": "",
+                        "revised_text":  f"{s['size']:.1f}pt",
+                        "bbox":          list(s["bbox"]),
+                        "page":          page_idx + 1,
+                        "description":   (
+                            f"Text below minimum 6pt: '{s['text']}' is {s['size']:.1f}pt"
+                        ),
+                    })
+                    summary["compliance_flags"] += 1
 
         # ── 4b. Suppress font_size/font_style shadowed by text_changed ───────
         text_changed_bboxes = [
@@ -879,12 +886,15 @@ def compare_artworks(
     doc_orig.close()
     doc_rev.close()
 
+    # compliance_flags is intentionally excluded: it's a count of regulatory
+    # rule violations in the revised PDF alone, not a difference between the
+    # two versions, so it must never inflate "total differences". It stays
+    # its own field in `summary`, shown separately.
     summary["total_differences"] = (
         summary["text_changes"]
         + summary["code_changes"]
         + summary["visual_changes"]
         + summary["dimensional_changes"]
-        + summary["compliance_flags"]
     )
 
     return {

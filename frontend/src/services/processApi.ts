@@ -81,10 +81,12 @@ export const processApi = {
     processId: string,
     revisedFile: File,
     originalPdfPath?: string,
+    includeCompliance?: boolean,
   ): Promise<ComparisonRecord> => {
     const fd = new FormData()
     fd.append('file', revisedFile)
     if (originalPdfPath) fd.append('original_pdf_path', originalPdfPath)
+    fd.append('include_compliance', String(!!includeCompliance))
     const r = await fetch(`${BASE}/processes/${processId}/comparison`, {
       method: 'POST',
       body: fd,

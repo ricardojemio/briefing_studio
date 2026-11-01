@@ -36,6 +36,7 @@ export default function StartScreen({ onOpenProject }: Props) {
   const [revisedFile,  setRevisedFile]  = useState<File | null>(null)
   const [comparing,    setComparing]    = useState(false)
   const [compareError, setCompareError] = useState<string | null>(null)
+  const [includeCompliance, setIncludeCompliance] = useState(false)
 
   const [cards,   setCards]   = useState<ProjectCardData[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,7 +115,7 @@ export default function StartScreen({ onOpenProject }: Props) {
       }
 
       try {
-        await processApi.runComparison(proc.id, revisedFile, component.pdf_path ?? undefined)
+        await processApi.runComparison(proc.id, revisedFile, component.pdf_path ?? undefined, includeCompliance)
       } catch {
         setCompareError(S.errors.runComparisonFailed(projectName))
         return
@@ -154,7 +155,21 @@ export default function StartScreen({ onOpenProject }: Props) {
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 24, flexWrap: 'wrap' }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginTop: 16,
+          fontSize: 13, color: T.textSecondary, cursor: 'pointer',
+        }}>
+          <input
+            type="checkbox"
+            checked={includeCompliance}
+            onChange={e => setIncludeCompliance(e.target.checked)}
+            className={FOCUSABLE_CLASS}
+            style={{ width: 16, height: 16, accentColor: T.accent }}
+          />
+          {S.upload.includeCompliance}
+        </label>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
           <button
             onClick={handleCompare}
             disabled={!canCompare}

@@ -88,6 +88,7 @@ export const comparisonStrings = {
     compare:     'Comparar artes',
     comparing:   'Analisando…',
     newComparison: 'Nova comparação',
+    includeCompliance: 'Incluir verificações de conformidade',
   },
 
   toolbar: {

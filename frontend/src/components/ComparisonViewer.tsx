@@ -981,13 +981,14 @@ function UploadForm({
   const [file,    setFile]    = useState<File | null>(null)
   const [running, setRunning] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
+  const [includeCompliance, setIncludeCompliance] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const run = async () => {
     if (!file) return
     setRunning(true); setError(null)
     try {
-      onComplete(await processApi.runComparison(processId, file, originalPdfPath ?? undefined))
+      onComplete(await processApi.runComparison(processId, file, originalPdfPath ?? undefined, includeCompliance))
     } catch (e) {
       setError(e instanceof Error ? e.message : S.errors.comparisonFailed)
     } finally {
@@ -1028,6 +1029,17 @@ function UploadForm({
         </button>
         {file && <span style={{ fontSize: 13, color: T.accept }}>✓ {file.name}</span>}
       </div>
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: T.textSecondary, cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={includeCompliance}
+          onChange={e => setIncludeCompliance(e.target.checked)}
+          className={FOCUSABLE_CLASS}
+          style={{ width: 16, height: 16, accentColor: T.accent }}
+        />
+        {S.upload.includeCompliance}
+      </label>
 
       <button onClick={run} disabled={!file || running} className={FOCUSABLE_CLASS} style={{
         padding: '12px 28px', minHeight: MIN_TOUCH_TARGET,
