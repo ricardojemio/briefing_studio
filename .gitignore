@@ -2,3 +2,12 @@ __pycache__/
 *.pyc
 backend/cache/
 frontend/dist/
+
+# Runtime uploads/renders of real artwork (CLIENT_PRODUCT, CLIENT_PRODUCT_2, Mounjaro and any
+# other client art) must never be versioned — these directories hold
+# whatever gets uploaded through the app, proprietary or not, so the whole
+# directory is ignored rather than matching brand names (which would miss
+# the next client). The public, ANVISA-sourced test fixtures the TCC relies
+# on live under backend/eval/ instead and are unaffected by this rule.
+backend/uploads/
+backend/previews/
