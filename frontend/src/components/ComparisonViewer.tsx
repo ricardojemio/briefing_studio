@@ -171,12 +171,19 @@ function DiffMarkers({
   pageSizePts,
   rotation,
   selectedId,
+  zoom,
 }: {
   diffs:       DiffEntry[]
   pageSizePts: [number, number]
   rotation:    number
   selectedId:  string | null
+  zoom:        number
 }) {
+  // Markers are positioned with percentages (already zoom-safe), but their
+  // own size was fixed px — at 25% zoom they towered over the shrunk page,
+  // at 400% they shrank to near-invisible dots. Scale every px value by the
+  // same factor the page itself is scaled by.
+  const scale = zoom / 100
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       {diffs.map((d, i) => {
@@ -200,13 +207,13 @@ function DiffMarkers({
                 which change is which without opening the panel. */}
             <span style={{
               position:   'absolute',
-              top:        -22,
+              top:        -22 * scale,
               left:       0,
-              width:      20, height: 20, borderRadius: '50%',
+              width:      20 * scale, height: 20 * scale, borderRadius: '50%',
               background: T.highlight, color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 11, fontWeight: 700,
-              border: '2px solid #fff',
+              fontSize: 11 * scale, fontWeight: 700,
+              border: `${2 * scale}px solid #fff`,
               boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
               userSelect: 'none',
             }}>
@@ -220,9 +227,9 @@ function DiffMarkers({
               position:      'absolute',
               top:           '50%',
               ...(arrowLeft
-                ? { right: 'calc(100% + 6px)' }
-                : { left:  'calc(100% + 6px)' }),
-              fontSize:      isSelected ? 22 : 13,
+                ? { right: `calc(100% + ${6 * scale}px)` }
+                : { left:  `calc(100% + ${6 * scale}px)` }),
+              fontSize:      (isSelected ? 22 : 13) * scale,
               color:         T.highlight,
               opacity:       isSelected ? 1 : 0.55,
               filter:        isSelected ? 'drop-shadow(0 0 6px currentColor)' : 'none',
@@ -383,7 +390,13 @@ function PagePanel({
                 : 'default',
         }}
       >
-        <div style={{ padding: 16 }}>
+        {/* Centres the page in both axes when it's smaller than the panel
+            (low zoom); once it's bigger than the panel, overflow:auto on
+            the scroll container above takes over normally. */}
+        <div style={{
+          padding: 16, boxSizing: 'border-box', minHeight: '100%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
           {imgUrl ? (
             <div
               style={{
@@ -431,6 +444,7 @@ function PagePanel({
                 pageSizePts={page.page_size_pts}
                 rotation={rotation}
                 selectedId={selectedId}
+                zoom={zoom}
               />
             </div>
           ) : (
@@ -1405,8 +1419,30 @@ function ComparisonViewerInner({ processId, originalPdfPath, requestUploadSignal
   const rotate = useCallback(() => setRotation(r => (r + 90) % 360), [])
 
   // ── Zoom tool mode ────────────────────────────────────────────────────────────
+  // Activating the tool also zooms one step immediately, centred on the
+  // current viewport — before this, clicking the button only armed
+  // "click-on-the-page-to-zoom" mode and visibly did nothing by itself,
+  // which read as the button not working. Clicking the page afterwards
+  // still zooms further, centred on that point (unchanged).
   const handleZoomModeToggle = useCallback((mode: 'zoomin' | 'zoomout') => {
-    setZoomMode(prev => prev === mode ? 'select' : mode)
+    setZoomMode(prev => {
+      const next = prev === mode ? 'select' : mode
+      if (next !== 'select') {
+        setZoom(z => {
+          const i = ZOOM_STEPS.indexOf(z)
+          const newZoom = mode === 'zoomin'
+            ? ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, i + 1)]
+            : ZOOM_STEPS[Math.max(0, i - 1)]
+          if (newZoom !== z) {
+            const el = leftRef.current
+            if (el && el.scrollHeight > el.clientHeight)
+              scrollFracRef.current = (el.scrollTop + el.clientHeight / 2) / el.scrollHeight
+          }
+          return newZoom
+        })
+      }
+      return next
+    })
   }, [])
 
   const handleZoomClick = useCallback((fracX: number, fracY: number) => {
