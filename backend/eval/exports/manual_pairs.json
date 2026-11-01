@@ -1,0 +1,388 @@
+{
+  "por_par": [
+    {
+      "pair_id": "par1_sonridor_dose_755mg",
+      "description": "Dose sutil (1 caractere): \"750 mg\" -> \"755 mg\", página 1",
+      "gabarito_provisorio": true,
+      "lenient_precision": 1.0,
+      "lenient_recall": 1.0,
+      "lenient_f1": 1.0,
+      "lenient_tp": 1,
+      "lenient_fp": 0,
+      "lenient_fn": 0,
+      "lenient_normalized_precision": 1.0,
+      "lenient_normalized_recall": 1.0,
+      "lenient_normalized_f1": 1.0,
+      "lenient_normalized_tp": 1,
+      "lenient_normalized_fp": 0,
+      "lenient_normalized_fn": 0,
+      "strict_precision": 0.0,
+      "strict_recall": 0.0,
+      "strict_f1": 0.0,
+      "strict_tp": 0,
+      "strict_fp": 1,
+      "strict_fn": 1,
+      "strict_normalized_precision": 1.0,
+      "strict_normalized_recall": 1.0,
+      "strict_normalized_f1": 1.0,
+      "strict_normalized_tp": 1,
+      "strict_normalized_fp": 0,
+      "strict_normalized_fn": 0
+    },
+    {
+      "pair_id": "par2_mounjaro_dose_17mg",
+      "description": "Dose sutil (1 caractere): \"15 mg\" -> \"17 mg\", página 4",
+      "gabarito_provisorio": true,
+      "lenient_precision": 0.0,
+      "lenient_recall": 0.0,
+      "lenient_f1": 0.0,
+      "lenient_tp": 0,
+      "lenient_fp": 1,
+      "lenient_fn": 1,
+      "lenient_normalized_precision": 1.0,
+      "lenient_normalized_recall": 1.0,
+      "lenient_normalized_f1": 1.0,
+      "lenient_normalized_tp": 1,
+      "lenient_normalized_fp": 0,
+      "lenient_normalized_fn": 0,
+      "strict_precision": 0.0,
+      "strict_recall": 0.0,
+      "strict_f1": 0.0,
+      "strict_tp": 0,
+      "strict_fp": 1,
+      "strict_fn": 1,
+      "strict_normalized_precision": 1.0,
+      "strict_normalized_recall": 1.0,
+      "strict_normalized_f1": 1.0,
+      "strict_normalized_tp": 1,
+      "strict_normalized_fp": 0,
+      "strict_normalized_fn": 0
+    },
+    {
+      "pair_id": "par3_mounjaro_fontdelta05pt",
+      "description": "Delta de fonte no limiar: label em negrito \"Pancreatite (...) aguda:\" de 12,0pt para 11,5pt, página 2",
+      "gabarito_provisorio": true,
+      "lenient_precision": 1.0,
+      "lenient_recall": 1.0,
+      "lenient_f1": 1.0,
+      "lenient_tp": 1,
+      "lenient_fp": 0,
+      "lenient_fn": 0,
+      "lenient_normalized_precision": 1.0,
+      "lenient_normalized_recall": 1.0,
+      "lenient_normalized_f1": 1.0,
+      "lenient_normalized_tp": 1,
+      "lenient_normalized_fp": 0,
+      "lenient_normalized_fn": 0,
+      "strict_precision": 1.0,
+      "strict_recall": 1.0,
+      "strict_f1": 1.0,
+      "strict_tp": 1,
+      "strict_fp": 0,
+      "strict_fn": 0,
+      "strict_normalized_precision": 1.0,
+      "strict_normalized_recall": 1.0,
+      "strict_normalized_f1": 1.0,
+      "strict_normalized_tp": 1,
+      "strict_normalized_fp": 0,
+      "strict_normalized_fn": 0
+    },
+    {
+      "pair_id": "par4_mounjaro_multilinha",
+      "description": "Texto em frase multilinha (1 caractere): \"farmacêutico\" -> \"farmacêutica\", dentro de uma frase em negrito que se estende por duas linhas físicas (hifenização \"cirurgião-dentista\"), página 4",
+      "gabarito_provisorio": true,
+      "lenient_precision": 1.0,
+      "lenient_recall": 1.0,
+      "lenient_f1": 1.0,
+      "lenient_tp": 1,
+      "lenient_fp": 0,
+      "lenient_fn": 0,
+      "lenient_normalized_precision": 1.0,
+      "lenient_normalized_recall": 1.0,
+      "lenient_normalized_f1": 1.0,
+      "lenient_normalized_tp": 1,
+      "lenient_normalized_fp": 0,
+      "lenient_normalized_fn": 0,
+      "strict_precision": 0.0,
+      "strict_recall": 0.0,
+      "strict_f1": 0.0,
+      "strict_tp": 0,
+      "strict_fp": 1,
+      "strict_fn": 1,
+      "strict_normalized_precision": 1.0,
+      "strict_normalized_recall": 1.0,
+      "strict_normalized_f1": 1.0,
+      "strict_normalized_tp": 1,
+      "strict_normalized_fp": 0,
+      "strict_normalized_fn": 0
+    }
+  ],
+  "por_tipo": [
+    {
+      "tipo_interno": "text_changed",
+      "metrica": "lenient",
+      "precision": 0.667,
+      "recall": 0.667,
+      "f1": 0.667,
+      "tp": 2,
+      "fp": 1,
+      "fn": 1
+    },
+    {
+      "tipo_interno": "visual",
+      "metrica": "lenient",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "tipo_interno": "text_changed",
+      "metrica": "lenient_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "tipo_interno": "visual",
+      "metrica": "lenient_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "tipo_interno": "text_changed",
+      "metrica": "strict",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 3,
+      "fn": 3
+    },
+    {
+      "tipo_interno": "visual",
+      "metrica": "strict",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "tipo_interno": "text_changed",
+      "metrica": "strict_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "tipo_interno": "visual",
+      "metrica": "strict_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    }
+  ],
+  "por_subtipo": [
+    {
+      "subtipo": "Medida/dose",
+      "metrica": "lenient",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0
+    },
+    {
+      "subtipo": "Substituição",
+      "metrica": "lenient",
+      "precision": 1.0,
+      "recall": 0.667,
+      "f1": 0.8,
+      "tp": 2,
+      "fp": 0,
+      "fn": 1
+    },
+    {
+      "subtipo": "Visual",
+      "metrica": "lenient",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "subtipo": "Medida/dose",
+      "metrica": "lenient_normalized",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "subtipo": "Substituição",
+      "metrica": "lenient_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "subtipo": "Visual",
+      "metrica": "lenient_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "subtipo": "Medida/dose",
+      "metrica": "strict",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0
+    },
+    {
+      "subtipo": "Substituição",
+      "metrica": "strict",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 2,
+      "fn": 3
+    },
+    {
+      "subtipo": "Visual",
+      "metrica": "strict",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "subtipo": "Medida/dose",
+      "metrica": "strict_normalized",
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "subtipo": "Substituição",
+      "metrica": "strict_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "subtipo": "Visual",
+      "metrica": "strict_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    }
+  ],
+  "troca_1_letra": [
+    {
+      "metrica": "lenient",
+      "tp": 2,
+      "total": 3,
+      "detection_rate": 0.667
+    },
+    {
+      "metrica": "lenient_normalized",
+      "tp": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    {
+      "metrica": "strict",
+      "tp": 0,
+      "total": 3,
+      "detection_rate": 0.0
+    },
+    {
+      "metrica": "strict_normalized",
+      "tp": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    }
+  ],
+  "agregado": [
+    {
+      "metrica": "lenient",
+      "precision": 0.75,
+      "recall": 0.75,
+      "f1": 0.75,
+      "tp": 3,
+      "fp": 1,
+      "fn": 1
+    },
+    {
+      "metrica": "lenient_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "metrica": "strict",
+      "precision": 0.25,
+      "recall": 0.25,
+      "f1": 0.25,
+      "tp": 1,
+      "fp": 3,
+      "fn": 3
+    },
+    {
+      "metrica": "strict_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0
+    }
+  ]
+}

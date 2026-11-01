@@ -1,0 +1,9 @@
+tipo_interno,metrica,precision,recall,f1,tp,fp,fn
+text_changed,lenient,0.667,0.667,0.667,2,1,1
+visual,lenient,1.0,1.0,1.0,1,0,0
+text_changed,lenient_normalized,1.0,1.0,1.0,3,0,0
+visual,lenient_normalized,1.0,1.0,1.0,1,0,0
+text_changed,strict,0.0,0.0,0.0,0,3,3
+visual,strict,1.0,1.0,1.0,1,0,0
+text_changed,strict_normalized,1.0,1.0,1.0,3,0,0
+visual,strict_normalized,1.0,1.0,1.0,1,0,0

@@ -1,0 +1,13 @@
+subtipo,metrica,precision,recall,f1,tp,fp,fn
+Medida/dose,lenient,0.0,0.0,0.0,0,1,0
+Substituição,lenient,1.0,0.667,0.8,2,0,1
+Visual,lenient,1.0,1.0,1.0,1,0,0
+Medida/dose,lenient_normalized,0.0,0.0,0.0,0,0,0
+Substituição,lenient_normalized,1.0,1.0,1.0,3,0,0
+Visual,lenient_normalized,1.0,1.0,1.0,1,0,0
+Medida/dose,strict,0.0,0.0,0.0,0,1,0
+Substituição,strict,0.0,0.0,0.0,0,2,3
+Visual,strict,1.0,1.0,1.0,1,0,0
+Medida/dose,strict_normalized,0.0,0.0,0.0,0,0,0
+Substituição,strict_normalized,1.0,1.0,1.0,3,0,0
+Visual,strict_normalized,1.0,1.0,1.0,1,0,0

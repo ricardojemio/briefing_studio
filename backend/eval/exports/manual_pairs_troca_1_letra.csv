@@ -1,0 +1,5 @@
+metrica,tp,total,detection_rate
+lenient,2,3,0.667
+lenient_normalized,3,3,1.0
+strict,0,3,0.0
+strict_normalized,3,3,1.0

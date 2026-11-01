@@ -1,0 +1,6 @@
+pair_id,description,gabarito_provisorio,lenient_precision,lenient_recall,lenient_f1,lenient_tp,lenient_fp,lenient_fn,lenient_normalized_precision,lenient_normalized_recall,lenient_normalized_f1,lenient_normalized_tp,lenient_normalized_fp,lenient_normalized_fn,strict_precision,strict_recall,strict_f1,strict_tp,strict_fp,strict_fn,strict_normalized_precision,strict_normalized_recall,strict_normalized_f1,strict_normalized_tp,strict_normalized_fp,strict_normalized_fn
+pair1_dose_text_change,Alteração de dose (texto puro),False,1.0,1.0,1.0,1,0,0,1.0,1.0,1.0,1,0,0,0.0,0.0,0.0,0,1,1,1.0,1.0,1.0,1,0,0
+pair2_font_changes,Mudança de negrito e tamanho de fonte,False,1.0,1.0,1.0,2,0,0,1.0,1.0,1.0,2,0,0,1.0,1.0,1.0,2,0,0,1.0,1.0,1.0,2,0,0
+pair3_visual_image_move,Selo/logo movido e redimensionado (visual puro),False,1.0,1.0,1.0,2,0,0,1.0,1.0,1.0,2,0,0,1.0,1.0,1.0,2,0,0,1.0,1.0,1.0,2,0,0
+pair4_text_add_remove,"Texto alterado, removido e adicionado",False,0.667,0.667,0.667,2,1,1,1.0,1.0,1.0,3,0,0,0.667,0.667,0.667,2,1,1,1.0,1.0,1.0,3,0,0
+pair5_combined,Texto + fonte + visual combinados,False,1.0,1.0,1.0,4,0,0,1.0,1.0,1.0,4,0,0,0.75,0.75,0.75,3,1,1,1.0,1.0,1.0,4,0,0
