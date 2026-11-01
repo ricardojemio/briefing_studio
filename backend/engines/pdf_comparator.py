@@ -60,6 +60,20 @@ WORD_GAP_MERGE_PT   = 1.0   # pt: a gap this small between adjacent word-tokens 
                             # were one word split by the edit (e.g. "1"+"7" -> "17"), not
                             # two separate words — join with no space instead of one
 
+# Minimum text similarity (see _text_similarity) required for two LINES to
+# be matched by _best_iou_match, on top of its geometric gate. Pure
+# geometric matching assumes an edit never shifts other content — true for
+# a redact()+insert_text() patch, false for a real line removal that makes
+# everything below it reflow upward: the line that reflows into the
+# deleted line's old slot then has near-total bbox overlap with it, so
+# geometry alone pairs them as a "change" and the actual removal is lost
+# (see backend/eval/investigations/removal_not_reported_reflow/). Content
+# similarity is the only signal that can tell "same line, lightly edited"
+# apart from "unrelated line that moved here". Calibrated against real
+# manual_pairs edits (0.67–0.98 word/char ratio) vs. an unrelated-line
+# collision (0.00 word / 0.34 char ratio) — see that investigation note.
+LINE_TEXT_SIM_MIN = 0.5
+
 # ── Image registration (ORB + homography) ──────────────────────────────────────────
 # ORB is used instead of SIFT/SURF because it is patent-free and ships in the
 # opencv-python-headless "main" module (no opencv-contrib dependency needed).
@@ -261,13 +275,35 @@ def _bbox_iou(a: tuple, b: tuple) -> float:
     return inter / union if union > 0 else 0.0
 
 
+def _text_similarity(a: str, b: str) -> float:
+    """Word-level ratio first: robust against the noisy character-level
+    overlap two short, unrelated lines can share by coincidence (shared
+    stopwords like "e"/"de", a few common letters). Falls back to
+    character-level ratio only when word-level has zero signal either way
+    — a single-token line (e.g. a bare dose number) has no words to
+    compare, but "750" vs "755" still shares 2 of 3 characters."""
+    wa, wb = a.lower().split(), b.lower().split()
+    word_ratio = difflib.SequenceMatcher(None, wa, wb, autojunk=False).ratio()
+    if word_ratio > 0:
+        return word_ratio
+    return difflib.SequenceMatcher(None, a.lower(), b.lower(), autojunk=False).ratio()
+
+
 def _best_iou_match(
-    boxes_orig: list[tuple], boxes_rev: list[tuple], pad: float = TEXT_PROXIMITY_PT
+    boxes_orig: list[tuple], boxes_rev: list[tuple], pad: float = TEXT_PROXIMITY_PT,
+    texts_orig: Optional[list[str]] = None, texts_rev: Optional[list[str]] = None,
+    min_text_sim: float = 0.0,
 ) -> dict[int, int]:
     """
     Pair original and revised items (spans, or lines of words — anything
     with a bbox) by best geometric overlap rather than
     first-candidate-within-tolerance.
+
+    texts_orig/texts_rev + min_text_sim add an optional content-similarity
+    gate on top of the geometric one — see LINE_TEXT_SIM_MIN. Only passed
+    by the line-matching call site; span-matching (font attributes) stays
+    purely geometric, since a span's content isn't what's being compared
+    there.
 
     A pure "first item of *_rev within `pad` of *_orig[i]" match is
     vulnerable to a single out-of-order item stealing an unrelated
@@ -293,8 +329,12 @@ def _best_iou_match(
     candidates: list[tuple[float, int, int]] = []
     for i, a in enumerate(boxes_orig):
         for j, b in enumerate(boxes_rev):
-            if _bboxes_overlap(a, b, pad=pad):
-                candidates.append((_bbox_iou(a, b), i, j))
+            if not _bboxes_overlap(a, b, pad=pad):
+                continue
+            if texts_orig is not None and texts_rev is not None:
+                if _text_similarity(texts_orig[i], texts_rev[j]) < min_text_sim:
+                    continue
+            candidates.append((_bbox_iou(a, b), i, j))
 
     candidates.sort(key=lambda c: c[0], reverse=True)
 
@@ -490,7 +530,9 @@ def compare_artworks(
         lines_orig = _group_words_into_lines(_words_from_page(page_orig))
         lines_rev  = _group_words_into_lines(_words_from_page(page_rev))
         line_match = _best_iou_match(
-            [ln["bbox"] for ln in lines_orig], [ln["bbox"] for ln in lines_rev], pad=TEXT_PROXIMITY_PT
+            [ln["bbox"] for ln in lines_orig], [ln["bbox"] for ln in lines_rev], pad=TEXT_PROXIMITY_PT,
+            texts_orig=[ln["text"] for ln in lines_orig], texts_rev=[ln["text"] for ln in lines_rev],
+            min_text_sim=LINE_TEXT_SIM_MIN,
         )
 
         # Lines that had any text diff, at the WHOLE-LINE bbox rather than
