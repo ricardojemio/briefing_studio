@@ -14,6 +14,7 @@ from __future__ import annotations
 import difflib
 import re
 import uuid
+from collections import Counter
 from pathlib import Path
 from typing import Optional
 
@@ -39,6 +40,17 @@ DIM_DELTA_MM         = 0.5   # page size change threshold in mm
 VISUAL_THRESHOLD     = 30    # pixel intensity diff (0–255)
 VISUAL_MIN_AREA_PX2  = 100   # min contour area (px²) to report as visual diff
 VISUAL_DILATE_PX     = 5     # dilation kernel size for merging nearby diff pixels
+EDIT_PERTURBATION_PAD_PT = 20.0  # pt: how far a text edit's rendering antialiasing
+                                 # can plausibly perturb pixels beyond the edited word
+                                 # itself, for visual-diff suppression — see the
+                                 # edited_line_bboxes comment in compare_artworks. Used
+                                 # only as the fallback margin for a _is_repetitive_line
+                                 # "line" (see below), not the normal case.
+REPETITIVE_LINE_MIN_REPEATS  = 3     # a 1-4 word phrase must repeat at least this many
+                                     # times in a row to count as a printed micro-text
+                                     # pattern rather than a coincidence
+REPETITIVE_LINE_MIN_COVERAGE = 0.6   # ...and that repetition must cover at least this
+                                     # fraction of the line's words
 
 # ── Line-level text diff (word-token based) ─────────────────────────────────────────
 # Text content diffing is done on get_text("words") grouped into physical
@@ -502,6 +514,32 @@ def _group_words_into_lines(words: list[dict]) -> list[dict]:
     return lines
 
 
+def _is_repetitive_line(
+    words: list[dict], min_repeats: int = REPETITIVE_LINE_MIN_REPEATS,
+    min_coverage: float = REPETITIVE_LINE_MIN_COVERAGE,
+) -> bool:
+    """True if this "line" is a short phrase (1-4 words) repeated many
+    times in a row — a real printed pattern (foil security/registration
+    micro-text), correctly grouped as one physical line by y-coordinate,
+    but hundreds of points wide as a result. See the edited_line_bboxes
+    comment in compare_artworks for why this matters: the normal
+    "use the whole line as a safety margin" rule is wrong for this shape.
+    Checked against every real line in this project's test corpus (prose
+    paragraphs up to 425pt wide, "Comprimidos de 750 mg: ..." style lines)
+    with zero false positives — see
+    backend/eval/investigations/CLIENT_PRODUCT_2_foil_visual_merge/README.md."""
+    texts = [w["text"].lower() for w in words]
+    n = len(texts)
+    for period in (1, 2, 3, 4):
+        if n < period * min_repeats:
+            continue
+        chunks = [tuple(texts[i:i + period]) for i in range(0, n - period + 1, period)]
+        cycle, reps = Counter(chunks).most_common(1)[0]
+        if reps >= min_repeats and reps * period / n >= min_coverage:
+            return True
+    return False
+
+
 def _merge_fragmented_opcodes(
     opcodes: list[tuple[str, int, int, int, int]],
     max_equal_gap: int = EQUAL_GAP_MERGE_MAX_TOKENS,
@@ -724,14 +762,24 @@ def compare_artworks(
             min_text_sim=LINE_TEXT_SIM_MIN,
         )
 
-        # Lines that had any text diff, at the WHOLE-LINE bbox rather than
-        # the narrower per-word diff bbox. Reporting the tight word bbox is
-        # correct for pinpointing an edit, but a redact()+insert_text()
-        # patch can perturb rendering (sub-pixel antialiasing) anywhere
-        # along the line it touched, not just at the edited word — so
-        # visual-diff suppression below checks against this broader area,
-        # not just each diff's own narrow bbox, to avoid flagging that
-        # perturbation as a separate spurious "visual" difference.
+        # The WHOLE edited line's bbox, for visual-diff suppression below:
+        # a redact()+insert_text() patch can perturb rendering (sub-pixel
+        # antialiasing) anywhere along the line it touched, not just at
+        # the edited word (confirmed real on a synthetic test pair, where
+        # the perturbation showed up at the opposite end of the line from
+        # the edited word) — so the whole line is the correct, necessary
+        # margin in the normal case.
+        #
+        # Exception: a real foil artwork prints a short phrase repeated
+        # many times across the sheet width (security/registration micro-
+        # text) — _group_words_into_lines correctly treats that as one
+        # physical line, but it is then hundreds of points wide, and a
+        # genuine, unrelated visual change elsewhere on it (a widened bar,
+        # a removed logo) got swallowed by the suppression even though it
+        # had nothing to do with the text edit. _is_repetitive_line detects
+        # this specific degenerate shape and falls back to a tight pad
+        # around just the edited word(s) instead. See
+        # backend/eval/investigations/CLIENT_PRODUCT_2_foil_visual_merge/.
         edited_line_bboxes: list[tuple] = []
 
         for li, line_o in enumerate(lines_orig):
@@ -755,7 +803,17 @@ def compare_artworks(
             line_r = lines_rev[lj]
             line_word_diffs = _diff_line_words(line_o["words"], line_r["words"])
             if line_word_diffs:
-                edited_line_bboxes.append(line_o["bbox"])
+                if _is_repetitive_line(line_o["words"]):
+                    # Degenerate "line" — fall back to a tight pad around
+                    # just the edited word(s), not its full (unreliable) span.
+                    for wd in line_word_diffs:
+                        p = EDIT_PERTURBATION_PAD_PT
+                        edited_line_bboxes.append((
+                            wd["bbox"][0] - p, wd["bbox"][1] - p,
+                            wd["bbox"][2] + p, wd["bbox"][3] + p,
+                        ))
+                else:
+                    edited_line_bboxes.append(line_o["bbox"])
             for wd in line_word_diffs:
                 has_ean = bool(EAN_RE.search(wd["old_text"])) or bool(EAN_RE.search(wd["new_text"]))
                 if wd["tag"] == "replace":
