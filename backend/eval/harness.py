@@ -46,7 +46,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from engines.pdf_comparator import compare_artworks  # noqa: E402
+from engines.pdf_comparator import compare_artworks, _taxonomy  # noqa: E402
 
 PAIRS_DIR   = Path(__file__).parent / "pairs"
 RESULTS_DIR = Path(__file__).parent / "results"
@@ -273,6 +273,38 @@ def _bump_type_counts(by_type: dict, match: dict, metric: str, strict: bool) -> 
         fn_d[e["type"]] = fn_d.get(e["type"], 0) + 1
 
 
+def _bump_subtipo_counts(by_subtipo: dict, match: dict, metric: str, strict: bool) -> None:
+    """Same as _bump_type_counts, but keyed by the subtipo taxonomy
+    (_taxonomy in pdf_comparator.py) instead of the internal `type` — e.g.
+    separates a dose/measure edit ("Medida/dose") from a general word
+    substitution ("Substituição"), which `type` alone can't (both are
+    text_changed)."""
+    tp_d, fp_d, fn_d = by_subtipo[metric]["tp"], by_subtipo[metric]["fp"], by_subtipo[metric]["fn"]
+    for t in match["tp"]:
+        sub = _taxonomy(t["expected"])[1]
+        if not strict or t["text_match"]:
+            tp_d[sub] = tp_d.get(sub, 0) + 1
+        else:
+            fp_d[sub] = fp_d.get(sub, 0) + 1
+            fn_d[sub] = fn_d.get(sub, 0) + 1
+    for d in match["fp"]:
+        sub = _taxonomy(d)[1]
+        fp_d[sub] = fp_d.get(sub, 0) + 1
+    for e in match["fn"]:
+        sub = _taxonomy(e)[1]
+        fn_d[sub] = fn_d.get(sub, 0) + 1
+
+
+def _is_one_letter_swap(old: str, new: str) -> bool:
+    """A same-length word pair differing in exactly one character — a
+    1-letter typo (e.g. "lactose" -> "lactoze"), as opposed to a longer
+    edit, an insertion/deletion, or a multi-word change."""
+    old, new = (old or "").strip(), (new or "").strip()
+    if not old or len(old) != len(new):
+        return False
+    return sum(1 for a, b in zip(old, new) if a != b) == 1
+
+
 def run(pairs_dir: Path | None = None) -> dict:
     pairs_dir = pairs_dir or PAIRS_DIR
     manifest_path = pairs_dir / "manifest.json"
@@ -287,7 +319,10 @@ def run(pairs_dir: Path | None = None) -> dict:
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     per_pair = {}
-    by_type = {m: {"tp": {}, "fp": {}, "fn": {}} for m in METRICS}
+    by_type    = {m: {"tp": {}, "fp": {}, "fn": {}} for m in METRICS}
+    by_subtipo = {m: {"tp": {}, "fp": {}, "fn": {}} for m in METRICS}
+    one_letter_total = {m: 0 for m in METRICS}
+    one_letter_tp    = {m: 0 for m in METRICS}
     alignment_log = []
 
     with tempfile.TemporaryDirectory() as preview_dir:
@@ -312,9 +347,23 @@ def run(pairs_dir: Path | None = None) -> dict:
                 "normalized": _match_normalized(expected, detected),
             }
 
+            swap_expected = [
+                e for e in expected
+                if _is_one_letter_swap(e.get("original_text", ""), e.get("revised_text", ""))
+            ]
             for m in METRICS:
                 kind, strict = METRIC_SPECS[m]
                 _bump_type_counts(by_type, matches[kind], m, strict)
+                _bump_subtipo_counts(by_subtipo, matches[kind], m, strict)
+
+                tp_ids = {
+                    id(t["expected"]) for t in matches[kind]["tp"]
+                    if (not strict or t["text_match"])
+                }
+                for e in swap_expected:
+                    one_letter_total[m] += 1
+                    if id(e) in tp_ids:
+                        one_letter_tp[m] += 1
 
             metrics = {m: _prf1(*_counts(matches[METRIC_SPECS[m][0]], strict=METRIC_SPECS[m][1])) for m in METRICS}
             per_pair[pair_id] = {
@@ -341,14 +390,29 @@ def run(pairs_dir: Path | None = None) -> dict:
             for t in types}
         for m in METRICS
     }
+    subtipos = sorted(set(by_subtipo["lenient"]["tp"]) | set(by_subtipo["lenient"]["fp"]) | set(by_subtipo["lenient"]["fn"]))
+    by_subtipo_report = {
+        m: {s: _prf1(by_subtipo[m]["tp"].get(s, 0), by_subtipo[m]["fp"].get(s, 0), by_subtipo[m]["fn"].get(s, 0))
+            for s in subtipos}
+        for m in METRICS
+    }
     overall = {
         m: _prf1(sum(by_type[m]["tp"].values()), sum(by_type[m]["fp"].values()), sum(by_type[m]["fn"].values()))
+        for m in METRICS
+    }
+    one_letter_swap_report = {
+        m: {
+            "tp": one_letter_tp[m], "total": one_letter_total[m],
+            "detection_rate": round(one_letter_tp[m] / one_letter_total[m], 3) if one_letter_total[m] else None,
+        }
         for m in METRICS
     }
 
     report = {
         "pairs": per_pair,
         "by_type": by_type_report,
+        "by_subtipo": by_subtipo_report,
+        "one_letter_swap_detection": one_letter_swap_report,
         "overall": overall,
         "alignment": alignment_log,
     }
@@ -396,6 +460,21 @@ def _print_report(report: dict) -> None:
         print(f"  {'':15s} leniente_normalizado: {_fmt(bt['lenient_normalized'][t])}")
         print(f"  {'':15s} estrita (exata)     : {_fmt(bt['strict'][t])}")
         print(f"  {'':15s} estrita_normalizada : {_fmt(bt['strict_normalized'][t])}")
+
+    print("\n=== Por subtipo (taxonomia) ===")
+    subtipos = sorted(report["by_subtipo"]["lenient"])
+    for s in subtipos:
+        bs = report["by_subtipo"]
+        print(f"  {s:17s} leniente            : {_fmt(bs['lenient'][s])}")
+        print(f"  {'':17s} leniente_normalizado: {_fmt(bs['lenient_normalized'][s])}")
+        print(f"  {'':17s} estrita (exata)     : {_fmt(bs['strict'][s])}")
+        print(f"  {'':17s} estrita_normalizada : {_fmt(bs['strict_normalized'][s])}")
+
+    print("\n=== Taxa de detecção — trocas de 1 letra (erro ortográfico) ===")
+    for m in METRICS:
+        s = report["one_letter_swap_detection"][m]
+        rate = f"{s['detection_rate']:.0%}" if s["detection_rate"] is not None else "n/a (nenhum caso no gabarito)"
+        print(f"  {m:20s}: {s['tp']}/{s['total']} detectadas ({rate})")
 
     o = report["overall"]
     print("\n=== Agregado ===")

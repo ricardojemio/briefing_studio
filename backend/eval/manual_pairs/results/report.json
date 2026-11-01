@@ -337,6 +337,134 @@
       }
     }
   },
+  "by_subtipo": {
+    "lenient": {
+      "Medida/dose": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 1,
+        "fn": 0
+      },
+      "Substituição": {
+        "precision": 1.0,
+        "recall": 0.667,
+        "f1": 0.8,
+        "tp": 2,
+        "fp": 0,
+        "fn": 1
+      },
+      "Visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "lenient_normalized": {
+      "Medida/dose": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0
+      },
+      "Substituição": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      },
+      "Visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "strict": {
+      "Medida/dose": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 1,
+        "fn": 0
+      },
+      "Substituição": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 3
+      },
+      "Visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "strict_normalized": {
+      "Medida/dose": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0
+      },
+      "Substituição": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0
+      },
+      "Visual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      }
+    }
+  },
+  "one_letter_swap_detection": {
+    "lenient": {
+      "tp": 2,
+      "total": 3,
+      "detection_rate": 0.667
+    },
+    "lenient_normalized": {
+      "tp": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    },
+    "strict": {
+      "tp": 0,
+      "total": 3,
+      "detection_rate": 0.0
+    },
+    "strict_normalized": {
+      "tp": 3,
+      "total": 3,
+      "detection_rate": 1.0
+    }
+  },
   "overall": {
     "lenient": {
       "precision": 0.75,

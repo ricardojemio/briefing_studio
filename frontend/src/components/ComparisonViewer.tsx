@@ -24,54 +24,70 @@ const SEV_COLOR: Record<DiffSeverity, string> = {
   low:    T.accent,
 }
 
-// Diff "group" colours used for chips and page highlights. Text and
-// Visual match the exact colours the spec calls out; the remaining groups
-// (which the spec doesn't give colours for) reuse the neutral/secondary
-// palette so they don't invent new hues that clash with the two that are
-// specified.
-const GROUP_COLOR: Record<string, string> = {
-  Compliance:  T.reject,
-  Codes:       T.reject,
-  Text:        T.highlight,
-  Visual:      T.visualChipText,
-  Dimensional: T.textSecondary,
+// Reviewer-facing taxonomy (tipo/subtipo). Comparisons run after this
+// feature shipped already carry d.tipo/d.subtipo from the backend
+// (_taxonomy in pdf_comparator.py); classifySubtipo mirrors that same
+// logic client-side as a fallback for comparisons stored before it
+// existed (their persisted JSON has no tipo/subtipo field at all).
+const MEASURE_RE = /^\d+([.,]\d+)?\s*(mg|mcg|µg|ml|g|kg|%|ui|mmhg)?\.?$/i
+
+function isMeasureText(text: string): boolean {
+  return MEASURE_RE.test(text.trim())
 }
 
-const GROUP_CHIP_BG: Record<string, string> = {
-  Compliance:  T.rejectBg,
-  Codes:       T.rejectBg,
-  Text:        T.highlightChipBg,
-  Visual:      T.visualChipBg,
-  Dimensional: T.surfaceAlt,
+function classifySubtipo(d: DiffEntry): string {
+  if (d.subtipo) return d.subtipo
+  switch (d.type) {
+    case 'text_changed':
+      return (isMeasureText(d.original_text) || isMeasureText(d.revised_text)) ? 'Medida/dose' : 'Substituição'
+    case 'text_removed': return 'Ausência'
+    case 'text_added':   return 'Adição'
+    case 'ean_changed':
+    case 'pharmaCode':   return 'Código'
+    case 'visual':
+    case 'dimensional':  return 'Visual'
+    case 'font_style':
+    case 'font_size':
+    case 'color':        return 'Estilo da fonte'
+    case 'compliance':   return 'Conformidade'
+    default:              return 'Outro'
+  }
 }
 
-const TYPE_LABEL: Partial<Record<DiffType, string>> = {
-  text_changed:  S.diffCard.typeText,
-  text_added:    S.diffCard.typeText,
-  text_removed:  S.diffCard.typeText,
-  font_size:     S.diffCard.typeFontSize,
-  font_style:    S.diffCard.typeFontStyle,
-  color:         S.diffCard.typeColor,
-  ean_changed:   S.diffCard.typeCode,
-  pharmaCode:    S.diffCard.typeCode,
-  visual:        S.diffCard.typeVisual,
-  dimensional:   S.diffCard.typeDimensional,
-  compliance:    S.diffCard.typeCompliance,
+// Colours for the 9 possible subtipo values (8 requested + "Outro"
+// fallback) — Text-family (Substituição/Ausência/Adição/Medida-dose)
+// and Visual/Imagem match the exact colours the spec calls out; the rest
+// reuse the neutral/secondary palette rather than inventing new hues.
+const SUBTIPO_COLOR: Record<string, string> = {
+  'Substituição':    T.highlight,
+  'Ausência':        T.highlight,
+  'Adição':          T.highlight,
+  'Medida/dose':     T.highlight,
+  'Código':          T.reject,
+  'Visual':          T.visualChipText,
+  'Imagem':          T.visualChipText,
+  'Estilo da fonte': T.textSecondary,
+  'Conformidade':    T.reject,
+  'Outro':           T.textSecondary,
 }
 
-const TYPE_GROUP: Record<string, string> = {
-  text_changed:  'Text',
-  text_added:    'Text',
-  text_removed:  'Text',
-  font_size:     'Text',
-  font_style:    'Text',
-  color:         'Text',
-  ean_changed:   'Codes',
-  pharmaCode:    'Codes',
-  visual:        'Visual',
-  dimensional:   'Dimensional',
-  compliance:    'Compliance',
+const SUBTIPO_BG: Record<string, string> = {
+  'Substituição':    T.highlightChipBg,
+  'Ausência':        T.highlightChipBg,
+  'Adição':          T.highlightChipBg,
+  'Medida/dose':     T.highlightChipBg,
+  'Código':          T.rejectBg,
+  'Visual':          T.visualChipBg,
+  'Imagem':          T.visualChipBg,
+  'Estilo da fonte': T.surfaceAlt,
+  'Conformidade':    T.rejectBg,
+  'Outro':           T.surfaceAlt,
 }
+
+const ALL_SUBTIPOS = [
+  'Substituição', 'Ausência', 'Adição', 'Medida/dose',
+  'Código', 'Imagem', 'Visual', 'Estilo da fonte', 'Conformidade',
+] as const
 
 // ── Zoom ──────────────────────────────────────────────────────────────────────────
 const ZOOM_STEPS = [25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400]
@@ -601,11 +617,11 @@ function DiffCard({
   const [note,     setNote]     = useState(review?.comment ?? '')
   useEffect(() => { setNote(review?.comment ?? ''); setNoteOpen(false) }, [review?.comment, d.id])
 
-  const group        = TYPE_GROUP[d.type] ?? 'Text'
-  const color        = GROUP_COLOR[group]
-  const chipBg       = GROUP_CHIP_BG[group]
-  const chipLabel    = group === 'Visual' ? S.diffCard.typeVisual : (TYPE_LABEL[d.type] ?? d.type)
-  const reviewStatus = review?.status ?? 'pending'
+  const subtipo       = classifySubtipo(d)
+  const color         = SUBTIPO_COLOR[subtipo] ?? T.textSecondary
+  const chipBg        = SUBTIPO_BG[subtipo] ?? T.surfaceAlt
+  const chipLabel     = subtipo
+  const reviewStatus  = review?.status ?? 'pending'
 
   const statusMeta = {
     pending:  { label: S.diffCard.statusPending,  color: T.statusPending,  bg: T.surfaceAlt },
@@ -680,7 +696,7 @@ function DiffCard({
             revised_text are always "" from the backend) — show the region
             size instead, computed from the same bbox the highlight uses
             (already in PDF points, same unit as every other diff type). */}
-        {group === 'Visual' ? (
+        {subtipo === 'Visual' ? (
           <div style={{ fontSize: 14, color: T.text, lineHeight: 1.4 }}>
             {S.diffCard.region(
               Math.round(d.bbox[2] - d.bbox[0]),
@@ -857,15 +873,36 @@ function DiffListPanel({
     const s = reviews[d.id]?.status
     return s === 'accepted' || s === 'rejected'
   }).length
+  // "Complete review" must require every difference, regardless of the
+  // type filter below — the filter only changes which cards are shown.
   const allReviewed = totalCount > 0 && reviewedCount === totalCount
 
+  // ── Filter chips by subtipo (client-side, counts from the full set) ──────
+  const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set())
+  const subtipoCounts = new Map<string, number>()
+  for (const d of diffs) {
+    const st = classifySubtipo(d)
+    subtipoCounts.set(st, (subtipoCounts.get(st) ?? 0) + 1)
+  }
+  const toggleFilter = (subtipo: string) => {
+    setTypeFilter(prev => {
+      const next = new Set(prev)
+      if (next.has(subtipo)) next.delete(subtipo)
+      else next.add(subtipo)
+      return next
+    })
+  }
+  const visibleDiffs = typeFilter.size === 0
+    ? diffs
+    : diffs.filter(d => typeFilter.has(classifySubtipo(d)))
+
   const goToOffset = (offset: 1 | -1) => {
-    if (totalCount === 0) return
-    const curIdx = diffs.findIndex(d => d.id === selectedId)
+    if (visibleDiffs.length === 0) return
+    const curIdx = visibleDiffs.findIndex(d => d.id === selectedId)
     const nextIdx = curIdx === -1
-      ? (offset === 1 ? 0 : totalCount - 1)
-      : (curIdx + offset + totalCount) % totalCount
-    onSelect(diffs[nextIdx].id)
+      ? (offset === 1 ? 0 : visibleDiffs.length - 1)
+      : (curIdx + offset + visibleDiffs.length) % visibleDiffs.length
+    onSelect(visibleDiffs[nextIdx].id)
   }
 
   return (
@@ -893,18 +930,47 @@ function DiffListPanel({
         </span>
       </div>
 
+      {/* ── Type filter chips ── */}
+      {totalCount > 0 && (
+        <div style={{
+          padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6,
+          borderBottom: `1px solid ${T.border}`, background: T.surface, flexShrink: 0,
+        }}>
+          {ALL_SUBTIPOS.filter(st => subtipoCounts.has(st)).map(st => {
+            const active = typeFilter.has(st)
+            const chipColor = SUBTIPO_COLOR[st] ?? T.textSecondary
+            return (
+              <button
+                key={st}
+                className={FOCUSABLE_CLASS}
+                onClick={() => toggleFilter(st)}
+                aria-pressed={active}
+                style={{
+                  fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+                  border: `1px solid ${chipColor}`, cursor: 'pointer',
+                  background: active ? chipColor : 'transparent',
+                  color:      active ? '#fff'     : chipColor,
+                }}
+              >
+                {st} ({subtipoCounts.get(st)})
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {totalCount === 0 && (
+        {visibleDiffs.length === 0 && (
           <div style={{ padding: '32px 14px', textAlign: 'center', color: T.textSecondary, fontSize: 13 }}>
-            {S.diffPanel.empty}
+            {totalCount === 0 ? S.diffPanel.empty : S.diffPanel.emptyFiltered}
           </div>
         )}
 
-        {diffs.map((d, i) => (
+        {visibleDiffs.map((d) => (
           <DiffCard
             key={d.id}
             d={d}
-            index={i + 1}
+            index={diffs.indexOf(d) + 1}
             isSelected={selectedId === d.id}
             onSelect={onSelect}
             review={reviews[d.id]}

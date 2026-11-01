@@ -98,6 +98,15 @@ export type DiffType =
   | 'dimensional'
   | 'compliance'
 
+// Broad bucket + specific PT-BR label, computed server-side (see _taxonomy
+// in pdf_comparator.py). `type` above is the original internal type and
+// stays the source of truth for colours/grouping already built on it;
+// tipo/subtipo are the reviewer-facing taxonomy layered on top.
+export type DiffTipo = 'Texto' | 'Visual' | 'Código' | 'Estilo' | 'Conformidade' | 'Outro'
+export type DiffSubtipo =
+  | 'Substituição' | 'Ausência' | 'Adição' | 'Medida/dose'
+  | 'Código' | 'Imagem' | 'Visual' | 'Estilo da fonte' | 'Conformidade' | 'Outro'
+
 export interface DiffEntry {
   id:            string
   type:          DiffType
@@ -107,6 +116,8 @@ export interface DiffEntry {
   bbox:          [number, number, number, number]  // x0,y0,x1,y1 in PDF points
   page:          number
   description:   string
+  tipo:          DiffTipo
+  subtipo:       DiffSubtipo
 }
 
 export interface PageComparison {

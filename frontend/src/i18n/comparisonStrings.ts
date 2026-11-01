@@ -60,7 +60,8 @@ export const comparisonStrings = {
 
   diffPanel: {
     heading:        'Diferenças',
-    empty:          'Nenhuma diferença nesta página',
+    empty:          'Nenhuma diferença encontrada',
+    emptyFiltered:  'Nenhuma diferença corresponde aos filtros selecionados',
     previous:       'Anterior',
     next:           'Próxima',
     complete:       (reviewed: number, total: number) => `Concluir revisão · ${reviewed} de ${total} revisadas`,

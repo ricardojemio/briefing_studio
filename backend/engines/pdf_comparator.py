@@ -179,6 +179,63 @@ def _is_regulatory_text(text: str) -> bool:
     return True
 
 
+# ── Change taxonomy (tipo / subtipo) ────────────────────────────────────────────────
+# Adds a reviewer-facing classification on top of the existing internal
+# `type` (text_changed, visual, ...), which stays unchanged so every
+# existing type-based code path (highlight colours, span suppression,
+# TYPE_GROUP on the frontend) keeps working exactly as before. `tipo` is
+# the broad bucket (matches the frontend's existing Text/Visual/Código/
+# Estilo grouping); `subtipo` is the specific PT-BR label a reviewer sees.
+#
+# "Imagem" is part of the requested taxonomy but has no detector behind it
+# yet — compare_artworks has no embedded-image (XObject) comparison, only
+# the whole-page pixel diff that becomes "visual". So subtipo "Imagem"
+# never actually fires today; it's declared (for the frontend filter chip
+# and the harness matrix) but not implemented. Flagged here rather than
+# faked.
+_MEASURE_RE = re.compile(
+    r'^\d+([.,]\d+)?\s*(mg|mcg|µg|ml|mL|g|kg|%|ui|UI|mmhg|mmHg)?\.?$',
+    re.IGNORECASE,
+)
+
+
+def _is_measure_text(text: str) -> bool:
+    """A bare number, optionally with a unit (dose, percentage, etc.) —
+    e.g. '750', '15 mg', '6', '8%'. Used to tell a dose/measure edit
+    ("Medida/dose") apart from a general word substitution."""
+    return bool(_MEASURE_RE.match(text.strip()))
+
+
+def _taxonomy(d: dict) -> tuple[str, str]:
+    """Returns (tipo, subtipo) for one difference dict, in Portuguese."""
+    t = d.get("type", "")
+    if t == "text_changed" or t == "ean_changed":
+        if t == "ean_changed":
+            return ("Código", "Código")
+        old, new = d.get("original_text", ""), d.get("revised_text", "")
+        if _is_measure_text(old) or _is_measure_text(new):
+            return ("Texto", "Medida/dose")
+        return ("Texto", "Substituição")
+    if t == "text_removed":
+        return ("Texto", "Ausência")
+    if t == "text_added":
+        return ("Texto", "Adição")
+    if t == "pharmaCode":
+        return ("Código", "Código")
+    if t == "visual":
+        return ("Visual", "Visual")
+    if t == "dimensional":
+        return ("Visual", "Visual")
+    if t in ("font_style", "font_size", "color"):
+        return ("Estilo", "Estilo da fonte")
+    if t == "compliance":
+        # Not part of the 8-item taxonomy requested (it's a rule check on
+        # the revised PDF alone, not a version-to-version difference) —
+        # its own bucket so it's never silently folded into another one.
+        return ("Conformidade", "Conformidade")
+    return ("Outro", "Outro")
+
+
 def _fallback_resize(img_orig_bgr: np.ndarray, img_rev_bgr: np.ndarray) -> np.ndarray:
     """Naive resize to the original's shape. Used only when feature-based
     registration cannot find a reliable homography."""
@@ -885,6 +942,10 @@ def compare_artworks(
 
     doc_orig.close()
     doc_rev.close()
+
+    for pg in page_results:
+        for d in pg["differences"]:
+            d["tipo"], d["subtipo"] = _taxonomy(d)
 
     # compliance_flags is intentionally excluded: it's a count of regulatory
     # rule violations in the revised PDF alone, not a difference between the
