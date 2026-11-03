@@ -18,6 +18,12 @@ a real client pair. No PDF is read or copied by this script either.
 Run inside Docker, from backend/:
     python -m eval.export_report              # eval/pairs (5 synthetic pairs)
     python -m eval.export_report --manual      # eval/manual_pairs (4 real-edit pairs)
+    python -m eval.export_report --altered \\
+        --gabarito eval/fixtures_alterados/gabarito_alteracoes.json \\
+        --pairs-dir eval/fixtures_alterados
+        # item D's 5 real altered pairs — exports the 4 "artigo" bulas
+        # (Domperidona/Buscopan/Albendazol/Sal de Fruta) and CLIENT_PRODUCT_2 Foil
+        # (proprietary, not in the article) as two separate prefixes.
 """
 
 from __future__ import annotations
@@ -28,6 +34,7 @@ import json
 from pathlib import Path
 
 import eval.harness as harness
+import eval.run_altered_pairs as altered
 
 EXPORT_DIR = Path(__file__).parent / "exports"
 
@@ -74,6 +81,51 @@ def _overall_rows(report: dict) -> list[dict]:
     return [{"metrica": m, **report["overall"][m]} for m in harness.METRICS]
 
 
+def _altered_per_pair_rows(report: dict) -> list[dict]:
+    rows = []
+    for pair_id, info in report["pairs"].items():
+        row = {"pair_id": pair_id, "n_expected": info["n_expected"], "n_detected": info["n_detected"]}
+        for m in harness.METRICS:
+            for k, v in info["metrics"][m].items():
+                row[f"{m}_{k}"] = v
+        rows.append(row)
+    return rows
+
+
+def _altered_by_category_rows(report: dict) -> list[dict]:
+    rows = []
+    for m in harness.METRICS:
+        for cat, stats in report["by_category"][m].items():
+            rows.append({"categoria": cat, "metrica": m, **stats})
+    return rows
+
+
+def export_altered(report: dict, out_prefix: str) -> dict[str, Path]:
+    """Same numbers-only philosophy as export(): no original_text/
+    revised_text, no PDFs — only pair_id, counts, and P/R/F1."""
+    EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+    por_par      = _altered_per_pair_rows(report)
+    por_categoria = _altered_by_category_rows(report)
+    agregado     = _overall_rows(report)
+
+    paths = {
+        "por_par":      EXPORT_DIR / f"{out_prefix}_por_par.csv",
+        "por_categoria": EXPORT_DIR / f"{out_prefix}_por_categoria.csv",
+        "agregado":     EXPORT_DIR / f"{out_prefix}_agregado.csv",
+        "json":         EXPORT_DIR / f"{out_prefix}.json",
+    }
+    _write_csv(paths["por_par"],       por_par)
+    _write_csv(paths["por_categoria"], por_categoria)
+    _write_csv(paths["agregado"],      agregado)
+    paths["json"].write_text(
+        json.dumps({"por_par": por_par, "por_categoria": por_categoria, "agregado": agregado},
+                    ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return paths
+
+
 def export(report: dict, out_prefix: str) -> dict[str, Path]:
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -117,7 +169,32 @@ if __name__ == "__main__":
         "--manual", action="store_true",
         help="export eval/manual_pairs results instead of eval/pairs",
     )
+    parser.add_argument(
+        "--altered", action="store_true",
+        help="export item D's real altered pairs instead (requires --gabarito/--pairs-dir)",
+    )
+    parser.add_argument("--gabarito", type=Path, help="(--altered only) path to gabarito_alteracoes.json")
+    parser.add_argument("--pairs-dir", type=Path, help="(--altered only) directory with the *_Original/_ALTERADO PDFs")
     args = parser.parse_args()
+
+    if args.altered:
+        if not args.gabarito or not args.pairs_dir:
+            raise SystemExit("--altered requires --gabarito and --pairs-dir")
+
+        artigo_products = {"Domperidona", "Buscopan", "Albendazol", "SaldeFruta"}
+        report_artigo  = altered.run(args.gabarito, args.pairs_dir, only_products=artigo_products)
+        report_CLIENT_PRODUCT_2  = altered.run(args.gabarito, args.pairs_dir, only_products={"CLIENT_PRODUCT_2Foil"})
+
+        out_artigo = export_altered(report_artigo, "altered_pairs_artigo")
+        out_CLIENT_PRODUCT_2 = export_altered(report_CLIENT_PRODUCT_2, "altered_pairs_CLIENT_PRODUCT_2_PROPRIETARIO")
+        print(f"Exportado para {EXPORT_DIR}/:")
+        print("  artigo (Domperidona/Buscopan/Albendazol/Sal de Fruta):")
+        for name, path in out_artigo.items():
+            print(f"    {name}: {path.name}")
+        print("  CLIENT_PRODUCT_2 Foil (proprietário, não entra no artigo):")
+        for name, path in out_CLIENT_PRODUCT_2.items():
+            print(f"    {name}: {path.name}")
+        raise SystemExit(0)
 
     if args.manual:
         harness.PAIRS_DIR   = Path(__file__).parent / "manual_pairs"

@@ -1,0 +1,5 @@
+metrica,precision,recall,f1,tp,fp,fn
+lenient,0.917,0.957,0.936,22,2,1
+lenient_normalized,0.958,1.0,0.979,23,1,0
+strict,0.417,0.435,0.426,10,14,13
+strict_normalized,0.75,0.783,0.766,18,6,5
