@@ -104,7 +104,22 @@ def _normalize_text(s: str) -> str:
     return " ".join((s or "").split())
 
 
+def _is_textless_type(expected: dict) -> bool:
+    """visual (and dimensional/compliance) diffs never carry
+    original_text/revised_text — compare_artworks always emits "" for
+    them (pixel/page-size/font-size comparisons, not text extraction).
+    The strict text-match criterion only makes sense for diff types the
+    system actually fills text in for; applying it to a textless type
+    would just measure whether a gabarito author happened to write a
+    descriptive label (e.g. "caixa laranja 60x16 pt") into the same
+    field the system always leaves blank — region (IoU) + page is the
+    only meaningful match criterion for these."""
+    return expected.get("type") in ("visual", "dimensional", "compliance")
+
+
 def _text_matches(expected: dict, detected: dict) -> bool:
+    if _is_textless_type(expected):
+        return True
     return (
         _normalize_text(expected.get("original_text", "")) == _normalize_text(detected.get("original_text", ""))
         and _normalize_text(expected.get("revised_text", "")) == _normalize_text(detected.get("revised_text", ""))
@@ -140,6 +155,8 @@ def _minimal_edit(old_text: str, new_text: str) -> tuple[str, str]:
 
 
 def _text_matches_minimal_edit(expected: dict, detected: dict) -> bool:
+    if _is_textless_type(expected):
+        return True
     exp_old, exp_new = _minimal_edit(expected.get("original_text", ""), expected.get("revised_text", ""))
     det_old, det_new = _minimal_edit(detected.get("original_text", ""), detected.get("revised_text", ""))
     return exp_old == det_old and exp_new == det_new

@@ -44,3 +44,27 @@ caractere/palavra, superestima a quantidade de "erro" do sistema por puro desali
 granularidade); a normalizada mostra o resultado depois de remover esse efeito. Nenhuma das duas
 substitui a outra nos relatórios — ver commits na branch `fix/line-level-text-diff` para os
 números completos, por par e agregados.
+
+## Diffs visuais (`type == "visual"`) não são penalizados por texto nas métricas estritas
+
+`compare_artworks()` nunca extrai texto para uma mudança do tipo `"visual"` — é um diff de
+pixels, não de texto; `original_text`/`revised_text` saem sempre `""`. As métricas `strict` e
+`strict_normalized` aplicam um critério de match de texto (`_text_matches`/
+`_text_matches_minimal_edit` em `harness.py`) em cima do match de bbox+página já aceito pela
+métrica lenient correspondente — mas, para um diff visual, esse critério não mede nada real: só
+mediria se quem escreveu o gabarito por acaso descreveu a mudança (ex. `"(area em branco)"` →
+`"caixa laranja 60x16 pt"`) usando as mesmas palavras que o sistema nunca produz.
+
+Por isso `harness._is_textless_type(expected)` (`type in ("visual", "dimensional",
+"compliance")`) faz `_text_matches`/`_text_matches_minimal_edit` retornarem `True`
+incondicionalmente para esses tipos — **sob as métricas estritas, uma mudança visual exige só
+região (IoU) + página, nunca texto antigo/novo**. Isso não afrouxa nenhum limiar do comparador
+(IoU, threshold de pixel, etc.) nem altera o gabarito: só corrige o que a métrica estrita
+*mede* para um tipo de diff que nunca teve texto para começar. `dimensional`/`compliance` entram
+na mesma regra pelo mesmo motivo (tamanho de página e fonte mínima também não produzem texto).
+
+`eval/run_altered_pairs.py` converte o campo `tipo: "ALTERACAO_VISUAL"` do gabarito acomodando a
+mesma regra na origem: `_to_expected()` não coloca a descrição humana do gabarito em
+`original_text`/`revised_text` para esses casos (fica só em `description`) — redundante com a
+regra acima em `harness.py`, mas evita que o próprio relatório detalhado (que carrega texto real)
+sugira uma comparação de texto que nunca acontece de fato.
