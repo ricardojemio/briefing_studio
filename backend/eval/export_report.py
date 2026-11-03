@@ -100,6 +100,17 @@ def _altered_by_category_rows(report: dict) -> list[dict]:
     return rows
 
 
+def _altered_confusion_rows(report: dict) -> list[dict]:
+    """Numbers only (category names + counts) -- no original_text/
+    revised_text -- so safe for the committed export, same as the rest
+    of this module."""
+    rows = []
+    for exp_cat, row in report["category_confusion"].items():
+        for det_cat, count in row.items():
+            rows.append({"categoria_esperada": exp_cat, "categoria_detectada": det_cat, "n": count})
+    return rows
+
+
 def export_altered(report: dict, out_prefix: str) -> dict[str, Path]:
     """Same numbers-only philosophy as export(): no original_text/
     revised_text, no PDFs — only pair_id, counts, and P/R/F1."""
@@ -108,19 +119,24 @@ def export_altered(report: dict, out_prefix: str) -> dict[str, Path]:
     por_par      = _altered_per_pair_rows(report)
     por_categoria = _altered_by_category_rows(report)
     agregado     = _overall_rows(report)
+    matriz_confusao = _altered_confusion_rows(report)
 
     paths = {
         "por_par":      EXPORT_DIR / f"{out_prefix}_por_par.csv",
         "por_categoria": EXPORT_DIR / f"{out_prefix}_por_categoria.csv",
         "agregado":     EXPORT_DIR / f"{out_prefix}_agregado.csv",
+        "matriz_confusao": EXPORT_DIR / f"{out_prefix}_matriz_confusao.csv",
         "json":         EXPORT_DIR / f"{out_prefix}.json",
     }
     _write_csv(paths["por_par"],       por_par)
     _write_csv(paths["por_categoria"], por_categoria)
     _write_csv(paths["agregado"],      agregado)
+    _write_csv(paths["matriz_confusao"], matriz_confusao)
     paths["json"].write_text(
-        json.dumps({"por_par": por_par, "por_categoria": por_categoria, "agregado": agregado},
-                    ensure_ascii=False, indent=2),
+        json.dumps({
+            "por_par": por_par, "por_categoria": por_categoria, "agregado": agregado,
+            "matriz_confusao": matriz_confusao,
+        }, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     return paths

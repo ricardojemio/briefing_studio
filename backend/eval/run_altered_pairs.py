@@ -66,13 +66,29 @@ def _internal_type_for(entry: dict) -> str:
 
 
 def _to_expected(entry: dict) -> dict:
+    internal_type = _internal_type_for(entry)
+    original, revisado = entry.get("original", ""), entry.get("revisado", "")
+    # Visual diffs are never backed by extracted text -- compare_artworks
+    # always emits original_text="" / revised_text="" for a "visual" diff
+    # (pixel comparison, not text extraction). The gabarito's own
+    # original/revisado fields for an ALTERACAO_VISUAL entry are a
+    # human-written description ("(area em branco)" -> "caixa laranja
+    # 60x16 pt"), not text the system could ever produce, so comparing
+    # it as text would always fail regardless of how correct the
+    # detection is. Keep the description, drop it as a text comparand
+    # (harness._is_textless_type() also guards this independently).
+    if internal_type == "visual":
+        original_text, revised_text = "", ""
+    else:
+        original_text, revised_text = original, revisado
     return {
-        "type":          _internal_type_for(entry),
+        "type":          internal_type,
         "page":          entry["pagina"],
         "bbox":          entry["bbox_pt"],
-        "original_text": entry.get("original", ""),
-        "revised_text":  entry.get("revisado", ""),
-        "description":   f"{entry['tipo']}: {entry.get('original','')!r} -> {entry.get('revisado','')!r}",
+        "original_text": original_text,
+        "revised_text":  revised_text,
+        "description":   f"{entry['tipo']}: {original!r} -> {revisado!r}",
+        "gabarito_tipo": entry["tipo"],
     }
 
 
@@ -80,7 +96,11 @@ def _to_expected(entry: dict) -> dict:
 
 def _category(d: dict) -> str:
     """Groups pdf_comparator._taxonomy()'s 8 subtipos into the 4 top-level
-    categories this report is organised by."""
+    categories this report is organised by. This is what the comparator's
+    DETECTED output actually looks like -- used for the detected side
+    (false positives, and the detected half of the confusion matrix).
+    It is NOT used for the expected/gabarito side anymore; see
+    _expected_category_from_gabarito_tipo()."""
     _, subtipo = _taxonomy(d)
     if subtipo in ("Visual", "Imagem"):
         return "Imagem"
@@ -89,6 +109,32 @@ def _category(d: dict) -> str:
     if subtipo == "Medida/dose":
         return "Medida/dose"
     return "Texto"  # Substituição, Ausência, Adição, Estilo da fonte, Conformidade, Outro
+
+
+_GABARITO_TIPO_TO_CATEGORY = {
+    "SUBSTITUICAO_NUMERO": "Medida/dose",
+    "ERRO_ORTOGRAFICO":    "Texto",
+    "REMOCAO":             "Texto",
+    "ALTERACAO_VISUAL":    "Imagem",
+}
+
+
+def _expected_category_from_gabarito_tipo(gabarito_tipo: str) -> str:
+    """Expected-side category, read directly off the gabarito's own
+    "tipo" field -- NOT re-inferred from its (often phrase-level) text via
+    _taxonomy()'s MEASURE_RE heuristic. MEASURE_RE only recognises a bare
+    number plus a short, fixed unit list; most real dose/quantity
+    gabarito entries ("6 a 8 horas", "20 comprimidos", "durante 3 dias")
+    don't match it and were falling back to "Texto" even though the
+    gabarito itself labels them SUBSTITUICAO_NUMERO. Using the gabarito's
+    own label instead removes that undercount without touching the
+    gabarito file or any comparator threshold -- see item 1's diagnosis
+    (investigations/altered_pairs_category_mismatch/README.md). The
+    detected side keeps using _category()/_taxonomy(), since that's what
+    the comparator itself actually produced; divergences between the two
+    are reported separately as a confusion matrix, not folded into this
+    mapping."""
+    return _GABARITO_TIPO_TO_CATEGORY[gabarito_tipo]
 
 
 # ── PDF discovery: pair *_Original.pdf with *_ALTERADO.pdf by base name ─────────────
@@ -135,6 +181,7 @@ def run(gabarito_path: Path, pairs_dir: Path, only_products: set[str] | None = N
 
     per_pair: dict[str, dict] = {}
     by_category = {m: {"tp": {}, "fp": {}, "fn": {}} for m in harness.METRICS}
+    category_confusion: dict[str, dict[str, int]] = {}
     skipped: list[str] = []
 
     with tempfile.TemporaryDirectory() as preview_dir:
@@ -163,7 +210,7 @@ def run(gabarito_path: Path, pairs_dir: Path, only_products: set[str] | None = N
                 match = matches[kind]
                 tp_d, fp_d, fn_d = by_category[m]["tp"], by_category[m]["fp"], by_category[m]["fn"]
                 for t in match["tp"]:
-                    cat = _category(t["expected"])
+                    cat = _expected_category_from_gabarito_tipo(t["expected"]["gabarito_tipo"])
                     if not strict or t["text_match"]:
                         tp_d[cat] = tp_d.get(cat, 0) + 1
                     else:
@@ -172,7 +219,22 @@ def run(gabarito_path: Path, pairs_dir: Path, only_products: set[str] | None = N
                 for d in match["fp"]:
                     fp_d[_category(d)] = fp_d.get(_category(d), 0) + 1
                 for e in match["fn"]:
-                    fn_d[_category(e)] = fn_d.get(_category(e), 0) + 1
+                    fn_d[_expected_category_from_gabarito_tipo(e["gabarito_tipo"])] = (
+                        fn_d.get(_expected_category_from_gabarito_tipo(e["gabarito_tipo"]), 0) + 1
+                    )
+
+            # Confusion matrix: expected category (gabarito's own "tipo")
+            # vs. detected category (_taxonomy() on what the comparator
+            # actually produced), computed once over lenient_normalized's
+            # TPs (bbox+page+type match regardless of text) -- reported
+            # separately from the P/R/F1 table above, never folded into
+            # it, per item 2.
+            for t in matches["normalized"]["tp"]:
+                exp_cat = _expected_category_from_gabarito_tipo(t["expected"]["gabarito_tipo"])
+                det_cat = _category(t["detected"])
+                if exp_cat != det_cat:
+                    row = category_confusion.setdefault(exp_cat, {})
+                    row[det_cat] = row.get(det_cat, 0) + 1
 
             metrics = {
                 m: harness._prf1(*harness._counts(matches[harness.METRIC_SPECS[m][0]], strict=harness.METRIC_SPECS[m][1]))
@@ -183,7 +245,8 @@ def run(gabarito_path: Path, pairs_dir: Path, only_products: set[str] | None = N
                 "n_detected": len(detected),
                 "metrics": metrics,
                 "false_negatives": [
-                    {**e, "categoria": _category(e)} for e in matches["normalized"]["fn"]
+                    {**e, "categoria": _expected_category_from_gabarito_tipo(e["gabarito_tipo"])}
+                    for e in matches["normalized"]["fn"]
                 ],
                 "false_positives": [
                     {**d, "categoria": _category(d)} for d in matches["normalized"]["fp"]
@@ -194,7 +257,7 @@ def run(gabarito_path: Path, pairs_dir: Path, only_products: set[str] | None = N
                 # too, not just the lenient-unmatched lists above.
                 "text_mismatches": [
                     {
-                        "categoria":    _category(t["expected"]),
+                        "categoria":    _expected_category_from_gabarito_tipo(t["expected"]["gabarito_tipo"]),
                         "page":         t["expected"]["page"],
                         "original_text": t["expected"].get("original_text", ""),
                         "revised_text":  t["expected"].get("revised_text", ""),
@@ -218,6 +281,7 @@ def run(gabarito_path: Path, pairs_dir: Path, only_products: set[str] | None = N
 
     return {
         "pairs": per_pair, "by_category": by_category_report, "overall": overall,
+        "category_confusion": category_confusion,
         "skipped": skipped, "unmatched_files": unmatched_files,
     }
 
@@ -267,6 +331,13 @@ def _print_report(report: dict) -> None:
     print("\n=== Agregado ===")
     for m in harness.METRICS:
         print(f"  {m:20s}: {harness._fmt(report['overall'][m])}")
+
+    print("\n=== Matriz de confusão por categoria (esperado x detectado, só onde divergem) ===")
+    if not report["category_confusion"]:
+        print("  (nenhuma divergência — categoria detectada bate com a esperada em todos os TPs)")
+    for exp_cat, row in sorted(report["category_confusion"].items()):
+        for det_cat, count in sorted(row.items()):
+            print(f"  esperado={exp_cat:12s} detectado={det_cat:12s} n={count}")
 
 
 if __name__ == "__main__":
