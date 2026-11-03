@@ -11,3 +11,10 @@ frontend/dist/
 # on live under backend/eval/ instead and are unaffected by this rule.
 backend/uploads/
 backend/previews/
+
+# Real client/commercial artwork used for the item-D altered-pairs
+# evaluation (Domperidona, Buscopan, Albendazol, Sal de Fruta, CLIENT_PRODUCT_2
+# Foil) and its gabarito — proprietary, never versioned. Unlike
+# backend/eval/manual_pairs and backend/eval/pairs (public ANVISA
+# bulas, intentionally tracked), everything here stays local.
+backend/eval/fixtures_alterados/
