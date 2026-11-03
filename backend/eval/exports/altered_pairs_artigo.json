@@ -16,18 +16,18 @@
       "lenient_normalized_tp": 5,
       "lenient_normalized_fp": 0,
       "lenient_normalized_fn": 0,
-      "strict_precision": 0.6,
-      "strict_recall": 0.6,
-      "strict_f1": 0.6,
-      "strict_tp": 3,
-      "strict_fp": 2,
-      "strict_fn": 2,
-      "strict_normalized_precision": 0.8,
-      "strict_normalized_recall": 0.8,
-      "strict_normalized_f1": 0.8,
-      "strict_normalized_tp": 4,
-      "strict_normalized_fp": 1,
-      "strict_normalized_fn": 1
+      "strict_precision": 0.8,
+      "strict_recall": 0.8,
+      "strict_f1": 0.8,
+      "strict_tp": 4,
+      "strict_fp": 1,
+      "strict_fn": 1,
+      "strict_normalized_precision": 1.0,
+      "strict_normalized_recall": 1.0,
+      "strict_normalized_f1": 1.0,
+      "strict_normalized_tp": 5,
+      "strict_normalized_fp": 0,
+      "strict_normalized_fn": 0
     },
     {
       "pair_id": "Buscopan",
@@ -45,18 +45,18 @@
       "lenient_normalized_tp": 6,
       "lenient_normalized_fp": 0,
       "lenient_normalized_fn": 0,
-      "strict_precision": 0.5,
-      "strict_recall": 0.5,
-      "strict_f1": 0.5,
-      "strict_tp": 3,
-      "strict_fp": 3,
-      "strict_fn": 3,
-      "strict_normalized_precision": 0.833,
-      "strict_normalized_recall": 0.833,
-      "strict_normalized_f1": 0.833,
-      "strict_normalized_tp": 5,
-      "strict_normalized_fp": 1,
-      "strict_normalized_fn": 1
+      "strict_precision": 0.667,
+      "strict_recall": 0.667,
+      "strict_f1": 0.667,
+      "strict_tp": 4,
+      "strict_fp": 2,
+      "strict_fn": 2,
+      "strict_normalized_precision": 1.0,
+      "strict_normalized_recall": 1.0,
+      "strict_normalized_f1": 1.0,
+      "strict_normalized_tp": 6,
+      "strict_normalized_fp": 0,
+      "strict_normalized_fn": 0
     },
     {
       "pair_id": "Albendazol",
@@ -74,18 +74,18 @@
       "lenient_normalized_tp": 6,
       "lenient_normalized_fp": 0,
       "lenient_normalized_fn": 0,
-      "strict_precision": 0.5,
-      "strict_recall": 0.5,
-      "strict_f1": 0.5,
-      "strict_tp": 3,
-      "strict_fp": 3,
-      "strict_fn": 3,
-      "strict_normalized_precision": 0.833,
-      "strict_normalized_recall": 0.833,
-      "strict_normalized_f1": 0.833,
-      "strict_normalized_tp": 5,
-      "strict_normalized_fp": 1,
-      "strict_normalized_fn": 1
+      "strict_precision": 0.667,
+      "strict_recall": 0.667,
+      "strict_f1": 0.667,
+      "strict_tp": 4,
+      "strict_fp": 2,
+      "strict_fn": 2,
+      "strict_normalized_precision": 1.0,
+      "strict_normalized_recall": 1.0,
+      "strict_normalized_f1": 1.0,
+      "strict_normalized_tp": 6,
+      "strict_normalized_fp": 0,
+      "strict_normalized_fn": 0
     },
     {
       "pair_id": "SaldeFruta",
@@ -103,18 +103,18 @@
       "lenient_normalized_tp": 6,
       "lenient_normalized_fp": 1,
       "lenient_normalized_fn": 0,
-      "strict_precision": 0.143,
-      "strict_recall": 0.167,
-      "strict_f1": 0.154,
-      "strict_tp": 1,
-      "strict_fp": 6,
-      "strict_fn": 5,
-      "strict_normalized_precision": 0.571,
-      "strict_normalized_recall": 0.667,
-      "strict_normalized_f1": 0.615,
-      "strict_normalized_tp": 4,
-      "strict_normalized_fp": 3,
-      "strict_normalized_fn": 2
+      "strict_precision": 0.286,
+      "strict_recall": 0.333,
+      "strict_f1": 0.308,
+      "strict_tp": 2,
+      "strict_fp": 5,
+      "strict_fn": 4,
+      "strict_normalized_precision": 0.714,
+      "strict_normalized_recall": 0.833,
+      "strict_normalized_f1": 0.769,
+      "strict_normalized_tp": 5,
+      "strict_normalized_fp": 2,
+      "strict_normalized_fn": 1
     }
   ],
   "por_categoria": [
@@ -131,22 +131,22 @@
     {
       "categoria": "Medida/dose",
       "metrica": "lenient",
-      "precision": 0.5,
-      "recall": 1.0,
-      "f1": 0.667,
-      "tp": 1,
+      "precision": 0.875,
+      "recall": 0.875,
+      "f1": 0.875,
+      "tp": 7,
       "fp": 1,
-      "fn": 0
+      "fn": 1
     },
     {
       "categoria": "Texto",
       "metrica": "lenient",
-      "precision": 0.944,
-      "recall": 0.944,
-      "f1": 0.944,
-      "tp": 17,
+      "precision": 0.917,
+      "recall": 1.0,
+      "f1": 0.957,
+      "tp": 11,
       "fp": 1,
-      "fn": 1
+      "fn": 0
     },
     {
       "categoria": "Imagem",
@@ -164,29 +164,29 @@
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,
-      "tp": 1,
+      "tp": 8,
       "fp": 0,
       "fn": 0
     },
     {
       "categoria": "Texto",
       "metrica": "lenient_normalized",
-      "precision": 0.947,
+      "precision": 0.917,
       "recall": 1.0,
-      "f1": 0.973,
-      "tp": 18,
+      "f1": 0.957,
+      "tp": 11,
       "fp": 1,
       "fn": 0
     },
     {
       "categoria": "Imagem",
       "metrica": "strict",
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0,
-      "tp": 0,
-      "fp": 4,
-      "fn": 4
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0
     },
     {
       "categoria": "Medida/dose",
@@ -195,28 +195,28 @@
       "recall": 0.0,
       "f1": 0.0,
       "tp": 0,
-      "fp": 2,
-      "fn": 1
-    },
-    {
-      "categoria": "Texto",
-      "metrica": "strict",
-      "precision": 0.556,
-      "recall": 0.556,
-      "f1": 0.556,
-      "tp": 10,
       "fp": 8,
       "fn": 8
     },
     {
+      "categoria": "Texto",
+      "metrica": "strict",
+      "precision": 0.833,
+      "recall": 0.909,
+      "f1": 0.87,
+      "tp": 10,
+      "fp": 2,
+      "fn": 1
+    },
+    {
       "categoria": "Imagem",
       "metrica": "strict_normalized",
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0,
-      "tp": 0,
-      "fp": 4,
-      "fn": 4
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0
     },
     {
       "categoria": "Medida/dose",
@@ -224,17 +224,17 @@
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0,
-      "tp": 1,
+      "tp": 8,
       "fp": 0,
       "fn": 0
     },
     {
       "categoria": "Texto",
       "metrica": "strict_normalized",
-      "precision": 0.895,
-      "recall": 0.944,
-      "f1": 0.919,
-      "tp": 17,
+      "precision": 0.833,
+      "recall": 0.909,
+      "f1": 0.87,
+      "tp": 10,
       "fp": 2,
       "fn": 1
     }
@@ -260,21 +260,28 @@
     },
     {
       "metrica": "strict",
-      "precision": 0.417,
-      "recall": 0.435,
-      "f1": 0.426,
-      "tp": 10,
-      "fp": 14,
-      "fn": 13
+      "precision": 0.583,
+      "recall": 0.609,
+      "f1": 0.596,
+      "tp": 14,
+      "fp": 10,
+      "fn": 9
     },
     {
       "metrica": "strict_normalized",
-      "precision": 0.75,
-      "recall": 0.783,
-      "f1": 0.766,
-      "tp": 18,
-      "fp": 6,
-      "fn": 5
+      "precision": 0.917,
+      "recall": 0.957,
+      "f1": 0.936,
+      "tp": 22,
+      "fp": 2,
+      "fn": 1
+    }
+  ],
+  "matriz_confusao": [
+    {
+      "categoria_esperada": "Medida/dose",
+      "categoria_detectada": "Texto",
+      "n": 2
     }
   ]
 }

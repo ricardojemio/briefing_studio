@@ -1,5 +1,5 @@
 pair_id,n_expected,n_detected,lenient_precision,lenient_recall,lenient_f1,lenient_tp,lenient_fp,lenient_fn,lenient_normalized_precision,lenient_normalized_recall,lenient_normalized_f1,lenient_normalized_tp,lenient_normalized_fp,lenient_normalized_fn,strict_precision,strict_recall,strict_f1,strict_tp,strict_fp,strict_fn,strict_normalized_precision,strict_normalized_recall,strict_normalized_f1,strict_normalized_tp,strict_normalized_fp,strict_normalized_fn
-Domperidona,5,5,1.0,1.0,1.0,5,0,0,1.0,1.0,1.0,5,0,0,0.6,0.6,0.6,3,2,2,0.8,0.8,0.8,4,1,1
-Buscopan,6,6,1.0,1.0,1.0,6,0,0,1.0,1.0,1.0,6,0,0,0.5,0.5,0.5,3,3,3,0.833,0.833,0.833,5,1,1
-Albendazol,6,6,0.833,0.833,0.833,5,1,1,1.0,1.0,1.0,6,0,0,0.5,0.5,0.5,3,3,3,0.833,0.833,0.833,5,1,1
-SaldeFruta,6,7,0.857,1.0,0.923,6,1,0,0.857,1.0,0.923,6,1,0,0.143,0.167,0.154,1,6,5,0.571,0.667,0.615,4,3,2
+Domperidona,5,5,1.0,1.0,1.0,5,0,0,1.0,1.0,1.0,5,0,0,0.8,0.8,0.8,4,1,1,1.0,1.0,1.0,5,0,0
+Buscopan,6,6,1.0,1.0,1.0,6,0,0,1.0,1.0,1.0,6,0,0,0.667,0.667,0.667,4,2,2,1.0,1.0,1.0,6,0,0
+Albendazol,6,6,0.833,0.833,0.833,5,1,1,1.0,1.0,1.0,6,0,0,0.667,0.667,0.667,4,2,2,1.0,1.0,1.0,6,0,0
+SaldeFruta,6,7,0.857,1.0,0.923,6,1,0,0.857,1.0,0.923,6,1,0,0.286,0.333,0.308,2,5,4,0.714,0.833,0.769,5,2,1
