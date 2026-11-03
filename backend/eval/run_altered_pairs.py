@@ -58,7 +58,7 @@ def _internal_type_for(entry: dict) -> str:
         return "visual"
     if tipo == "REMOCAO" or (revisado == "" and original != ""):
         return "text_removed"
-    if tipo in ("SUBSTITUICAO_NUMERO", "ERRO_ORTOGRAFICO"):
+    if tipo in ("SUBSTITUICAO_NUMERO", "ERRO_ORTOGRAFICO", "ALTERACAO_CODIGO"):
         if EAN_RE.search(original) or EAN_RE.search(revisado):
             return "ean_changed"
         return "text_changed"
@@ -116,6 +116,7 @@ _GABARITO_TIPO_TO_CATEGORY = {
     "ERRO_ORTOGRAFICO":    "Texto",
     "REMOCAO":             "Texto",
     "ALTERACAO_VISUAL":    "Imagem",
+    "ALTERACAO_CODIGO":    "Código",
 }
 
 
