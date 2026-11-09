@@ -206,6 +206,32 @@ def run(gabarito_path: Path, pairs_dir: Path, only_products: set[str] | None = N
                 "normalized": harness._match_normalized(expected, detected),
             }
 
+            # RULE (by_category attribution): TP and FN always count in the
+            # EXPECTED category (the gabarito's own "tipo") — an FN has no
+            # detected side to begin with, and a TP's correctness is about
+            # whether the real edit was found, not about which category
+            # label the comparator's own output happens to carry. FP (a
+            # detection with no matching expected change) counts in the
+            # DETECTED category — there IS no expected side for it.
+            # A TP whose expected and detected categories diverge (e.g.
+            # CodigoMS's "MS 1.0367.0013"->"MS 1.0367.0031": gabarito says
+            # Código, but the comparator's word-level diff drops the "MS "
+            # prefix and reports a bare number that doesn't match EAN_RE,
+            # so _taxonomy() calls it Texto) still counts as ONE tp in the
+            # expected category — never as an extra fp in the detected one
+            # — and the divergence is recorded separately in
+            # category_confusion (below), never folded into tp/fp/fn.
+            # Only a genuine TEXT mismatch under strict/strict_normalized
+            # demotes a TP into 1 fp + 1 fn, and that demotion also stays
+            # in the EXPECTED category (strict is about whether the right
+            # content was reported for the right edit, not a second
+            # categorization event).
+            #
+            # This keeps sum(by_category[m][*].values()) == overall[m] by
+            # construction, for every m in harness.METRICS — see the
+            # consistency test in
+            # tests/test_altered_pairs_category_consistency.py and
+            # investigations/altered_pairs_category_consistency/README.md.
             for m in harness.METRICS:
                 kind, strict = harness.METRIC_SPECS[m]
                 match = matches[kind]

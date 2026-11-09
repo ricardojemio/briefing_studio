@@ -295,7 +295,14 @@ def _bump_subtipo_counts(by_subtipo: dict, match: dict, metric: str, strict: boo
     (_taxonomy in pdf_comparator.py) instead of the internal `type` — e.g.
     separates a dose/measure edit ("Medida/dose") from a general word
     substitution ("Substituição"), which `type` alone can't (both are
-    text_changed)."""
+    text_changed).
+
+    RULE (shared with run_altered_pairs.py's by_category): tp/fn always
+    key off the EXPECTED side's subtipo; fp (no expected side to key off
+    of) keys off the DETECTED side's. This is what keeps
+    sum(by_subtipo[m][*].values()) == by_type[m]'s equivalent sum == the
+    overall tp/fp/fn for every m, by construction — see
+    investigations/altered_pairs_category_consistency/README.md."""
     tp_d, fp_d, fn_d = by_subtipo[metric]["tp"], by_subtipo[metric]["fp"], by_subtipo[metric]["fn"]
     for t in match["tp"]:
         sub = _taxonomy(t["expected"])[1]
