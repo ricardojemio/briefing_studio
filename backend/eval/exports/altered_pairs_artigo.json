@@ -115,9 +115,48 @@
       "strict_normalized_tp": 5,
       "strict_normalized_fp": 2,
       "strict_normalized_fn": 1
+    },
+    {
+      "pair_id": "CodigoMS",
+      "n_expected": 2,
+      "n_detected": 2,
+      "lenient_precision": 1.0,
+      "lenient_recall": 1.0,
+      "lenient_f1": 1.0,
+      "lenient_tp": 2,
+      "lenient_fp": 0,
+      "lenient_fn": 0,
+      "lenient_normalized_precision": 1.0,
+      "lenient_normalized_recall": 1.0,
+      "lenient_normalized_f1": 1.0,
+      "lenient_normalized_tp": 2,
+      "lenient_normalized_fp": 0,
+      "lenient_normalized_fn": 0,
+      "strict_precision": 0.5,
+      "strict_recall": 0.5,
+      "strict_f1": 0.5,
+      "strict_tp": 1,
+      "strict_fp": 1,
+      "strict_fn": 1,
+      "strict_normalized_precision": 1.0,
+      "strict_normalized_recall": 1.0,
+      "strict_normalized_f1": 1.0,
+      "strict_normalized_tp": 2,
+      "strict_normalized_fp": 0,
+      "strict_normalized_fn": 0
     }
   ],
   "por_categoria": [
+    {
+      "categoria": "Código",
+      "metrica": "lenient",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0
+    },
     {
       "categoria": "Imagem",
       "metrica": "lenient",
@@ -146,6 +185,16 @@
       "f1": 0.957,
       "tp": 11,
       "fp": 1,
+      "fn": 0
+    },
+    {
+      "categoria": "Código",
+      "metrica": "lenient_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 2,
+      "fp": 0,
       "fn": 0
     },
     {
@@ -179,6 +228,16 @@
       "fn": 0
     },
     {
+      "categoria": "Código",
+      "metrica": "strict",
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1": 0.5,
+      "tp": 1,
+      "fp": 1,
+      "fn": 1
+    },
+    {
       "categoria": "Imagem",
       "metrica": "strict",
       "precision": 1.0,
@@ -207,6 +266,16 @@
       "tp": 10,
       "fp": 2,
       "fn": 1
+    },
+    {
+      "categoria": "Código",
+      "metrica": "strict_normalized",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0
     },
     {
       "categoria": "Imagem",
@@ -242,37 +311,37 @@
   "agregado": [
     {
       "metrica": "lenient",
-      "precision": 0.917,
-      "recall": 0.957,
-      "f1": 0.936,
-      "tp": 22,
+      "precision": 0.923,
+      "recall": 0.96,
+      "f1": 0.941,
+      "tp": 24,
       "fp": 2,
       "fn": 1
     },
     {
       "metrica": "lenient_normalized",
-      "precision": 0.958,
+      "precision": 0.962,
       "recall": 1.0,
-      "f1": 0.979,
-      "tp": 23,
+      "f1": 0.98,
+      "tp": 25,
       "fp": 1,
       "fn": 0
     },
     {
       "metrica": "strict",
-      "precision": 0.583,
-      "recall": 0.609,
-      "f1": 0.596,
-      "tp": 14,
-      "fp": 10,
-      "fn": 9
+      "precision": 0.577,
+      "recall": 0.6,
+      "f1": 0.588,
+      "tp": 15,
+      "fp": 11,
+      "fn": 10
     },
     {
       "metrica": "strict_normalized",
-      "precision": 0.917,
-      "recall": 0.957,
-      "f1": 0.936,
-      "tp": 22,
+      "precision": 0.923,
+      "recall": 0.96,
+      "f1": 0.941,
+      "tp": 24,
       "fp": 2,
       "fn": 1
     }
@@ -282,6 +351,11 @@
       "categoria_esperada": "Medida/dose",
       "categoria_detectada": "Texto",
       "n": 2
+    },
+    {
+      "categoria_esperada": "Código",
+      "categoria_detectada": "Texto",
+      "n": 1
     }
   ]
 }

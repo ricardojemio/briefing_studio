@@ -21,9 +21,10 @@ Run inside Docker, from backend/:
     python -m eval.export_report --altered \\
         --gabarito eval/fixtures_alterados/gabarito_alteracoes.json \\
         --pairs-dir eval/fixtures_alterados
-        # item D's 5 real altered pairs — exports the 4 "artigo" bulas
-        # (Domperidona/Buscopan/Albendazol/Sal de Fruta) and CLIENT_PRODUCT_2 Foil
-        # (proprietary, not in the article) as two separate prefixes.
+        # item D's real altered pairs — exports the 5 "artigo" pairs
+        # (Domperidona/Buscopan/Albendazol/Sal de Fruta/CodigoMS) and
+        # CLIENT_PRODUCT_2 Foil (proprietary, not in the article) as two separate
+        # prefixes.
 """
 
 from __future__ import annotations
@@ -197,14 +198,14 @@ if __name__ == "__main__":
         if not args.gabarito or not args.pairs_dir:
             raise SystemExit("--altered requires --gabarito and --pairs-dir")
 
-        artigo_products = {"Domperidona", "Buscopan", "Albendazol", "SaldeFruta"}
+        artigo_products = {"Domperidona", "Buscopan", "Albendazol", "SaldeFruta", "CodigoMS"}
         report_artigo  = altered.run(args.gabarito, args.pairs_dir, only_products=artigo_products)
         report_CLIENT_PRODUCT_2  = altered.run(args.gabarito, args.pairs_dir, only_products={"CLIENT_PRODUCT_2Foil"})
 
         out_artigo = export_altered(report_artigo, "altered_pairs_artigo")
         out_CLIENT_PRODUCT_2 = export_altered(report_CLIENT_PRODUCT_2, "altered_pairs_CLIENT_PRODUCT_2_PROPRIETARIO")
         print(f"Exportado para {EXPORT_DIR}/:")
-        print("  artigo (Domperidona/Buscopan/Albendazol/Sal de Fruta):")
+        print("  artigo (Domperidona/Buscopan/Albendazol/Sal de Fruta/CodigoMS):")
         for name, path in out_artigo.items():
             print(f"    {name}: {path.name}")
         print("  CLIENT_PRODUCT_2 Foil (proprietário, não entra no artigo):")
