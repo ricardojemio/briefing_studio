@@ -2,6 +2,15 @@ __pycache__/
 *.pyc
 backend/cache/
 frontend/dist/
+node_modules/
+.env
+.DS_Store
+**/.DS_Store
+
+# Debug/diagnostic artifacts (collision-detection crops, one-off PDF
+# engine spikes) — never meant to be versioned, regardless of content.
+backend/audit_crops/
+spike/
 
 # Runtime uploads/renders of real artwork (CLIENT_PRODUCT, CLIENT_PRODUCT_2, Mounjaro and any
 # other client art) must never be versioned — these directories hold
